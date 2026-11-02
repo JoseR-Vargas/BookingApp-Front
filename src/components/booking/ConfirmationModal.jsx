@@ -59,7 +59,7 @@ export default function ConfirmationModal({ open, onClose, details }) {
             <i aria-hidden="true" className="fas fa-envelope mr-1" /> Te enviamos la confirmación a <strong>{details.email}</strong>
           </p>
 
-          <Button size="cta" onClick={onClose} aria-label="Cerrar confirmación">
+          <Button size="cta" onClick={onClose}>
             Entendido
             <i aria-hidden="true" className="fas fa-check ml-3.5" />
           </Button>

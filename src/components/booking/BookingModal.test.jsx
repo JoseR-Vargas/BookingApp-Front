@@ -211,7 +211,7 @@ describe('BookingModal happy path', () => {
     expect(toast.error).not.toHaveBeenCalled();
 
     // The confirmation can be dismissed with its own button.
-    await user.click(within(confirmation).getByRole('button', { name: 'Cerrar confirmación' }));
+    await user.click(within(confirmation).getByRole('button', { name: 'Entendido' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: '¡Reserva Confirmada!' })).not.toBeInTheDocument(),
     );
@@ -948,7 +948,7 @@ describe('modal lifecycle', () => {
     await user.keyboard('{Escape}');
     expect(screen.getByRole('dialog', { name: '¡Reserva Confirmada!' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Cerrar confirmación' }));
+    await user.click(screen.getByRole('button', { name: 'Entendido' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: '¡Reserva Confirmada!' })).not.toBeInTheDocument(),
     );

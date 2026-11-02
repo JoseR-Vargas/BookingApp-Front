@@ -14,6 +14,7 @@ const CHECKBOX =
  */
 export default function ClientFormStep({ formRef, validated }) {
   const termsId = useId();
+  const fieldId = (name) => `${termsId}-${name}`;
 
   return (
     <div>
@@ -29,9 +30,10 @@ export default function ClientFormStep({ formRef, validated }) {
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className={FIELD_LABEL}>Nombre Completo *</label>
+            <label htmlFor={fieldId('name')} className={FIELD_LABEL}>Nombre Completo *</label>
             <input
               type="text"
+              id={fieldId('name')}
               name="name"
               className={`peer ${INPUT_LG}`}
               required
@@ -43,9 +45,10 @@ export default function ClientFormStep({ formRef, validated }) {
 
           {/* Legacy keeps this column in the DOM but never shows it (`display: none`). */}
           <div hidden>
-            <label className={FIELD_LABEL}>Cédula</label>
+            <label htmlFor={fieldId('id')} className={FIELD_LABEL}>Cédula</label>
             <input
               type="text"
+              id={fieldId('id')}
               name="id"
               className={INPUT_LG}
               placeholder="Tu número de cédula"
@@ -54,9 +57,10 @@ export default function ClientFormStep({ formRef, validated }) {
           </div>
 
           <div>
-            <label className={FIELD_LABEL}>Email *</label>
+            <label htmlFor={fieldId('email')} className={FIELD_LABEL}>Email *</label>
             <input
               type="email"
+              id={fieldId('email')}
               name="email"
               className={`peer ${INPUT_LG}`}
               required
@@ -67,9 +71,10 @@ export default function ClientFormStep({ formRef, validated }) {
           </div>
 
           <div>
-            <label className={FIELD_LABEL}>Teléfono *</label>
+            <label htmlFor={fieldId('phone')} className={FIELD_LABEL}>Teléfono *</label>
             <input
               type="tel"
+              id={fieldId('phone')}
               name="phone"
               className={`peer ${INPUT_LG}`}
               required
@@ -80,8 +85,9 @@ export default function ClientFormStep({ formRef, validated }) {
           </div>
 
           <div className="md:col-span-2">
-            <label className={FIELD_LABEL}>Notas (Opcional)</label>
+            <label htmlFor={fieldId('notes')} className={FIELD_LABEL}>Notas (Opcional)</label>
             <textarea
+              id={fieldId('notes')}
               name="notes"
               rows={3}
               className={TEXTAREA}
