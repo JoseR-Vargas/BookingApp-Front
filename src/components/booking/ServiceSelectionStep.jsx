@@ -10,7 +10,7 @@ export default function ServiceSelectionStep({ onSelect }) {
   return (
     <div>
       <StepHeading title="Elige tu Servicio" subtitle="Selecciona el servicio que deseas reservar" />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lte-md:gap-2">
         {APP_CONFIG.SERVICES.map((service) => (
           <ServiceSelectionCard
             key={service.id}

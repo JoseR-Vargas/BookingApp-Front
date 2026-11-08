@@ -102,7 +102,7 @@ export default function ScheduleStep() {
 
       <div className="mt-4">
         <label className={FIELD_LABEL}>Elige tu Profesional</label>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lte-md:gap-2">
           {professionals.map((professional) => (
             <ProfessionalCard
               key={professional.id}

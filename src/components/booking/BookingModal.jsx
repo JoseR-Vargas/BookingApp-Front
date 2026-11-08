@@ -194,7 +194,7 @@ export default function BookingModal({ open, onClose }) {
   return (
     <>
       <Modal open={open} onClose={onClose}>
-        <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border bg-bg-primary p-4">
+        <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border bg-bg-primary p-4 lte-md:px-4 lte-md:py-3">
           <DialogTitle
             as="h5"
             className="mb-0 text-[1.25rem] leading-normal font-bold text-text-primary lte-md:text-[1.1rem]"
@@ -212,7 +212,7 @@ export default function BookingModal({ open, onClose }) {
           </button>
         </div>
 
-        <div className="flex-auto bg-bg-secondary p-4">
+        <div className="flex-auto bg-bg-secondary p-4 lte-md:p-3">
           {/* All steps stay mounted (only hidden) like legacy: values typed in a step survive "Anterior". */}
           <div hidden={currentStep !== 1}>
             <ServiceSelectionStep onSelect={handleSelectService} />
