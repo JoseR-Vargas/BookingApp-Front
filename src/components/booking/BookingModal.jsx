@@ -7,7 +7,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { buildBookingPayload, checkAvailability, createBooking } from '../../services/bookingService.js';
 import { useBooking } from '../../state/bookingState.jsx';
 import { toast } from '../../ui/toast.js';
-import { getTotalPrice } from '../../utils/serviceSelection.js';
+import { getServiceIds, getTotalPrice } from '../../utils/serviceSelection.js';
 import Button from '../ui/Button.jsx';
 import Modal from '../ui/Modal.jsx';
 import Spinner from '../ui/Spinner.jsx';
@@ -117,7 +117,7 @@ export default function BookingModal({ open, onClose }) {
       // Last-second check. A failing check must not block the booking (legacy behavior).
       let available = true;
       try {
-        available = await checkAvailability(date, time, professional.id);
+        available = await checkAvailability(date, time, professional.id, getServiceIds(services));
       } catch {
         available = true;
       }

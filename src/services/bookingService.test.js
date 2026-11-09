@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createBooking, getBookings, checkAvailability, buildBookingPayload } from './bookingService.js';
+import { createBooking, getAvailability, checkAvailability, buildBookingPayload } from './bookingService.js';
 import { APP_CONFIG } from '../config/appConfig.js';
 
 const okJson = (data) => ({ ok: true, status: 200, json: async () => data });
@@ -54,18 +54,20 @@ describe('bookingService HTTP contract', () => {
     await assertion;
   });
 
-  it('getBookings GETs /api/bookings without a body', async () => {
-    fetch.mockResolvedValue(okJson([]));
+  it('getAvailability GETs /api/availability with the date and the comma-separated service ids', async () => {
+    const availability = { date: '2030-01-07', closed: false, professionals: [] };
+    fetch.mockResolvedValue(okJson(availability));
 
-    await getBookings();
+    const result = await getAvailability('2030-01-07', ['consulta-inicial', 'servicio-basico']);
 
+    expect(result).toEqual(availability);
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/bookings`);
+    expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/availability?date=2030-01-07&serviceIds=consulta-inicial,servicio-basico`);
     expect(init.method).toBe('GET');
     expect(init.body).toBeUndefined();
   });
 
-  it('getBookings forwards the timeout option', async () => {
+  it('getAvailability forwards the timeout option', async () => {
     vi.useFakeTimers();
     let signal;
     fetch.mockImplementation((_url, init) => {
@@ -73,7 +75,7 @@ describe('bookingService HTTP contract', () => {
       return new Promise(() => {});
     });
 
-    getBookings({ timeout: 15000 });
+    getAvailability('2030-01-07', ['servicio-basico'], { timeout: 15000 });
     await vi.advanceTimersByTimeAsync(14999);
     expect(signal.aborted).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
@@ -82,39 +84,33 @@ describe('bookingService HTTP contract', () => {
 });
 
 describe('bookingService.checkAvailability', () => {
-  const existing = [
-    { date: '2030-01-07', time: '10:00', status: 'confirmed', professional: { id: 'alex-garcia' } },
-    { date: '2030-01-07', time: '11:00', status: 'cancelled', professional: { id: 'alex-garcia' } },
-    { date: '2030-01-07', time: '12:00', status: 'confirmed', professional: { id: 99 } },
-    { date: '2030-01-07', time: '15:00', status: 'confirmed' },
-    { date: '2030-01-07', time: '16:00', status: 'confirmed', professional: {} },
-  ];
+  it('POSTs the whole window to /api/bookings/availability and returns the verdict', async () => {
+    fetch.mockResolvedValue(okJson({ available: false }));
 
-  beforeEach(() => {
-    fetch.mockResolvedValue(okJson(existing));
+    const available = await checkAvailability('2030-01-07', '10:00', 'alex-garcia', ['servicio-basico', 'servicio-premium']);
+
+    expect(available).toBe(false);
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/bookings/availability`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({
+      date: '2030-01-07',
+      time: '10:00',
+      professionalId: 'alex-garcia',
+      serviceIds: ['servicio-basico', 'servicio-premium'],
+    });
   });
 
-  it('is false when the same professional already has that slot', async () => {
-    expect(await checkAvailability('2030-01-07', '10:00', 'alex-garcia')).toBe(false);
+  it('is true when the backend says the window is free', async () => {
+    fetch.mockResolvedValue(okJson({ available: true }));
+
+    expect(await checkAvailability('2030-01-07', '09:00', 'maria-lopez', ['servicio-basico'])).toBe(true);
   });
 
-  it('is true for a free slot or another professional', async () => {
-    expect(await checkAvailability('2030-01-07', '09:00', 'alex-garcia')).toBe(true);
-    expect(await checkAvailability('2030-01-07', '10:00', 'maria-lopez')).toBe(true);
-    expect(await checkAvailability('2030-01-08', '10:00', 'alex-garcia')).toBe(true);
-  });
+  it('propagates request failures (the caller decides to fail open)', async () => {
+    fetch.mockRejectedValue(new Error('boom'));
 
-  it('ignores cancelled bookings', async () => {
-    expect(await checkAvailability('2030-01-07', '11:00', 'alex-garcia')).toBe(true);
-  });
-
-  it('compares ids as strings', async () => {
-    expect(await checkAvailability('2030-01-07', '12:00', '99')).toBe(false);
-  });
-
-  it('ignores bookings with a missing professional or professional id', async () => {
-    expect(await checkAvailability('2030-01-07', '15:00', 'alex-garcia')).toBe(true);
-    expect(await checkAvailability('2030-01-07', '16:00', 'alex-garcia')).toBe(true);
+    await expect(checkAvailability('2030-01-07', '09:00', 'maria-lopez', ['servicio-basico'])).rejects.toThrow('boom');
   });
 });
 

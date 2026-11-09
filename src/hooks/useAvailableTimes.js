@@ -2,15 +2,18 @@
 // Hook port of legacy `loadAvailableTimes` + `updateAvailableTimesForProfessional` (+ retry flow)
 // from js/booking-app.js. It owns the availability fetch and returns what the time <select> renders.
 //
-// Deliberate improvement over legacy: availability is recomputed whenever BOTH the date and the
-// professional are set and EITHER changes (legacy only refreshed on a professional change, leaving
+// The backend (GET /api/availability) answers with the free START times of every professional for
+// the back-to-back block of the selected services; the day grid minus those times is shown as "Ocupado".
+//
+// Deliberate improvement over legacy: availability is recomputed whenever the date, the professional
+// or the selected services change (legacy only refreshed on a professional change, leaving
 // stale/unfiltered slots after a date change). Responses of superseded requests are ignored.
 
 import { useEffect, useState } from 'react';
-import { getBookings } from '../services/bookingService.js';
+import { getAvailability } from '../services/bookingService.js';
 import { toast } from '../ui/toast.js';
 import { isMobileDevice, isSlowConnection } from '../utils/device.js';
-import { buildTimeSlots, getBookedTimes } from '../utils/schedule.js';
+import { buildTimeSlots, getUnavailableTimes } from '../utils/schedule.js';
 
 const MAX_RETRIES = 2;
 const WARNING_DURATION = 10000;
@@ -39,15 +42,18 @@ function isRetryable(error) {
 /**
  * @param {string|null} date  'YYYY-MM-DD' or null
  * @param {string|null} professionalId
+ * @param {string[]} serviceIds  ids of the selected services (the booking window is their total duration)
  * @returns {{
  *   placeholder: string,                       // text of the empty first <option>
  *   slots: {value: string, booked: boolean}[], // the selectable hours
  *   settled: boolean,                          // true when `slots` is final (not loading / retrying)
  * }}
  */
-export function useAvailableTimes(date, professionalId) {
+export function useAvailableTimes(date, professionalId, serviceIds) {
   const [remote, setRemote] = useState(null);
-  const key = date && professionalId ? date + '|' + professionalId : null;
+  // A string key keeps the effect stable while callers pass a fresh array on every render.
+  const servicesKey = serviceIds.join(',');
+  const key = date && professionalId && servicesKey ? [date, professionalId, servicesKey].join('|') : null;
 
   useEffect(() => {
     if (!key) return undefined;
@@ -61,14 +67,15 @@ export function useAvailableTimes(date, professionalId) {
       setRemote({ key, phase: 'loading', mobile, attempt, bookedTimes: null });
 
       try {
-        const bookings = await getBookings({ timeout });
+        const availability = await getAvailability(date, servicesKey.split(','), { timeout });
         if (cancelled) return;
+        const professional = availability.professionals.find((p) => p.id === professionalId);
         setRemote({
           key,
           phase: 'ready',
           mobile,
           attempt,
-          bookedTimes: getBookedTimes(bookings, date, professionalId),
+          bookedTimes: getUnavailableTimes(date, professional ? professional.slots : []),
         });
       } catch (error) {
         if (cancelled) return;
@@ -90,7 +97,7 @@ export function useAvailableTimes(date, professionalId) {
       cancelled = true;
       clearTimeout(retryTimer);
     };
-  }, [key, date, professionalId]);
+  }, [key, date, professionalId, servicesKey]);
 
   if (!date) {
     return { placeholder: NO_DATE_TEXT, slots: [], settled: true };

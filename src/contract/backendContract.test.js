@@ -155,12 +155,14 @@ describe('POST /api/bookings payload vs CreateBookingDto / Booking schema', () =
 const BACKEND_ROUTES = [
   ['POST', '/api/bookings'],
   ['GET', '/api/bookings'],
+  ['POST', '/api/bookings/availability'],
+  ['GET', '/api/availability'],
   ['GET', '/api/bookings/statistics'],
   ['DELETE', '/api/bookings/:id'],
 ];
 
 const matchesRoute = (method, url) => BACKEND_ROUTES.some(([m, template]) => (
-  m === method && new RegExp(`^${template.replace(':id', '[^/]+')}$`).test(url)
+  m === method && new RegExp(`^${template.replace(':id', '[^/]+')}$`).test(url.split('?')[0])
 ));
 
 describe('endpoints used by the services exist in the backend controller', () => {
@@ -180,14 +182,16 @@ describe('endpoints used by the services exist in the backend controller', () =>
 
   it('every call issued by bookingService and adminService maps to a backend route', async () => {
     await bookingService.createBooking(payloadFor({ name: 'Ana', email: 'a@b.co', phone: '1' }));
-    await bookingService.getBookings();
+    await bookingService.getAvailability('2030-01-15', ['consulta-inicial', 'servicio-basico']);
+    await bookingService.checkAvailability('2030-01-15', '10:00', 'alex-garcia', ['consulta-inicial']);
     await adminService.getBookings();
     await adminService.getStatistics();
     await adminService.deleteBooking('665f1c2e9b1d4a0012345678');
 
     expect(calls).toEqual([
       { method: 'POST', url: '/api/bookings' },
-      { method: 'GET', url: '/api/bookings' },
+      { method: 'GET', url: '/api/availability?date=2030-01-15&serviceIds=consulta-inicial,servicio-basico' },
+      { method: 'POST', url: '/api/bookings/availability' },
       { method: 'GET', url: '/api/bookings' },
       { method: 'GET', url: '/api/bookings/statistics' },
       { method: 'DELETE', url: '/api/bookings/665f1c2e9b1d4a0012345678' },
@@ -195,12 +199,6 @@ describe('endpoints used by the services exist in the backend controller', () =>
     for (const { method, url } of calls) {
       expect(matchesRoute(method, url), `${method} ${url}`).toBe(true);
     }
-  });
-
-  it('checkAvailability only reads GET /api/bookings (POST /availability is not used)', async () => {
-    await bookingService.checkAvailability('2030-01-15', '10:00', 'alex-garcia');
-
-    expect(calls).toEqual([{ method: 'GET', url: '/api/bookings' }]);
   });
 });
 
@@ -234,6 +232,17 @@ describe.skipIf(!backendAvailable)('cross-check with ../BookingApp_Back source (
     expect(controller).toMatch(/@Get\(\)\s+findAll\(/);
     expect(controller).toMatch(/@Get\(\s*'statistics'\s*\)/);
     expect(controller).toMatch(/@Delete\(\s*':id'\s*\)/);
+  });
+
+  it('availability endpoints take the date and the comma-separated service ids', () => {
+    const availability = read('availability/availability.controller.ts');
+    const bookings = read('bookings/bookings.controller.ts');
+
+    expect(availability).toMatch(/@Controller\(\s*'availability'\s*\)/);
+    expect(availability).toMatch(/@Query\(\s*'date'\s*\)/);
+    expect(availability).toMatch(/@Query\(\s*'serviceIds'\s*\)/);
+    expect(bookings).toMatch(/@Post\(\s*'availability'\s*\)/);
+    expect(bookings).toMatch(/professionalId: string;\s+serviceIds: string\[\];/);
   });
 
   it("gateway emits the 'newBooking' event", () => {

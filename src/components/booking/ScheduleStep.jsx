@@ -3,7 +3,7 @@ import { APP_CONFIG } from '../../config/appConfig.js';
 import { useAvailableTimes } from '../../hooks/useAvailableTimes.js';
 import { useBooking } from '../../state/bookingState.jsx';
 import { formatLongDateUTC, formatMoney } from '../../utils/format.js';
-import { getCommonProfessionalIds, getTotalDuration, getTotalPrice } from '../../utils/serviceSelection.js';
+import { getCommonProfessionalIds, getServiceIds, getTotalDuration, getTotalPrice } from '../../utils/serviceSelection.js';
 import DatePicker from '../ui/DatePicker.jsx';
 import Select from '../ui/Select.jsx';
 import { FIELD_LABEL, HELP_TEXT, INPUT_LG, SELECT_LG, SELECT_TOGGLE_LG } from './fieldStyles.js';
@@ -50,7 +50,11 @@ export default function ScheduleStep() {
   const { selectedServices, selectedDate, selectedTime, selectedProfessional } = state;
   const helperId = useId();
 
-  const times = useAvailableTimes(selectedDate, selectedProfessional ? selectedProfessional.id : null);
+  const times = useAvailableTimes(
+    selectedDate,
+    selectedProfessional ? selectedProfessional.id : null,
+    getServiceIds(selectedServices),
+  );
 
   // Deliberate improvement: legacy kept a stale time in its state while the rebuilt <select>
   // showed nothing. Once the slots are final, a time that is no longer free is dropped.

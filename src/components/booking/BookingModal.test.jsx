@@ -28,6 +28,8 @@ const OTHER_MONDAY = '2030-03-11';
 const SATURDAY = '2030-03-09';
 const SUNDAY = '2030-03-10';
 const API_URL = 'http://localhost:3000/api/bookings';
+const AVAILABILITY_URL = 'http://localhost:3000/api/availability';
+const CHECK_URL = `${API_URL}/availability`;
 
 const MESSAGES = {
   desktopFallback:
@@ -43,38 +45,88 @@ const jsonResponse = (status, data) => ({
   text: async () => JSON.stringify(data),
 });
 
+// Hours a professional works (lunch at 13:00 is closed; Saturday ends at 18:00, Sunday is closed).
+function openHours(date) {
+  const [year, month, day] = date.split('-').map(Number);
+  const weekday = new Date(year, month - 1, day).getDay();
+  if (weekday === 0) return [];
+  const lastHour = weekday === 6 ? 17 : 19;
+  return [9, 10, 11, 12, 14, 15, 16, 17, 18, 19].filter((hour) => hour <= lastHour);
+}
+
+const hourOf = (time) => Number(time.slice(0, 2));
+const formatHour = (hour) => String(hour).padStart(2, '0') + ':00';
+
 // Fake backend installed at the `fetch` boundary, so the REAL apiClient + bookingService run
 // and the tests can assert the exact URL / method / body that reaches the network.
+// It mirrors the real availability rules: a window of ceil(totalDuration / 60) back-to-back hours
+// must be open and free of the professional's non-cancelled bookings (`slots`, default [time]).
 function installBackend({ bookings = [] } = {}) {
   const backend = {
     bookings,
     calls: [],
-    getError: null,
+    availabilityError: null,
     postResponse: null,
     postGate: null,
     get posts() {
-      return backend.calls.filter((c) => c.method === 'POST');
+      return backend.calls.filter((c) => c.method === 'POST' && c.url === API_URL);
+    },
+    get checks() {
+      return backend.calls.filter((c) => c.url === CHECK_URL);
     },
     get gets() {
       return backend.calls.filter((c) => c.method === 'GET');
     },
   };
 
+  const occupiedHours = (date, professionalId) => new Set(
+    backend.bookings
+      .filter((b) => b.date === date && b.professional.id === professionalId && b.status !== 'cancelled')
+      .flatMap((b) => (b.slots || [b.time]).map(hourOf)),
+  );
+
+  const isWindowFree = (date, professionalId, startHour, serviceIds) => {
+    const totalDuration = serviceIds
+      .map((id) => APP_CONFIG.SERVICES.find((service) => service.id === id).duration)
+      .reduce((sum, duration) => sum + duration, 0);
+    const open = openHours(date);
+    const occupied = occupiedHours(date, professionalId);
+    return Array.from({ length: Math.ceil(totalDuration / 60) }, (_, i) => startHour + i)
+      .every((hour) => open.includes(hour) && !occupied.has(hour));
+  };
+
+  const availabilityFor = (date, serviceIds) => ({
+    date,
+    closed: openHours(date).length === 0,
+    services: [],
+    totalDuration: 0,
+    professionals: APP_CONFIG.PROFESSIONALS.map((professional) => ({
+      id: professional.id,
+      name: professional.name,
+      slots: openHours(date)
+        .filter((hour) => isWindowFree(date, professional.id, hour, serviceIds))
+        .map(formatHour),
+    })),
+  });
+
   const fetchMock = vi.fn(async (url, options = {}) => {
     const method = options.method || 'GET';
-    backend.calls.push({
-      url,
-      method,
-      body: options.body ? JSON.parse(options.body) : null,
-      headers: options.headers,
-    });
-    if (method === 'POST') {
-      if (backend.postGate) await backend.postGate;
-      if (backend.postResponse) return backend.postResponse;
-      return jsonResponse(201, { _id: 'new-id', ...JSON.parse(options.body) });
+    const body = options.body ? JSON.parse(options.body) : null;
+    backend.calls.push({ url, method, body, headers: options.headers });
+
+    if (url.startsWith(`${AVAILABILITY_URL}?`)) {
+      if (backend.availabilityError) throw backend.availabilityError;
+      const params = new URL(url).searchParams;
+      return jsonResponse(200, availabilityFor(params.get('date'), params.get('serviceIds').split(',')));
     }
-    if (backend.getError) throw backend.getError;
-    return jsonResponse(200, backend.bookings);
+    if (url === CHECK_URL) {
+      if (backend.availabilityError) throw backend.availabilityError;
+      const available = isWindowFree(body.date, body.professionalId, hourOf(body.time), body.serviceIds);
+      return jsonResponse(200, { available });
+    }
+    if (backend.postGate) await backend.postGate;
+    if (backend.postResponse) return backend.postResponse;
+    return jsonResponse(201, { _id: 'new-id', ...body });
   });
   vi.stubGlobal('fetch', fetchMock);
   return backend;
@@ -210,8 +262,18 @@ describe('BookingModal happy path', () => {
     });
 
     // Order of network calls: slots lookup, pre-submit availability check, then the POST.
-    expect(backend.calls.map((c) => c.method)).toEqual(['GET', 'GET', 'POST']);
-    expect(backend.calls.every((c) => c.url === API_URL)).toBe(true);
+    expect(backend.calls.map((c) => c.method)).toEqual(['GET', 'POST', 'POST']);
+    expect(backend.calls.map((c) => c.url)).toEqual([
+      `${AVAILABILITY_URL}?date=${MONDAY}&serviceIds=servicio-basico`,
+      CHECK_URL,
+      API_URL,
+    ]);
+    expect(backend.checks[0].body).toEqual({
+      date: MONDAY,
+      time: '11:00',
+      professionalId: 'alex-garcia',
+      serviceIds: ['servicio-basico'],
+    });
 
     // The booking modal is gone and no error toast was shown.
     await waitFor(() => expect(queryBookingDialog()).not.toBeInTheDocument());
@@ -382,6 +444,46 @@ describe('time slots', () => {
     expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (9 disponibles)' })).toBeInTheDocument();
   });
 
+  it('asks the backend for the whole selection and shows a window that does not fit as "Ocupado"', async () => {
+    const backend = installBackend({ bookings: [existingBooking({ time: '11:00' })] });
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    // Consulta 30 + Básico 60 + Premium 90 = 180 min = 3 consecutive hours.
+    await chooseService(user, 'Consulta Inicial', 'Servicio Básico', 'Servicio Premium');
+    await fillSchedule(user, { time: null });
+
+    await within(timeSelect()).findByRole('option', { name: /disponibles/ });
+    expect(backend.gets[0].url).toBe(
+      `${AVAILABILITY_URL}?date=${MONDAY}&serviceIds=consulta-inicial,servicio-basico,servicio-premium`,
+    );
+    // Alex is busy 11:00: every 3-hour window touching it (09, 10), the lunch break (11, 12) and the closing (18, 19) is out.
+    for (const busy of ['09:00', '10:00', '11:00', '12:00', '18:00', '19:00']) {
+      expect(within(timeSelect()).getByRole('option', { name: `${busy} — Ocupado` })).toBeDisabled();
+    }
+    for (const free of ['14:00', '15:00', '16:00', '17:00']) {
+      expect(within(timeSelect()).getByRole('option', { name: free })).toBeEnabled();
+    }
+    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (4 disponibles)' })).toBeInTheDocument();
+  });
+
+  it('asks again with the new selection when the services change after going back', async () => {
+    const backend = installBackend();
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    await chooseService(user, 'Servicio Básico');
+    await fillSchedule(user, { time: null });
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (10 disponibles)' });
+
+    await user.click(screen.getByRole('button', { name: /Anterior/ }));
+    await user.click(serviceCard('Consulta Inicial'));
+    await user.click(nextButton());
+
+    // 60 + 30 min need two consecutive hours: the 12:00 start would cross the lunch break.
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (8 disponibles)' });
+    expect(backend.gets).toHaveLength(2);
+    expect(backend.gets[1].url).toBe(`${AVAILABILITY_URL}?date=${MONDAY}&serviceIds=servicio-basico,consulta-inicial`);
+  });
+
   it('ignores cancelled bookings and bookings of other professionals or days', async () => {
     installBackend({
       bookings: [
@@ -548,7 +650,7 @@ describe('availability fetch failures', () => {
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
 
-    backend.getError = new TypeError('Failed to fetch');
+    backend.availabilityError = new TypeError('Failed to fetch');
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     fireEvent.change(dateInput(), { target: { value: MONDAY } });
     fireEvent.click(professionalCard('Alex García'));
@@ -596,7 +698,7 @@ describe('availability fetch failures', () => {
     await chooseService(user, 'Servicio Básico');
 
     globalThis.innerWidth = 500;
-    backend.getError = new TypeError('Failed to fetch');
+    backend.availabilityError = new TypeError('Failed to fetch');
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     fireEvent.change(dateInput(), { target: { value: MONDAY } });
     fireEvent.click(professionalCard('Alex García'));
@@ -632,7 +734,7 @@ describe('availability fetch failures', () => {
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
 
-    backend.getError = new Error('Timeout: La solicitud tardó demasiado tiempo.');
+    backend.availabilityError = new Error('Timeout: La solicitud tardó demasiado tiempo.');
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     fireEvent.change(dateInput(), { target: { value: MONDAY } });
     fireEvent.click(professionalCard('Alex García'));
@@ -641,7 +743,7 @@ describe('availability fetch failures', () => {
     });
     expect(within(timeSelect()).getByRole('option', { name: '🔄 Reintentando... (1/2)' })).toBeInTheDocument();
 
-    backend.getError = null;
+    backend.availabilityError = null;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
@@ -656,7 +758,7 @@ describe('availability fetch failures', () => {
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
 
-    backend.getError = new Error('HTTP error! status: 500');
+    backend.availabilityError = new Error('HTTP error! status: 500');
     await fillSchedule(user, { time: null });
 
     await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (10 disponibles)' });
@@ -839,7 +941,7 @@ describe('submit sequence', () => {
     render(<Harness />);
     await reachReadyToConfirm(user);
 
-    backend.getError = new Error('boom');
+    backend.availabilityError = new Error('boom');
     await user.click(confirmButton());
 
     await screen.findByRole('dialog', { name: '¡Reserva Confirmada!' });

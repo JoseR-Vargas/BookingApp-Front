@@ -58,17 +58,10 @@ export function buildTimeSlots(dateString, bookedTimes = []) {
   return { closed: false, slots, availableCount, headerText };
 }
 
-// Times already taken for a professional on a date (legacy updateAvailableTimesForProfessional filter).
-// Strict id comparison, cancelled bookings ignored.
-// Deviation (hardening): bookings without a `professional` are skipped instead of throwing a TypeError,
-// which in legacy aborted the whole lookup and showed every slot as free.
-export function getBookedTimes(bookings, date, professionalId) {
-  return (bookings || [])
-    .filter((booking) => (
-      booking.date === date &&
-      booking.professional &&
-      booking.professional.id === professionalId &&
-      booking.status !== 'cancelled'
-    ))
-    .map((booking) => booking.time);
+// Grid times a professional cannot start at, given the start times the backend reports as free
+// (a window that does not fit - closing, lunch, occupied - is simply absent from `freeTimes`).
+export function getUnavailableTimes(dateString, freeTimes) {
+  return buildTimeSlots(dateString).slots
+    .map((slot) => slot.value)
+    .filter((value) => !freeTimes.includes(value));
 }

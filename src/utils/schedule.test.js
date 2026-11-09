@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDayInfo, buildTimeSlots, getBookedTimes } from './schedule.js';
+import { getDayInfo, buildTimeSlots, getUnavailableTimes } from './schedule.js';
 
 // 2030-01-06 is a Sunday, 2030-01-07 Monday, 2030-01-12 Saturday (local-date parsing).
 const SUNDAY = '2030-01-06';
@@ -77,23 +77,26 @@ describe('buildTimeSlots', () => {
   });
 });
 
-describe('getBookedTimes', () => {
-  const bookings = [
-    { date: MONDAY, time: '09:00', status: 'confirmed', professional: { id: 'alex-garcia' } },
-    { date: MONDAY, time: '10:00', status: 'cancelled', professional: { id: 'alex-garcia' } },
-    { date: MONDAY, time: '11:00', status: 'confirmed', professional: { id: 'maria-lopez' } },
-    { date: '2030-01-08', time: '12:00', status: 'confirmed', professional: { id: 'alex-garcia' } },
-    { date: MONDAY, time: '14:00', status: 'pending', professional: { id: 'alex-garcia' } },
-    { date: MONDAY, time: '15:00', status: 'confirmed' },
-  ];
-
-  it('keeps only non-cancelled bookings of that professional on that date', () => {
-    expect(getBookedTimes(bookings, MONDAY, 'alex-garcia')).toEqual(['09:00', '14:00']);
+describe('getUnavailableTimes', () => {
+  it('is every grid time that is not in the free list', () => {
+    expect(getUnavailableTimes(MONDAY, ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00']))
+      .toEqual(['18:00', '19:00']);
   });
 
-  it('compares professional ids strictly', () => {
-    const numeric = [{ date: MONDAY, time: '09:00', status: 'confirmed', professional: { id: 1 } }];
-    expect(getBookedTimes(numeric, MONDAY, '1')).toEqual([]);
-    expect(getBookedTimes(numeric, MONDAY, 1)).toEqual(['09:00']);
+  it('marks the whole day when the professional has no free start time', () => {
+    expect(getUnavailableTimes(MONDAY, [])).toEqual(values(buildTimeSlots(MONDAY)));
+  });
+
+  it('ignores free times that are outside the grid and has nothing to flag on a closed day', () => {
+    expect(getUnavailableTimes(MONDAY, ['13:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']))
+      .toEqual([]);
+    expect(getUnavailableTimes(SUNDAY, [])).toEqual([]);
+  });
+
+  it('feeds buildTimeSlots so a window that does not fit shows as booked', () => {
+    const free = ['09:00', '10:00', '14:00'];
+    const info = buildTimeSlots(MONDAY, getUnavailableTimes(MONDAY, free));
+    expect(info.slots.filter((slot) => !slot.booked).map((slot) => slot.value)).toEqual(free);
+    expect(info.headerText).toBe('Selecciona una hora (3 disponibles)');
   });
 });
