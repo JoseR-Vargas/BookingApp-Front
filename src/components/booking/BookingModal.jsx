@@ -177,7 +177,7 @@ export default function BookingModal({ open, onClose }) {
 
   return (
     <>
-      <Modal open={open} onClose={onClose}>
+      <Modal open={open} onClose={onClose} scrollResetKey={currentStep}>
         <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border bg-bg-primary p-4 lte-md:px-4 lte-md:py-3">
           <DialogTitle
             as="h5"

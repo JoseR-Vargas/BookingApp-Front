@@ -1,4 +1,5 @@
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react';
+import { useLayoutEffect, useRef } from 'react';
 
 // Legacy `.modal-content` (legacy framework + base.css overrides): dark surface, subtle border, big shadow.
 export const MODAL_CONTENT_CLASSES =
@@ -12,6 +13,7 @@ const noop = () => {};
  *  - STATIC backdrop (legacy `data-bs-backdrop="static"`): clicking outside the box never closes it;
  *  - `keyboard` mirrors `data-bs-keyboard`: Escape closes unless it is `false`;
  *  - the box scrolls inside the viewport when it is taller than the screen;
+ *  - `scrollResetKey`: when it changes, the scroller jumps back to the top (e.g. a wizard step change);
  *  - Headless UI provides the focus trap, scroll lock, inert siblings and `aria-labelledby`
  *    (render a <DialogTitle> inside to label the dialog).
  *
@@ -24,8 +26,15 @@ export default function Modal({
   onClose,
   keyboard = true,
   contentClassName = MODAL_CONTENT_CLASSES,
+  scrollResetKey,
   children,
 }) {
+  const viewportRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (viewportRef.current) viewportRef.current.scrollTop = 0;
+  }, [scrollResetKey]);
+
   return (
     <Dialog
       transition
@@ -35,7 +44,7 @@ export default function Modal({
     >
       {/* The legacy framework default backdrop: black at 50%. */}
       <DialogBackdrop className="fixed inset-0 bg-black/50" />
-      <DialogPanel data-testid="modal-viewport" className="fixed inset-0 overflow-y-auto overflow-x-hidden">
+      <DialogPanel ref={viewportRef} data-testid="modal-viewport" className="fixed inset-0 overflow-y-auto overflow-x-hidden">
         <div className="mx-auto my-2 flex min-h-[calc(100%-1rem)] w-full max-w-[900px] items-center transition-transform duration-300 ease-out group-data-closed:-translate-y-12 sm:my-7 sm:min-h-[calc(100%-3.5rem)] lte-md:my-0 lte-md:max-w-full">
           <div className={contentClassName}>{children}</div>
         </div>

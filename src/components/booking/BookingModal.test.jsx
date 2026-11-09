@@ -323,6 +323,23 @@ describe('BookingModal happy path', () => {
     expect(within(serviceCard('Consulta Inicial')).getByText('Agregar')).toBeInTheDocument();
   });
 
+  it('opens every step from the top: the modal scroll resets on "Siguiente" and "Anterior"', async () => {
+    installBackend();
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    const viewport = screen.getByTestId('modal-viewport');
+
+    await selectServices(user, 'Servicio Básico');
+    viewport.scrollTop = 400;
+    await user.click(nextButton());
+    await screen.findByRole('heading', { name: 'Fecha y Hora' });
+    expect(viewport.scrollTop).toBe(0);
+
+    viewport.scrollTop = 400;
+    await user.click(screen.getByRole('button', { name: /Anterior/ }));
+    expect(viewport.scrollTop).toBe(0);
+  });
+
   it('does not advance when a service is chosen: only "Siguiente" does', async () => {
     installBackend();
     render(<Harness />);
