@@ -5,15 +5,24 @@ import { formatMoney } from '../../utils/format.js';
 // On <=768px the card turns into a compact row (see below), so the icons shrink and lose their bottom margin.
 const ICON_SIZE = 'text-[3rem] text-accent lte-md:text-[1.1rem]';
 
+const UNAVAILABLE_HINT = 'Sin profesional en común con tu selección';
+
+const CARD_STATE = {
+  selected: 'border-accent bg-accent-muted shadow-accent hover:shadow-accent',
+  available: 'border-border-subtle bg-bg-tertiary',
+  unavailable: 'cursor-not-allowed border-border-subtle bg-bg-tertiary opacity-50',
+};
+
 /**
- * One selectable service in step 1 (legacy renderServiceSelectionCard).
+ * One toggleable service in step 1 (legacy renderServiceSelectionCard). Several can be selected.
  * `professionals` is the full catalog, used only to turn professional ids into names.
+ * `disabled` greys the card out (adding it would leave no professional offering the whole selection).
  *
  * Layout: centered stacked card on desktop; on <=768px (mobile-first usage) a compact row
  * (icon | name + price / description / duration + professionals) so at least two services
  * fit on screen without scrolling.
  */
-export default function ServiceSelectionCard({ service, professionals, selected, onSelect }) {
+export default function ServiceSelectionCard({ service, professionals, selected, disabled = false, onSelect }) {
   const professionalNames = service.professionals
     .map((id) => {
       const professional = professionals.find((p) => p.id === id);
@@ -21,17 +30,18 @@ export default function ServiceSelectionCard({ service, professionals, selected,
     })
     .join(', ');
 
+  const cardState = selected ? CARD_STATE.selected : disabled ? CARD_STATE.unavailable : CARD_STATE.available;
+
   return (
     <button
       type="button"
       data-testid={`service-card-${service.id}`}
       aria-pressed={selected}
+      disabled={disabled}
       onClick={() => onSelect(service)}
-      className={`flex h-full w-full cursor-pointer items-start rounded-lg border-2 p-6 text-center text-text-primary transition-all duration-300 ease-[ease] hover:-translate-y-[3px] hover:border-accent hover:shadow-md pointer-coarse:min-h-11 pointer-coarse:min-w-11 lte-md:p-3 ${
-        selected
-          ? 'border-accent bg-accent-muted shadow-accent hover:shadow-accent'
-          : 'border-border-subtle bg-bg-tertiary'
-      }`}
+      className={`flex h-full w-full items-start rounded-lg border-2 p-6 text-center text-text-primary transition-all duration-300 ease-[ease] pointer-coarse:min-h-11 pointer-coarse:min-w-11 lte-md:p-3 ${
+        disabled ? '' : 'cursor-pointer hover:-translate-y-[3px] hover:border-accent hover:shadow-md'
+      } ${cardState}`}
     >
       {/* One wrapper so the content stays top-aligned (a <button> would center it vertically). */}
       <div className="w-full lte-md:flex lte-md:items-start lte-md:gap-3 lte-md:text-left">
@@ -41,6 +51,13 @@ export default function ServiceSelectionCard({ service, professionals, selected,
         />
         <div className="lte-md:grid lte-md:min-w-0 lte-md:flex-1 lte-md:grid-cols-[1fr_auto] lte-md:gap-x-2 lte-md:gap-y-0.5">
           <h5 className="mb-2 text-[1.25rem] font-semibold text-text-primary lte-md:mb-0 lte-md:min-w-0 lte-md:text-base lte-md:leading-snug">
+            {selected && (
+              <i
+                aria-hidden="true"
+                data-testid={`service-check-${service.id}`}
+                className="fas fa-check-circle mr-1.5 text-accent"
+              />
+            )}
             {service.name}
           </h5>
           <p className="mb-4 leading-loose text-text-secondary lte-md:order-3 lte-md:col-span-2 lte-md:mb-0 lte-md:line-clamp-2 lte-md:text-[0.85rem] lte-md:leading-snug">
@@ -57,6 +74,9 @@ export default function ServiceSelectionCard({ service, professionals, selected,
             <small className="text-[0.875em] text-text-secondary lte-md:text-[0.75rem]">
               Profesionales: {professionalNames}
             </small>
+            {disabled && (
+              <small className="block text-[0.75rem] font-semibold text-text-secondary">{UNAVAILABLE_HINT}</small>
+            )}
           </div>
         </div>
       </div>

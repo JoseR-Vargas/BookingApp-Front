@@ -108,9 +108,16 @@ const timeSelect = () => screen.getByLabelText('Hora de la cita');
 const nextButton = () => screen.getByRole('button', { name: /Siguiente/ });
 const professionalCard = (name) => screen.getByRole('button', { name: new RegExp(`^${name}`) });
 
-async function chooseService(user, name) {
-  await user.click(screen.getByRole('button', { name: new RegExp(name) }));
-  // Legacy auto-advances 400ms after the selection (real timers: findBy polls up to 1s).
+const serviceCard = (name) => screen.getByRole('button', { name: new RegExp(name) });
+
+async function selectServices(user, ...names) {
+  for (const name of names) await user.click(serviceCard(name));
+}
+
+// Selecting never advances by itself: the footer "Siguiente" moves on to step 2.
+async function chooseService(user, ...names) {
+  await selectServices(user, ...names);
+  await user.click(nextButton());
   await screen.findByRole('heading', { name: 'Fecha y Hora' });
 }
 
@@ -194,7 +201,7 @@ describe('BookingModal happy path', () => {
     expect(post.headers).toEqual({ 'Content-Type': 'application/json' });
     expect(post.body).toEqual({
       client: { name: 'Juan Pérez', id: '', email: 'juan@example.com', phone: '+598 98 114 696' },
-      service: { id: 'servicio-basico', name: 'Servicio Básico', price: 1200, duration: 60 },
+      services: [{ id: 'servicio-basico' }],
       professional: { id: 'alex-garcia', name: 'Alex García' },
       date: MONDAY,
       time: '11:00',
@@ -217,53 +224,99 @@ describe('BookingModal happy path', () => {
     );
   });
 
-  it('highlights the chosen service and keeps only that one pressed', async () => {
+  it('toggles services: several can be pressed at once and a second tap unselects', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
 
-    const basic = screen.getByRole('button', { name: /Servicio Básico/ });
-    const premium = screen.getByRole('button', { name: /Servicio Premium/ });
+    const basic = serviceCard('Servicio Básico');
+    const premium = serviceCard('Servicio Premium');
     expect(basic).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByTestId('service-check-servicio-basico')).not.toBeInTheDocument();
 
     await user.click(basic);
+    await user.click(premium);
     expect(basic).toHaveAttribute('aria-pressed', 'true');
-    expect(premium).toHaveAttribute('aria-pressed', 'false');
-    await screen.findByRole('heading', { name: 'Fecha y Hora' });
+    expect(premium).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('service-check-servicio-basico')).toBeInTheDocument();
+    expect(serviceCard('Consulta Inicial')).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(basic);
+    expect(basic).toHaveAttribute('aria-pressed', 'false');
+    expect(premium).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('auto-advances to step 2 exactly 400ms after choosing a service', async () => {
+  it('does not advance when a service is chosen: only "Siguiente" does', async () => {
     installBackend();
     render(<Harness />);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 
-    fireEvent.click(screen.getByRole('button', { name: /Consulta Inicial/ }));
-    expect(screen.queryByRole('heading', { name: 'Fecha y Hora' })).not.toBeInTheDocument();
-
+    fireEvent.click(serviceCard('Consulta Inicial'));
     act(() => {
-      vi.advanceTimersByTime(399);
+      vi.advanceTimersByTime(5000);
     });
     expect(screen.queryByRole('heading', { name: 'Fecha y Hora' })).not.toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
+    fireEvent.click(nextButton());
     expect(screen.getByRole('heading', { name: 'Fecha y Hora' })).toBeInTheDocument();
   });
 
-  it('shows the selected-service summary box with legacy labels', async () => {
+  it('shows a summary bar with count, total price and total minutes only while something is selected', async () => {
+    installBackend();
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    expect(screen.queryByTestId('service-selection-summary')).not.toBeInTheDocument();
+
+    await selectServices(user, 'Consulta Inicial');
+    expect(screen.getByTestId('service-selection-summary')).toHaveTextContent(`1 servicio · ${formatMoney(500)} · 30 min`);
+
+    await selectServices(user, 'Servicio Básico', 'Servicio Premium');
+    expect(screen.getByTestId('service-selection-summary')).toHaveTextContent(`3 servicios · ${formatMoney(4200)} · 180 min`);
+
+    await selectServices(user, 'Consulta Inicial', 'Servicio Básico', 'Servicio Premium');
+    expect(screen.queryByTestId('service-selection-summary')).not.toBeInTheDocument();
+  });
+
+  it('disables a service that would leave no professional offering the whole selection', async () => {
+    installBackend();
+    const user = userEvent.setup({ delay: null });
+    const consulta = APP_CONFIG.SERVICES.find((s) => s.id === 'consulta-inicial');
+    const premium = APP_CONFIG.SERVICES.find((s) => s.id === 'servicio-premium');
+    const originals = [consulta.professionals, premium.professionals];
+    consulta.professionals = ['alex-garcia'];
+    premium.professionals = ['maria-lopez'];
+    try {
+      render(<Harness />);
+      expect(serviceCard('Servicio Premium')).toBeEnabled();
+
+      await user.click(serviceCard('Consulta Inicial'));
+
+      expect(serviceCard('Servicio Premium')).toBeDisabled();
+      expect(serviceCard('Servicio Premium')).toHaveTextContent('Sin profesional en común con tu selección');
+      expect(serviceCard('Servicio Básico')).toBeEnabled();
+
+      await user.click(serviceCard('Consulta Inicial'));
+      expect(serviceCard('Servicio Premium')).toBeEnabled();
+    } finally {
+      consulta.professionals = originals[0];
+      premium.professionals = originals[1];
+    }
+  });
+
+  it('shows the selected-services recap with every service, total price and total duration', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
 
-    await chooseService(user, 'Servicio Premium');
+    await chooseService(user, 'Servicio Premium', 'Consulta Inicial');
     const box = screen.getByTestId('selected-service-info');
-    expect(box).toHaveTextContent('Servicio: Servicio Premium');
+    expect(box).toHaveTextContent('Servicio Premium');
+    expect(box).toHaveTextContent('Consulta Inicial');
     expect(box).toHaveTextContent('Profesional: No seleccionado');
-    expect(box).toHaveTextContent(`Precio: ${formatMoney(2500)}`);
+    expect(box).toHaveTextContent(`Precio total: ${formatMoney(3000)}`);
     expect(box).toHaveTextContent('Fecha: No seleccionada');
     expect(box).toHaveTextContent('Hora: No seleccionada');
-    expect(box).toHaveTextContent('Duración: 90 minutos');
+    expect(box).toHaveTextContent('Duración total: 120 minutos');
 
     await fillSchedule(user);
     expect(box).toHaveTextContent('Profesional: Alex García');
@@ -271,7 +324,7 @@ describe('BookingModal happy path', () => {
     expect(box).toHaveTextContent('Hora: 11:00');
   });
 
-  it('offers only the professionals attached to the chosen service', async () => {
+  it('offers only the professionals that offer every selected service', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     const service = APP_CONFIG.SERVICES.find((s) => s.id === 'consulta-inicial');
@@ -279,13 +332,29 @@ describe('BookingModal happy path', () => {
     service.professionals = ['maria-lopez'];
     try {
       render(<Harness />);
-      await chooseService(user, 'Consulta Inicial');
+      await chooseService(user, 'Servicio Básico', 'Consulta Inicial');
 
       expect(professionalCard('María López')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^Alex García/ })).not.toBeInTheDocument();
     } finally {
       service.professionals = original;
     }
+  });
+
+  it('drops the chosen time when the selection changes after going back', async () => {
+    installBackend();
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    await chooseService(user, 'Servicio Básico');
+    await fillSchedule(user);
+
+    await user.click(screen.getByRole('button', { name: /Anterior/ }));
+    await user.click(serviceCard('Servicio Premium'));
+    await user.click(nextButton());
+
+    expect(screen.getByTestId('selected-service-info')).toHaveTextContent('Hora: No seleccionada');
+    await user.click(nextButton());
+    expect(toast.error).toHaveBeenLastCalledWith('Por favor selecciona una hora');
   });
 
   it('keeps the date input min=today (legacy setupDateValidation)', async () => {
@@ -721,6 +790,28 @@ describe('step navigation and validation', () => {
 });
 
 describe('submit sequence', () => {
+  it('posts every selected service id and confirms with all names and the total price', async () => {
+    const backend = installBackend();
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    await chooseService(user, 'Consulta Inicial', 'Servicio Básico', 'Servicio Premium');
+    await fillSchedule(user, { time: '09:00' });
+    await user.click(nextButton());
+    await screen.findByRole('heading', { name: 'Tus Datos' });
+    await fillClient(user);
+    await user.click(confirmButton());
+
+    const confirmation = await screen.findByRole('dialog', { name: '¡Reserva Confirmada!' });
+    expect(backend.posts[0].body.services).toEqual([
+      { id: 'consulta-inicial' },
+      { id: 'servicio-basico' },
+      { id: 'servicio-premium' },
+    ]);
+    expect(backend.posts[0].body).not.toHaveProperty('service');
+    expect(within(confirmation).getByText('Consulta Inicial, Servicio Básico, Servicio Premium')).toBeInTheDocument();
+    expect(within(confirmation).getByText(formatMoney(4200))).toBeInTheDocument();
+  });
+
   it('blocks the submit when the pre-check says the slot was just taken', async () => {
     const backend = installBackend();
     const user = userEvent.setup({ delay: null });

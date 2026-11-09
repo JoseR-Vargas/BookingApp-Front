@@ -1,26 +1,36 @@
 import { APP_CONFIG } from '../../config/appConfig.js';
 import { useBooking } from '../../state/bookingState.jsx';
+import { canAddService } from '../../utils/serviceSelection.js';
 import ServiceSelectionCard from './ServiceSelectionCard.jsx';
+import ServiceSelectionSummary from './ServiceSelectionSummary.jsx';
 import StepHeading from './StepHeading.jsx';
 
-/** Step 1: pick the service. The parent decides what happens after a selection (auto-advance). */
-export default function ServiceSelectionStep({ onSelect }) {
-  const { state } = useBooking();
+/** Step 1: pick one or several services. The user advances with the footer "Siguiente" button. */
+export default function ServiceSelectionStep() {
+  const { state, toggleService } = useBooking();
+  const { selectedServices } = state;
+
+  const isSelected = (service) => selectedServices.some((selected) => selected.id === service.id);
 
   return (
     <div>
-      <StepHeading title="Elige tu Servicio" subtitle="Selecciona el servicio que deseas reservar" />
+      <StepHeading title="Elige tu Servicio" subtitle="Selecciona uno o varios servicios para tu cita" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lte-md:gap-2">
-        {APP_CONFIG.SERVICES.map((service) => (
-          <ServiceSelectionCard
-            key={service.id}
-            service={service}
-            professionals={APP_CONFIG.PROFESSIONALS}
-            selected={state.selectedService?.id === service.id}
-            onSelect={onSelect}
-          />
-        ))}
+        {APP_CONFIG.SERVICES.map((service) => {
+          const selected = isSelected(service);
+          return (
+            <ServiceSelectionCard
+              key={service.id}
+              service={service}
+              professionals={APP_CONFIG.PROFESSIONALS}
+              selected={selected}
+              disabled={!selected && !canAddService(selectedServices, service)}
+              onSelect={toggleService}
+            />
+          );
+        })}
       </div>
+      <ServiceSelectionSummary services={selectedServices} />
     </div>
   );
 }

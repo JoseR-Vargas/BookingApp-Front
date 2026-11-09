@@ -3,6 +3,7 @@ import { APP_CONFIG } from '../../config/appConfig.js';
 import { useAvailableTimes } from '../../hooks/useAvailableTimes.js';
 import { useBooking } from '../../state/bookingState.jsx';
 import { formatLongDateUTC, formatMoney } from '../../utils/format.js';
+import { getCommonProfessionalIds, getTotalDuration, getTotalPrice } from '../../utils/serviceSelection.js';
 import DatePicker from '../ui/DatePicker.jsx';
 import Select from '../ui/Select.jsx';
 import { FIELD_LABEL, HELP_TEXT, INPUT_LG, SELECT_LG, SELECT_TOGGLE_LG } from './fieldStyles.js';
@@ -12,28 +13,32 @@ import StepHeading from './StepHeading.jsx';
 // Legacy setupDateValidation: the earliest selectable date is "today" (as an ISO date).
 const todayISO = () => new Date().toISOString().split('T')[0];
 
-// Legacy updateServiceInfo(): recap of what has been chosen so far.
-function SelectedServiceInfo({ service, date, time, professional }) {
+// Legacy updateServiceInfo(): recap of what has been chosen so far (every service, totals included).
+function SelectedServiceInfo({ services, date, time, professional }) {
   const dateText = date ? formatLongDateUTC(date) : 'No seleccionada';
 
   return (
     <div
       data-testid="selected-service-info"
-      className="mb-4 grid rounded-[0.375rem] border border-border bg-bg-tertiary p-4 text-text-secondary md:grid-cols-2 md:gap-x-6"
+      className="mb-4 grid rounded-[0.375rem] border border-border bg-bg-tertiary p-4 text-text-secondary md:grid-cols-2 md:gap-x-6 lte-md:mb-2 lte-md:p-3 lte-md:text-[0.9rem] lte-md:leading-snug"
     >
       <div>
-        <strong>Servicio:</strong> {service.name}
-        <br />
+        <strong>Servicios:</strong>
+        <ul className="mb-1 list-disc pl-5">
+          {services.map((service) => (
+            <li key={service.id}>{service.name}</li>
+          ))}
+        </ul>
         <strong>Profesional:</strong> {professional ? professional.name : 'No seleccionado'}
         <br />
-        <strong>Precio:</strong> {formatMoney(service.price)}
+        <strong>Precio total:</strong> {formatMoney(getTotalPrice(services))}
       </div>
       <div>
         <strong>Fecha:</strong> {dateText}
         <br />
         <strong>Hora:</strong> {time || 'No seleccionada'}
         <br />
-        <strong>Duración:</strong> {service.duration} minutos
+        <strong>Duración total:</strong> {getTotalDuration(services)} minutos
       </div>
     </div>
   );
@@ -42,7 +47,7 @@ function SelectedServiceInfo({ service, date, time, professional }) {
 /** Step 2: date, hour and professional. */
 export default function ScheduleStep() {
   const { state, setDate, setTime, setProfessional } = useBooking();
-  const { selectedService, selectedDate, selectedTime, selectedProfessional } = state;
+  const { selectedServices, selectedDate, selectedTime, selectedProfessional } = state;
   const helperId = useId();
 
   const times = useAvailableTimes(selectedDate, selectedProfessional ? selectedProfessional.id : null);
@@ -56,9 +61,8 @@ export default function ScheduleStep() {
     }
   }, [times.settled, freeTimes, selectedTime, setTime]);
 
-  const professionals = selectedService
-    ? APP_CONFIG.PROFESSIONALS.filter((p) => selectedService.professionals.includes(p.id))
-    : [];
+  const commonProfessionalIds = getCommonProfessionalIds(selectedServices);
+  const professionals = APP_CONFIG.PROFESSIONALS.filter((p) => commonProfessionalIds.includes(p.id));
 
   return (
     <div>
@@ -115,9 +119,9 @@ export default function ScheduleStep() {
       </div>
 
       <div className="mt-4">
-        {selectedService && (
+        {selectedServices.length > 0 && (
           <SelectedServiceInfo
-            service={selectedService}
+            services={selectedServices}
             date={selectedDate}
             time={selectedTime}
             professional={selectedProfessional}

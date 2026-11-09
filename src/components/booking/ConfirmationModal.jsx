@@ -15,7 +15,7 @@ function Row({ icon, label, children, last = false }) {
 
 /**
  * Success dialog shown after the booking was created (legacy #confirmationModal).
- * `details`: { serviceName, professionalName, date ('YYYY-MM-DD'), time, price, email }.
+ * `details`: { serviceNames (string[]), professionalName, date ('YYYY-MM-DD'), time, price (total of every service), email }.
  * Legacy flags: static backdrop and `data-bs-keyboard="false"`: only the button closes it.
  */
 export default function ConfirmationModal({ open, onClose, details }) {
@@ -38,8 +38,8 @@ export default function ConfirmationModal({ open, onClose, details }) {
           <p className="mb-6 leading-loose text-text-secondary">Te esperamos en tu cita</p>
 
           <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-4 text-left">
-            <Row icon="fas fa-concierge-bell" label="Servicio:">
-              {details.serviceName}
+            <Row icon="fas fa-concierge-bell" label="Servicios:">
+              {details.serviceNames.join(', ')}
             </Row>
             <Row icon="fas fa-user-tie" label="Profesional:">
               {details.professionalName}
@@ -50,7 +50,7 @@ export default function ConfirmationModal({ open, onClose, details }) {
             <Row icon="fas fa-clock" label="Hora:">
               {details.time}
             </Row>
-            <Row icon="fas fa-tag" label="Precio:" last>
+            <Row icon="fas fa-tag" label="Precio total:" last>
               {formatMoney(details.price)}
             </Row>
           </div>

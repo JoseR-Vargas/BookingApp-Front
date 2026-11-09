@@ -119,10 +119,13 @@ describe('bookingService.checkAvailability', () => {
 });
 
 describe('buildBookingPayload', () => {
-  const service = { id: 'servicio-basico', name: 'Servicio Básico', price: 1200, duration: 60, icon: 'x', description: 'y' };
+  const services = [
+    { id: 'servicio-basico', name: 'Servicio Básico', price: 1200, duration: 60, icon: 'x', description: 'y' },
+    { id: 'servicio-premium', name: 'Servicio Premium', price: 2500, duration: 90, icon: 'z', description: 'w' },
+  ];
   const professional = { id: 'alex-garcia', name: 'Alex García', rating: 4.9 };
 
-  it('produces exactly the legacy wire shape, escaping user text', () => {
+  it('produces exactly the wire shape (service ids only), escaping user text', () => {
     const payload = buildBookingPayload({
       formData: {
         name: `<b>O'Brien</b> & "Co"`,
@@ -131,7 +134,7 @@ describe('buildBookingPayload', () => {
         phone: '099123456',
         notes: `<script>alert('x')</script>`,
       },
-      service,
+      services,
       professional,
       date: '2030-01-07',
       time: '10:00',
@@ -144,21 +147,21 @@ describe('buildBookingPayload', () => {
         email: 'a@b.com',
         phone: '099123456',
       },
-      service: { id: 'servicio-basico', name: 'Servicio Básico', price: 1200, duration: 60 },
+      services: [{ id: 'servicio-basico' }, { id: 'servicio-premium' }],
       professional: { id: 'alex-garcia', name: 'Alex García' },
       date: '2030-01-07',
       time: '10:00',
       notes: '&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;',
       status: 'confirmed',
     });
-    expect(Object.keys(payload)).toEqual(['client', 'service', 'professional', 'date', 'time', 'notes', 'status']);
+    expect(Object.keys(payload)).toEqual(['client', 'services', 'professional', 'date', 'time', 'notes', 'status']);
     expect(Object.keys(payload.client)).toEqual(['name', 'id', 'email', 'phone']);
   });
 
   it('defaults an empty client id and notes to empty strings', () => {
     const payload = buildBookingPayload({
       formData: { name: 'Ana', email: 'a@b.com', phone: '1' },
-      service,
+      services,
       professional,
       date: '2030-01-07',
       time: '10:00',
