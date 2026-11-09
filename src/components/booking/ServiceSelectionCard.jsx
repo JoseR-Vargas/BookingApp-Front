@@ -24,7 +24,7 @@ function AddToggle({ serviceId, selected }) {
     : 'border-accent bg-transparent text-accent';
   return (
     <span
-      className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-[0.85rem] font-semibold lte-md:order-5 lte-md:col-span-2 lte-md:mt-1 lte-md:py-1 lte-md:text-[0.8rem] ${state}`}
+      className={`mt-2 inline-flex items-center justify-center gap-1 rounded border px-2 py-0.5 text-[0.75rem] leading-tight font-semibold lte-md:order-5 lte-md:col-span-2 lte-md:mt-1 lte-md:w-fit lte-md:justify-self-end lte-md:text-[0.7rem] ${state}`}
     >
       <i
         aria-hidden="true"
