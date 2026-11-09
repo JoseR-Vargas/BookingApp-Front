@@ -14,6 +14,29 @@ const CARD_STATE = {
 };
 
 /**
+ * Visible affordance telling the client that services can be ADDED (several per booking):
+ * "+ Agregar" while available, "Agregado" once in the selection. The whole card is the real
+ * button, so this is a plain visual element (never a nested button).
+ */
+function AddToggle({ serviceId, selected }) {
+  const state = selected
+    ? 'border-accent bg-accent text-primary-foreground'
+    : 'border-accent bg-transparent text-accent';
+  return (
+    <span
+      className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-[0.85rem] font-semibold lte-md:order-5 lte-md:col-span-2 lte-md:mt-1 lte-md:py-1 lte-md:text-[0.8rem] ${state}`}
+    >
+      <i
+        aria-hidden="true"
+        data-testid={selected ? `service-check-${serviceId}` : undefined}
+        className={`fas ${selected ? 'fa-check' : 'fa-plus'}`}
+      />
+      {selected ? 'Agregado' : 'Agregar'}
+    </span>
+  );
+}
+
+/**
  * One toggleable service in step 1 (legacy renderServiceSelectionCard). Several can be selected.
  * `professionals` is the full catalog, used only to turn professional ids into names.
  * `disabled` greys the card out (adding it would leave no professional offering the whole selection).
@@ -51,13 +74,6 @@ export default function ServiceSelectionCard({ service, professionals, selected,
         />
         <div className="lte-md:grid lte-md:min-w-0 lte-md:flex-1 lte-md:grid-cols-[1fr_auto] lte-md:gap-x-2 lte-md:gap-y-0.5">
           <h5 className="mb-2 text-[1.25rem] font-semibold text-text-primary lte-md:mb-0 lte-md:min-w-0 lte-md:text-base lte-md:leading-snug">
-            {selected && (
-              <i
-                aria-hidden="true"
-                data-testid={`service-check-${service.id}`}
-                className="fas fa-check-circle mr-1.5 text-accent"
-              />
-            )}
             {service.name}
           </h5>
           <p className="mb-4 leading-loose text-text-secondary lte-md:order-3 lte-md:col-span-2 lte-md:mb-0 lte-md:line-clamp-2 lte-md:text-[0.85rem] lte-md:leading-snug">
@@ -78,6 +94,7 @@ export default function ServiceSelectionCard({ service, professionals, selected,
               <small className="block text-[0.75rem] font-semibold text-text-secondary">{UNAVAILABLE_HINT}</small>
             )}
           </div>
+          {!disabled && <AddToggle serviceId={service.id} selected={selected} />}
         </div>
       </div>
     </button>

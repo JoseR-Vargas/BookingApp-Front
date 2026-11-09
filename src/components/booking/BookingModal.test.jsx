@@ -308,6 +308,21 @@ describe('BookingModal happy path', () => {
     expect(premium).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('shows a "+ Agregar" affordance on every service that turns into "Agregado" once chosen', async () => {
+    installBackend();
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+
+    expect(within(serviceCard('Consulta Inicial')).getByText('Agregar')).toBeInTheDocument();
+    expect(within(serviceCard('Servicio Básico')).getByText('Agregar')).toBeInTheDocument();
+
+    await user.click(serviceCard('Servicio Básico'));
+
+    expect(within(serviceCard('Servicio Básico')).getByText('Agregado')).toBeInTheDocument();
+    expect(within(serviceCard('Servicio Básico')).queryByText('Agregar')).not.toBeInTheDocument();
+    expect(within(serviceCard('Consulta Inicial')).getByText('Agregar')).toBeInTheDocument();
+  });
+
   it('does not advance when a service is chosen: only "Siguiente" does', async () => {
     installBackend();
     render(<Harness />);
