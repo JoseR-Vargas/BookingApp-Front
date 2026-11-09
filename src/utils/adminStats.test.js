@@ -17,7 +17,9 @@ const mk = (over) => ({
   date: `${year}-01-10`,
   status: 'confirmed',
   createdAt: '2030-01-01T00:00:00Z',
-  service: { name: 'Servicio Básico', price: 1200 },
+  services: [{ id: 's1', name: 'Servicio Básico', price: 1200, duration: 60 }],
+  totalPrice: 1200,
+  totalDuration: 60,
   professional: { name: 'Alex García' },
   ...over,
 });
@@ -59,12 +61,28 @@ describe('filterByDate', () => {
 describe('sumConfirmedRevenue', () => {
   it('sums only confirmed bookings', () => {
     const input = [
-      mk({ status: 'confirmed', service: { price: 500 } }),
-      mk({ status: 'cancelled', service: { price: 9999 } }),
-      mk({ status: 'confirmed', service: { price: 700 } }),
-      mk({ status: 'pending', service: { price: 1 } }),
+      mk({ status: 'confirmed', totalPrice: 500 }),
+      mk({ status: 'cancelled', totalPrice: 9999 }),
+      mk({ status: 'confirmed', totalPrice: 700 }),
+      mk({ status: 'pending', totalPrice: 1 }),
     ];
     expect(sumConfirmedRevenue(input)).toBe(1200);
+  });
+
+  it('uses the booking totalPrice, so a multi-service booking counts all its lines once', () => {
+    const multi = mk({
+      services: [
+        { id: 'a', name: 'A', price: 500, duration: 60 },
+        { id: 'b', name: 'B', price: 1200, duration: 60 },
+        { id: 'c', name: 'C', price: 2500, duration: 60 },
+      ],
+      totalPrice: 4200,
+    });
+    expect(sumConfirmedRevenue([multi, mk({ totalPrice: 1200 })])).toBe(5400);
+  });
+
+  it('ignores bookings without totalPrice', () => {
+    expect(sumConfirmedRevenue([mk({ totalPrice: undefined })])).toBe(0);
   });
 
   it('is 0 for an empty list', () => {
@@ -97,12 +115,20 @@ describe('getMonthlyCounts', () => {
 describe('getServiceCounts', () => {
   it('groups by service name preserving first-seen order', () => {
     const input = [
-      mk({ service: { name: 'A' } }),
-      mk({ service: { name: 'B' } }),
-      mk({ service: { name: 'A' } }),
-      mk({ service: {} }),
+      mk({ services: [{ name: 'A' }] }),
+      mk({ services: [{ name: 'B' }] }),
+      mk({ services: [{ name: 'A' }] }),
+      mk({ services: [{}] }),
     ];
     expect(getServiceCounts(input)).toEqual({ labels: ['A', 'B'], data: [2, 1] });
+  });
+
+  it('counts per service line: a booking with 3 services adds 1 to each of them', () => {
+    const input = [
+      mk({ services: [{ name: 'A' }, { name: 'B' }, { name: 'C' }] }),
+      mk({ services: [{ name: 'B' }] }),
+    ];
+    expect(getServiceCounts(input)).toEqual({ labels: ['A', 'B', 'C'], data: [1, 2, 1] });
   });
 
   it('returns empty arrays for no data', () => {

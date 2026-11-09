@@ -14,7 +14,9 @@ function booking(n, overrides = {}) {
   return {
     _id: `b${n}`,
     client: { name: `Cliente ${n}`, email: `c${n}@example.com`, phone: `0991100${n}` },
-    service: { name: 'Servicio Básico', price: 1200 },
+    services: [{ id: 's1', name: 'Servicio Básico', price: 1200, duration: 60 }],
+    totalPrice: 1200,
+    totalDuration: 60,
     professional: { name: 'Alex García' },
     date: `2026-03-1${n}`,
     time: '10:00',
@@ -71,6 +73,30 @@ describe('BookingsTable as a Preline datatable', () => {
     ]);
     expect(headers.filter((th) => th.classList.contains('--exclude-from-ordering')))
       .toEqual([headers[7]]);
+  });
+
+  it('keeps every service name in the Servicio cell text, which is what the datatable searches', () => {
+    const multi = booking(1, {
+      services: [
+        { id: 'a', name: 'Consulta Inicial', price: 500, duration: 60 },
+        { id: 'b', name: 'Servicio Premium', price: 2500, duration: 60 },
+      ],
+      totalPrice: 3000,
+    });
+    render(<BookingsTable bookings={[multi]} onDelete={vi.fn()} />);
+
+    const text = within(screen.getAllByRole('row')[1]).getAllByRole('cell')[2].textContent;
+    expect(text).toContain('Consulta Inicial');
+    expect(text).toContain('Servicio Premium');
+  });
+
+  it('rebuilds the table when only the services of a booking change', async () => {
+    const { rerender } = render(<BookingsTable bookings={[booking(1)]} onDelete={vi.fn()} />);
+    await waitFor(() => expect(instances).toHaveLength(1));
+
+    rerender(<BookingsTable bookings={[booking(1, { services: [{ id: 'z', name: 'Otro', price: 1, duration: 60 }], totalPrice: 1 })]} onDelete={vi.fn()} />);
+
+    await waitFor(() => expect(instances).toHaveLength(2));
   });
 
   it('sorts the date column by the ISO date, not by the localized text', () => {

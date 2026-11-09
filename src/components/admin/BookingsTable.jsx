@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { usePrelineInstance } from '../../lib/usePrelineInstance.js';
 import { CONTROL_CLASSES } from '../ui/controls.js';
 import { getProfessionalName } from '../../utils/adminStats.js';
+import { getBookingServices, getBookingTotalPrice } from '../../utils/bookingServices.js';
 import { formatBookingDate } from '../../utils/format.js';
 import { decodeEntities } from '../../utils/sanitize.js';
 import {
@@ -61,9 +62,10 @@ function BookingRow({ booking, onDelete }) {
       </td>
       <td className={TD}>
         <div>
-          <strong className="font-bold">{booking.service.name}</strong>
-          <br />
-          <small className="text-[0.875em] text-muted-foreground-1">${booking.service.price}</small>
+          {getBookingServices(booking).map((service) => (
+            <strong key={service.id} className="block font-bold">{service.name}</strong>
+          ))}
+          <small className="text-[0.875em] text-muted-foreground-1">${getBookingTotalPrice(booking)}</small>
         </div>
       </td>
       {/* data-order: datatables sorts by the ISO date instead of the localized text. */}
@@ -121,7 +123,8 @@ function bookingsSignature(bookings) {
   return JSON.stringify(bookings.map((booking) => [
     booking._id,
     booking.client,
-    booking.service,
+    booking.services,
+    booking.totalPrice,
     booking.date,
     booking.time,
     getProfessionalName(booking),

@@ -10,7 +10,9 @@ function booking(overrides = {}) {
   return {
     _id: 'b1',
     client: { name: 'Ana', email: 'ana@example.com', phone: '099123456' },
-    service: { name: 'Servicio Básico', price: 1200 },
+    services: [{ id: 's1', name: 'Servicio Básico', price: 1200, duration: 60 }],
+    totalPrice: 1200,
+    totalDuration: 60,
     professional: { name: 'Alex García' },
     date: '2026-03-10',
     time: '10:00',
@@ -19,6 +21,16 @@ function booking(overrides = {}) {
     ...overrides,
   };
 }
+
+const MULTI = {
+  services: [
+    { id: 'a', name: 'Consulta Inicial', price: 500, duration: 60 },
+    { id: 'b', name: 'Servicio Básico', price: 1200, duration: 60 },
+    { id: 'c', name: 'Servicio Premium', price: 2500, duration: 60 },
+  ],
+  totalPrice: 4200,
+  totalDuration: 180,
+};
 
 describe('BookingsTable', () => {
   it('renders the 8 legacy columns', () => {
@@ -45,6 +57,18 @@ describe('BookingsTable', () => {
     expect(cells[3]).toHaveTextContent('10');
     expect(cells[4]).toHaveTextContent('10:00');
     expect(cells[5]).toHaveTextContent('Alex García');
+  });
+
+  it('lists every service of the booking with the TOTAL price in the Servicio cell', () => {
+    render(<BookingsTable bookings={[booking(MULTI)]} onDelete={vi.fn()} />);
+
+    const cell = within(screen.getAllByRole('row')[1]).getAllByRole('cell')[2];
+    // The cell text is what the datatable searches and sorts by, so it must hold every name.
+    ['Consulta Inicial', 'Servicio Básico', 'Servicio Premium'].forEach((name) => {
+      expect(within(cell).getByText(name)).toBeInTheDocument();
+    });
+    expect(cell).toHaveTextContent('$4200');
+    expect(cell).not.toHaveTextContent('$500');
   });
 
   it('shows the empty-state row spanning all 8 columns', () => {
@@ -228,6 +252,16 @@ describe('RecentBookingsTable', () => {
     expect(cells[1]).toHaveTextContent('N/A');
     expect(cells[2]).toHaveTextContent('Servicio Básico');
     expect(cells[4]).toHaveTextContent('Alex García');
+  });
+
+  it('lists every service and the total price of a multi-service booking', () => {
+    render(<RecentBookingsTable bookings={[booking(MULTI)]} />);
+
+    const cell = within(screen.getAllByRole('row')[1]).getAllByRole('cell')[2];
+    expect(cell).toHaveTextContent('Consulta Inicial');
+    expect(cell).toHaveTextContent('Servicio Básico');
+    expect(cell).toHaveTextContent('Servicio Premium');
+    expect(cell).toHaveTextContent('$4200');
   });
 
   it('renders markup-looking client data as plain text', () => {

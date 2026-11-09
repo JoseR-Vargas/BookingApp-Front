@@ -17,10 +17,10 @@ const YEAR = new Date().getFullYear();
 const config = (testId) => JSON.parse(screen.getByTestId(testId).getAttribute('data-config'));
 
 const sample = [
-  { date: `${YEAR}-01-05`, service: { name: 'Corte' } },
-  { date: `${YEAR}-01-20`, service: { name: 'Corte' } },
-  { date: `${YEAR}-03-02`, service: { name: 'Barba' } },
-  { date: `${YEAR - 1}-03-02`, service: { name: 'Corte' } },
+  { date: `${YEAR}-01-05`, services: [{ name: 'Corte' }] },
+  { date: `${YEAR}-01-20`, services: [{ name: 'Corte' }] },
+  { date: `${YEAR}-03-02`, services: [{ name: 'Barba' }] },
+  { date: `${YEAR - 1}-03-02`, services: [{ name: 'Corte' }] },
 ];
 
 describe('ReportsSection', () => {
@@ -67,7 +67,7 @@ describe('ReportsSection', () => {
   });
 
   it('repeats the palette when there are more services than colors', () => {
-    const many = Array.from({ length: 7 }, (_, i) => ({ date: `${YEAR}-01-01`, service: { name: `Servicio ${i}` } }));
+    const many = Array.from({ length: 7 }, (_, i) => ({ date: `${YEAR}-01-01`, services: [{ name: `Servicio ${i}` }] }));
 
     render(<ReportsSection bookings={many} />);
 

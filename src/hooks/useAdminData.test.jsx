@@ -17,7 +17,9 @@ import { useAdminData } from './useAdminData.js';
 const make = (id, over = {}) => ({
   _id: id,
   client: { name: `Cliente ${id}`, email: 'c@example.com' },
-  service: { name: 'Servicio Básico', price: 1000 },
+  services: [{ id: 's1', name: 'Servicio Básico', price: 1000, duration: 60 }],
+  totalPrice: 1000,
+  totalDuration: 60,
   professional: { name: 'Alex García' },
   date: '2030-03-10',
   time: '10:00',
@@ -28,7 +30,7 @@ const make = (id, over = {}) => ({
 
 const BOOKINGS = [
   make('1'),
-  make('2', { professional: { name: 'María López' }, service: { name: 'Premium', price: 2500 } }),
+  make('2', { professional: { name: 'María López' }, services: [{ id: 's2', name: 'Premium', price: 2500, duration: 60 }], totalPrice: 2500 }),
   make('3', { date: '2030-03-11', professional: { name: 'María López' } }),
 ];
 
