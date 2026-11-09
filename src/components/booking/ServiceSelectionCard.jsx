@@ -24,14 +24,15 @@ function AddToggle({ serviceId, selected }) {
     : 'border-accent bg-transparent text-accent';
   return (
     <span
-      className={`mt-2 inline-flex items-center justify-center gap-1 rounded border px-2 py-0.5 text-[0.75rem] leading-tight font-semibold lte-md:order-5 lte-md:col-span-2 lte-md:mt-1 lte-md:w-fit lte-md:justify-self-end lte-md:text-[0.7rem] ${state}`}
+      className={`mt-2 inline-flex size-7 items-center justify-center rounded-full border text-[0.75rem] lte-md:order-5 lte-md:col-span-2 lte-md:mt-1 lte-md:size-6 lte-md:justify-self-end lte-md:text-[0.7rem] ${state}`}
     >
       <i
         aria-hidden="true"
         data-testid={selected ? `service-check-${serviceId}` : undefined}
         className={`fas ${selected ? 'fa-check' : 'fa-plus'}`}
       />
-      {selected ? 'Agregado' : 'Agregar'}
+      {/* Icon-only for sighted users; screen readers still get the state. */}
+      <span className="sr-only">{selected ? 'Agregado' : 'Agregar'}</span>
     </span>
   );
 }
