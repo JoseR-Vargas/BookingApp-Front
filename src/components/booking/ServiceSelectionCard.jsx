@@ -24,7 +24,7 @@ function AddToggle({ serviceId, selected }) {
     : 'border-accent bg-transparent text-accent';
   return (
     <span
-      className={`mt-2 inline-flex size-7 items-center justify-center rounded-full border text-[0.75rem] lte-md:order-5 lte-md:col-span-2 lte-md:mt-1 lte-md:size-6 lte-md:justify-self-end lte-md:text-[0.7rem] ${state}`}
+      className={`mt-2 inline-flex size-7 items-center justify-center rounded-full border text-[0.75rem] lte-md:mt-0 lte-md:size-6 lte-md:shrink-0 lte-md:text-[0.7rem] ${state}`}
     >
       <i
         aria-hidden="true"
@@ -83,19 +83,22 @@ export default function ServiceSelectionCard({ service, professionals, selected,
           <div className="mb-2 text-[1.2rem] font-bold text-accent lte-md:order-2 lte-md:mb-0 lte-md:text-base lte-md:leading-snug">
             {formatMoney(service.price)}
           </div>
-          <div className="lte-md:order-4 lte-md:col-span-2 lte-md:flex lte-md:flex-wrap lte-md:items-center lte-md:gap-x-3 lte-md:text-[0.75rem]">
+          <div className="lte-md:order-4 lte-md:col-span-2 lte-md:text-[0.75rem]">
             <div className="text-[0.9rem] text-text-muted lte-md:text-[0.75rem]">
               <i aria-hidden="true" className={`fas fa-clock mr-1 mb-4 ${ICON_SIZE} lte-md:mb-0 lte-md:text-[0.75rem]`} />
               {service.duration} minutos
             </div>
-            <small className="text-[0.875em] text-text-secondary lte-md:text-[0.75rem]">
-              Profesionales: {professionalNames}
-            </small>
+            {/* Mobile: professionals and the add toggle share one row (toggle at the right edge). */}
+            <div className="lte-md:flex lte-md:items-center lte-md:justify-between lte-md:gap-2">
+              <small className="text-[0.875em] text-text-secondary md:block lte-md:min-w-0 lte-md:text-[0.75rem]">
+                Profesionales: {professionalNames}
+              </small>
+              {!disabled && <AddToggle serviceId={service.id} selected={selected} />}
+            </div>
             {disabled && (
               <small className="block text-[0.75rem] font-semibold text-text-secondary">{UNAVAILABLE_HINT}</small>
             )}
           </div>
-          {!disabled && <AddToggle serviceId={service.id} selected={selected} />}
         </div>
       </div>
     </button>
