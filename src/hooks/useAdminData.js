@@ -94,12 +94,10 @@ export function useAdminData() {
   }, [loadBookings, setProfessional]);
 
   // Receives the booking object (never HTML strings): the id comes straight from the data.
+  // Performs the deletion directly: the caller owns the confirmation step (see ConfirmDialog).
   const deleteBooking = useCallback(async (booking) => {
     // Stored names are HTML-escaped by the legacy sender; show the readable text.
     const name = decodeEntities(booking.client && booking.client.name);
-    if (!window.confirm('¿Estás seguro de que quieres eliminar la reserva de ' + name + '?\n\nEsta acción no se puede deshacer.')) {
-      return;
-    }
     try {
       toast.info('Eliminando reserva...');
       await deleteBookingRequest(booking._id);
