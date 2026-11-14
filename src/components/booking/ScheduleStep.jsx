@@ -58,7 +58,7 @@ export default function ScheduleStep() {
 
   // Deliberate improvement: legacy kept a stale time in its state while the rebuilt <select>
   // showed nothing. Once the slots are final, a time that is no longer free is dropped.
-  const freeTimes = times.slots.filter((slot) => !slot.booked).map((slot) => slot.value).join(',');
+  const freeTimes = times.slots.join(',');
   useEffect(() => {
     if (times.settled && selectedTime && !freeTimes.split(',').includes(selectedTime)) {
       setTime(null);
@@ -94,11 +94,7 @@ export default function ScheduleStep() {
             toggleClassName={SELECT_TOGGLE_LG}
             nativeClassName={SELECT_LG}
             placeholder={times.placeholder}
-            options={times.slots.map((slot) => ({
-              value: slot.value,
-              label: slot.booked ? `${slot.value} — Ocupado` : slot.value,
-              disabled: slot.booked,
-            }))}
+            options={times.slots.map((time) => ({ value: time, label: time }))}
             value={selectedTime || ''}
             onChange={(time) => setTime(time || null)}
           />

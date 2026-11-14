@@ -45,22 +45,37 @@ const jsonResponse = (status, data) => ({
   text: async () => JSON.stringify(data),
 });
 
-// Hours a professional works: a continuous day from 09:00 (Saturday ends at 18:00, Sunday is closed).
-function openHours(date) {
+const GRID_MINUTES = 30;
+
+const minutesOf = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+const formatTime = (minutes) => (
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+);
+
+// 30-minute blocks (as start minutes) a professional works: a continuous day from 09:00
+// (Mon-Fri until 20:00, Saturday until 18:00, Sunday is closed).
+function openBlocks(date) {
   const [year, month, day] = date.split('-').map(Number);
   const weekday = new Date(year, month - 1, day).getDay();
   if (weekday === 0) return [];
-  const lastHour = weekday === 6 ? 17 : 19;
-  return [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].filter((hour) => hour <= lastHour);
+  const closing = (weekday === 6 ? 18 : 20) * 60;
+  const blocks = [];
+  for (let minutes = 9 * 60; minutes < closing; minutes += GRID_MINUTES) blocks.push(minutes);
+  return blocks;
 }
 
-const hourOf = (time) => Number(time.slice(0, 2));
-const formatHour = (hour) => String(hour).padStart(2, '0') + ':00';
+// Every time from `from` to `to` (inclusive) on the 30-minute grid.
+function gridTimes(from, to) {
+  const times = [];
+  for (let minutes = minutesOf(from); minutes <= minutesOf(to); minutes += GRID_MINUTES) times.push(formatTime(minutes));
+  return times;
+}
 
 // Fake backend installed at the `fetch` boundary, so the REAL apiClient + bookingService run
 // and the tests can assert the exact URL / method / body that reaches the network.
-// It mirrors the real availability rules: a window of ceil(totalDuration / 60) back-to-back hours
-// must be open and free of the professional's non-cancelled bookings (`slots`, default [time]).
+// It mirrors the real availability rules on the 30-minute grid: a window of
+// ceil(totalDuration / 30) back-to-back blocks must be open and free of the professional's
+// non-cancelled bookings (each booking occupies the blocks listed in `slots`, default [time]).
 function installBackend({ bookings = [] } = {}) {
   const backend = {
     bookings,
@@ -79,33 +94,33 @@ function installBackend({ bookings = [] } = {}) {
     },
   };
 
-  const occupiedHours = (date, professionalId) => new Set(
+  const occupiedBlocks = (date, professionalId) => new Set(
     backend.bookings
       .filter((b) => b.date === date && b.professional.id === professionalId && b.status !== 'cancelled')
-      .flatMap((b) => (b.slots || [b.time]).map(hourOf)),
+      .flatMap((b) => (b.slots || [b.time]).map(minutesOf)),
   );
 
-  const isWindowFree = (date, professionalId, startHour, serviceIds) => {
+  const isWindowFree = (date, professionalId, startMinutes, serviceIds) => {
     const totalDuration = serviceIds
       .map((id) => APP_CONFIG.SERVICES.find((service) => service.id === id).duration)
       .reduce((sum, duration) => sum + duration, 0);
-    const open = openHours(date);
-    const occupied = occupiedHours(date, professionalId);
-    return Array.from({ length: Math.ceil(totalDuration / 60) }, (_, i) => startHour + i)
-      .every((hour) => open.includes(hour) && !occupied.has(hour));
+    const open = openBlocks(date);
+    const occupied = occupiedBlocks(date, professionalId);
+    return Array.from({ length: Math.ceil(totalDuration / GRID_MINUTES) }, (_, i) => startMinutes + i * GRID_MINUTES)
+      .every((block) => open.includes(block) && !occupied.has(block));
   };
 
   const availabilityFor = (date, serviceIds) => ({
     date,
-    closed: openHours(date).length === 0,
+    closed: openBlocks(date).length === 0,
     services: [],
     totalDuration: 0,
     professionals: APP_CONFIG.PROFESSIONALS.map((professional) => ({
       id: professional.id,
       name: professional.name,
-      slots: openHours(date)
-        .filter((hour) => isWindowFree(date, professional.id, hour, serviceIds))
-        .map(formatHour),
+      slots: openBlocks(date)
+        .filter((start) => isWindowFree(date, professional.id, start, serviceIds))
+        .map(formatTime),
     })),
   });
 
@@ -121,7 +136,7 @@ function installBackend({ bookings = [] } = {}) {
     }
     if (url === CHECK_URL) {
       if (backend.availabilityError) throw backend.availabilityError;
-      const available = isWindowFree(body.date, body.professionalId, hourOf(body.time), body.serviceIds);
+      const available = isWindowFree(body.date, body.professionalId, minutesOf(body.time), body.serviceIds);
       return jsonResponse(200, { available });
     }
     if (backend.postGate) await backend.postGate;
@@ -462,25 +477,34 @@ describe('BookingModal happy path', () => {
   });
 });
 
+const optionValues = () => within(timeSelect())
+  .getAllByRole('option')
+  .map((o) => o.value)
+  .filter(Boolean);
+
 describe('time slots', () => {
-  it('renders a booked slot disabled and labelled " — Ocupado"', async () => {
+  it('offers only free start times on the 30-minute grid: no "Ocupado" rows, nothing disabled', async () => {
     installBackend({ bookings: [existingBooking({ time: '10:00' })] });
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
     await fillSchedule(user, { time: null });
 
-    const busy = await within(timeSelect()).findByRole('option', { name: '10:00 — Ocupado' });
-    expect(busy).toBeDisabled();
+    // Básico = 2 blocks. Alex is busy 10:00, so the windows starting 09:30 and 10:00 are gone.
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (19 disponibles)' });
     expect(within(timeSelect()).getByRole('option', { name: '09:00' })).toBeEnabled();
-    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (10 disponibles)' })).toBeInTheDocument();
+    expect(within(timeSelect()).getByRole('option', { name: '10:30' })).toBeEnabled();
+    expect(within(timeSelect()).queryByRole('option', { name: '09:30' })).not.toBeInTheDocument();
+    expect(within(timeSelect()).queryByRole('option', { name: '10:00' })).not.toBeInTheDocument();
+    expect(within(timeSelect()).queryByRole('option', { name: /Ocupado/ })).not.toBeInTheDocument();
+    within(timeSelect()).getAllByRole('option').forEach((option) => expect(option).toBeEnabled());
   });
 
-  it('asks the backend for the whole selection and shows a window that does not fit as "Ocupado"', async () => {
+  it('asks the backend for the whole selection and lists only the windows that fit', async () => {
     const backend = installBackend({ bookings: [existingBooking({ time: '11:00' })] });
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
-    // Consulta 30 + Básico 60 + Premium 90 = 180 min = 3 consecutive hours.
+    // Consulta 30 + Básico 60 + Premium 90 = 180 min = 6 consecutive 30-minute blocks.
     await chooseService(user, 'Consulta Inicial', 'Servicio Básico', 'Servicio Premium');
     await fillSchedule(user, { time: null });
 
@@ -488,14 +512,9 @@ describe('time slots', () => {
     expect(backend.gets[0].url).toBe(
       `${AVAILABILITY_URL}?date=${MONDAY}&serviceIds=consulta-inicial,servicio-basico,servicio-premium`,
     );
-    // Alex is busy 11:00: every 3-hour window touching it (09, 10, 11) and the ones crossing the closing (18, 19) are out.
-    for (const busy of ['09:00', '10:00', '11:00', '18:00', '19:00']) {
-      expect(within(timeSelect()).getByRole('option', { name: `${busy} — Ocupado` })).toBeDisabled();
-    }
-    for (const free of ['12:00', '13:00', '14:00', '15:00', '16:00', '17:00']) {
-      expect(within(timeSelect()).getByRole('option', { name: free })).toBeEnabled();
-    }
-    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (6 disponibles)' })).toBeInTheDocument();
+    // Alex is busy 11:00: windows starting 09:00..11:00 touch it, windows after 17:00 cross the closing.
+    expect(optionValues()).toEqual(gridTimes('11:30', '17:00'));
+    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (12 disponibles)' })).toBeInTheDocument();
   });
 
   it('asks again with the new selection when the services change after going back', async () => {
@@ -504,17 +523,16 @@ describe('time slots', () => {
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
     await fillSchedule(user, { time: null });
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (11 disponibles)' });
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (21 disponibles)' });
 
     await user.click(screen.getByRole('button', { name: /Anterior/ }));
     await user.click(serviceCard('Consulta Inicial'));
     await user.click(nextButton());
 
-    // 60 + 30 min need two consecutive hours: 12:00 and 13:00 are valid starts, only 19:00 would cross the closing.
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (10 disponibles)' });
-    expect(within(timeSelect()).getByRole('option', { name: '12:00' })).toBeEnabled();
-    expect(within(timeSelect()).getByRole('option', { name: '13:00' })).toBeEnabled();
-    expect(within(timeSelect()).getByRole('option', { name: '19:00 — Ocupado' })).toBeDisabled();
+    // 60 + 30 min need three blocks: 18:30 is the last valid start, 19:00 would cross the closing.
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (20 disponibles)' });
+    expect(within(timeSelect()).getByRole('option', { name: '18:30' })).toBeEnabled();
+    expect(within(timeSelect()).queryByRole('option', { name: '19:00' })).not.toBeInTheDocument();
     expect(backend.gets).toHaveLength(2);
     expect(backend.gets[1].url).toBe(`${AVAILABILITY_URL}?date=${MONDAY}&serviceIds=servicio-basico,consulta-inicial`);
   });
@@ -532,11 +550,11 @@ describe('time slots', () => {
     await chooseService(user, 'Servicio Básico');
     await fillSchedule(user, { time: null });
 
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (11 disponibles)' });
-    expect(within(timeSelect()).queryByRole('option', { name: /Ocupado/ })).not.toBeInTheDocument();
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (21 disponibles)' });
+    expect(optionValues()).toEqual(gridTimes('09:00', '19:00'));
   });
 
-  it('shows every hour from 9:00 to 19:00 on weekdays, 13:00 included', async () => {
+  it('shows a start every 30 minutes from 09:00 to 19:00 on weekdays, 09:30 and 13:30 included', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -544,30 +562,31 @@ describe('time slots', () => {
     await fillSchedule(user, { time: null });
     await within(timeSelect()).findByRole('option', { name: /disponibles/ });
 
-    const values = within(timeSelect())
-      .getAllByRole('option')
-      .map((o) => o.value)
-      .filter(Boolean);
-    expect(values).toEqual(['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']);
+    const values = optionValues();
+    expect(values).toEqual(gridTimes('09:00', '19:00'));
+    expect(values).toContain('09:30');
+    expect(values).toContain('13:30');
+    expect(values).not.toContain('19:30');
     expect(values).not.toContain('20:00');
   });
 
   it('closes on Sunday with the "Domingo cerrado" label (before and after choosing a professional)', async () => {
-    installBackend();
+    const backend = installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
 
     fireEvent.change(dateInput(), { target: { value: SUNDAY } });
-    expect(within(timeSelect()).getByRole('option', { name: 'Domingo cerrado' })).toBeInTheDocument();
+    await within(timeSelect()).findByRole('option', { name: 'Domingo cerrado' });
     expect(within(timeSelect()).getAllByRole('option')).toHaveLength(1);
 
     await user.click(professionalCard('Alex García'));
-    await within(timeSelect()).findByRole('option', { name: 'Domingo cerrado' });
+    expect(within(timeSelect()).getByRole('option', { name: 'Domingo cerrado' })).toBeInTheDocument();
     expect(within(timeSelect()).getAllByRole('option')).toHaveLength(1);
+    expect(backend.gets).toHaveLength(1);
   });
 
-  it('closes at 18:00 on Saturday (last slot 17:00)', async () => {
+  it('closes at 18:00 on Saturday (last start 17:00 for a one-hour service)', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -575,17 +594,32 @@ describe('time slots', () => {
     await fillSchedule(user, { date: SATURDAY, time: null });
     await within(timeSelect()).findByRole('option', { name: /disponibles/ });
 
-    const values = within(timeSelect())
-      .getAllByRole('option')
-      .map((o) => o.value)
-      .filter(Boolean);
-    expect(values).toContain('17:00');
+    const values = optionValues();
+    expect(values).toEqual(gridTimes('09:00', '17:00'));
+    expect(values).not.toContain('17:30');
     expect(values).not.toContain('18:00');
-    expect(values).not.toContain('19:00');
   });
 
-  it('shows the plain slot list (all free) after picking a date but before a professional', async () => {
-    installBackend();
+  it('says there are no times when the chosen professional is fully booked', async () => {
+    installBackend({
+      bookings: gridTimes('09:00', '19:30').map((time) => existingBooking({ time })),
+    });
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    await chooseService(user, 'Servicio Básico');
+    await fillSchedule(user, { time: null });
+
+    await within(timeSelect()).findByRole('option', { name: 'No hay horarios disponibles' });
+    expect(within(timeSelect()).getAllByRole('option')).toHaveLength(1);
+  });
+
+  it('shows the union of every professional before one is chosen, then filters without a new request', async () => {
+    const backend = installBackend({
+      bookings: [
+        existingBooking({ time: '10:00', slots: ['10:00', '10:30'] }),
+        existingBooking({ time: '12:00', slots: ['12:00', '12:30'], professional: { id: 'maria-lopez', name: 'María López' } }),
+      ],
+    });
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
@@ -593,8 +627,24 @@ describe('time slots', () => {
     expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una fecha primero' })).toBeInTheDocument();
 
     fireEvent.change(dateInput(), { target: { value: MONDAY } });
-    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora' })).toBeInTheDocument();
-    expect(within(timeSelect()).getByRole('option', { name: '09:00' })).toBeEnabled();
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (21 disponibles)' });
+    // Each time is free for at least one of them, so the union is the whole grid.
+    expect(optionValues()).toEqual(gridTimes('09:00', '19:00'));
+    expect(within(timeSelect()).getByRole('option', { name: '09:30' })).toBeEnabled();
+
+    // Alex (busy 10:00-11:00): windows starting 09:30, 10:00 and 10:30 are gone.
+    await user.click(professionalCard('Alex García'));
+    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (18 disponibles)' })).toBeInTheDocument();
+    expect(optionValues()).not.toContain('10:00');
+    expect(optionValues()).toContain('12:00');
+
+    // María (busy 12:00-13:00): windows starting 11:30, 12:00 and 12:30 are gone.
+    await user.click(professionalCard('María López'));
+    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (18 disponibles)' })).toBeInTheDocument();
+    expect(optionValues()).toContain('10:00');
+    expect(optionValues()).not.toContain('12:00');
+
+    expect(backend.gets).toHaveLength(1);
   });
 
   it('shows the loading option text while bookings are being fetched', async () => {
@@ -627,13 +677,15 @@ describe('availability recomputation (deliberate improvements)', () => {
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
     await fillSchedule(user, { time: null });
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (11 disponibles)' });
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (21 disponibles)' });
     expect(backend.gets).toHaveLength(1);
 
     fireEvent.change(dateInput(), { target: { value: OTHER_MONDAY } });
 
-    const busy = await within(timeSelect()).findByRole('option', { name: '16:00 — Ocupado' });
-    expect(busy).toBeDisabled();
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (19 disponibles)' });
+    expect(optionValues()).not.toContain('16:00');
+    expect(optionValues()).not.toContain('15:30');
+    expect(optionValues()).toContain('16:30');
     expect(backend.gets).toHaveLength(2);
   });
 
@@ -654,13 +706,29 @@ describe('availability recomputation (deliberate improvements)', () => {
     // Back to Alex on a date where Alex is busy at 11:00: the stale time must go away.
     await user.click(professionalCard('Alex García'));
     fireEvent.change(dateInput(), { target: { value: OTHER_MONDAY } });
-    await within(timeSelect()).findByRole('option', { name: '11:00 — Ocupado' });
+    await within(timeSelect()).findByRole('option', { name: /disponibles\)/ });
+    expect(within(timeSelect()).queryByRole('option', { name: '11:00' })).not.toBeInTheDocument();
 
     // The stale time is cleared from the state AND from the select.
     await waitFor(() => expect(screen.getByTestId('selected-service-info')).toHaveTextContent('Hora: No seleccionada'));
     expect(timeSelect()).toHaveValue('');
     await user.click(nextButton());
     expect(toast.error).toHaveBeenCalledWith('Por favor selecciona una hora');
+  });
+
+  it('keeps a 30-minute time while it is free and clears it once it is not', async () => {
+    installBackend({ bookings: [existingBooking({ date: OTHER_MONDAY, time: '11:30' })] });
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    await chooseService(user, 'Servicio Básico');
+    await fillSchedule(user, { time: '11:30' });
+    expect(timeSelect()).toHaveValue('11:30');
+
+    fireEvent.change(dateInput(), { target: { value: OTHER_MONDAY } });
+    await within(timeSelect()).findByRole('option', { name: /disponibles\)/ });
+
+    await waitFor(() => expect(screen.getByTestId('selected-service-info')).toHaveTextContent('Hora: No seleccionada'));
+    expect(timeSelect()).toHaveValue('');
   });
 
   it('clears the selected time when the date becomes a closed Sunday', async () => {
@@ -678,7 +746,7 @@ describe('availability recomputation (deliberate improvements)', () => {
 });
 
 describe('availability fetch failures', () => {
-  it('retries twice on a network failure, then warns and shows every slot as free', async () => {
+  it('retries twice on a network failure, then warns and falls back to the local 30-minute grid', async () => {
     const backend = installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -715,7 +783,9 @@ describe('availability fetch failures', () => {
 
     expect(toast.warning).toHaveBeenCalledTimes(1);
     expect(toast.warning).toHaveBeenCalledWith(MESSAGES.desktopFallback, 10000);
-    expect(optionTexts()[0]).toBe('Selecciona una hora (11 disponibles)');
+    // The grid is rebuilt locally (the backend still validates on create): 09:00..19:30, every 30 min.
+    expect(optionTexts()[0]).toBe('Selecciona una hora (22 disponibles)');
+    expect(optionValues()).toEqual(gridTimes('09:00', '19:30'));
     expect(within(timeSelect()).queryByRole('option', { name: /Ocupado/ })).not.toBeInTheDocument();
 
     // No further retries are scheduled.
@@ -782,11 +852,15 @@ describe('availability fetch failures', () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
 
-    expect(within(timeSelect()).getByRole('option', { name: '10:00 — Ocupado' })).toBeDisabled();
+    // The real backend answer wins over the fallback grid: 10:00 (and the 09:30 window touching it) are absent.
+    expect(within(timeSelect()).getByRole('option', { name: '09:00' })).toBeInTheDocument();
+    expect(within(timeSelect()).getByRole('option', { name: '10:30' })).toBeInTheDocument();
+    expect(within(timeSelect()).queryByRole('option', { name: '10:00' })).not.toBeInTheDocument();
+    expect(within(timeSelect()).queryByRole('option', { name: '09:30' })).not.toBeInTheDocument();
     expect(toast.warning).not.toHaveBeenCalled();
   });
 
-  it('does not retry an HTTP error: it warns immediately and shows every slot as free', async () => {
+  it('does not retry an HTTP error: it warns immediately and shows the local 30-minute grid', async () => {
     const backend = installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -795,7 +869,8 @@ describe('availability fetch failures', () => {
     backend.availabilityError = new Error('HTTP error! status: 500');
     await fillSchedule(user, { time: null });
 
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (11 disponibles)' });
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (22 disponibles)' });
+    expect(optionValues()).toContain('09:30');
     expect(backend.gets).toHaveLength(1);
     expect(toast.warning).toHaveBeenCalledWith(MESSAGES.desktopFallback, 10000);
   });
@@ -1124,6 +1199,8 @@ describe('modal lifecycle', () => {
 
     // The client form was rebuilt too.
     fireEvent.change(dateInput(), { target: { value: MONDAY } });
+    // Times come from the backend as soon as the date is known (no professional needed).
+    await within(timeSelect()).findByRole('option', { name: '11:00' });
     await user.selectOptions(timeSelect(), '11:00');
     await user.click(professionalCard('Alex García'));
     await user.click(nextButton());
