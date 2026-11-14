@@ -40,11 +40,10 @@ describe('buildTimeSlots', () => {
     expect(slots).not.toContain('20:00');
   });
 
-  it('skips the lunch hour 13:00', () => {
-    const slots = values(buildTimeSlots(MONDAY));
-    expect(slots).not.toContain('13:00');
-    expect(slots).toContain('12:00');
-    expect(slots).toContain('14:00');
+  it('runs continuously: every hour from 09:00 to 19:00 is a slot, 13:00 included', () => {
+    expect(values(buildTimeSlots(MONDAY))).toEqual([
+      '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00',
+    ]);
   });
 
   it('flags booked times and counts the available ones', () => {
@@ -79,7 +78,7 @@ describe('buildTimeSlots', () => {
 
 describe('getUnavailableTimes', () => {
   it('is every grid time that is not in the free list', () => {
-    expect(getUnavailableTimes(MONDAY, ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00']))
+    expect(getUnavailableTimes(MONDAY, ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']))
       .toEqual(['18:00', '19:00']);
   });
 
@@ -88,7 +87,7 @@ describe('getUnavailableTimes', () => {
   });
 
   it('ignores free times that are outside the grid and has nothing to flag on a closed day', () => {
-    expect(getUnavailableTimes(MONDAY, ['13:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']))
+    expect(getUnavailableTimes(MONDAY, ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']))
       .toEqual([]);
     expect(getUnavailableTimes(SUNDAY, [])).toEqual([]);
   });

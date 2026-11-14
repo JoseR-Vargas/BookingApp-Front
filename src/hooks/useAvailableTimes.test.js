@@ -92,7 +92,7 @@ describe('useAvailableTimes', () => {
 
     expect(toast.warning).toHaveBeenCalledTimes(1);
     expect(busyValues(result.current)).toEqual([]);
-    expect(result.current.placeholder).toBe('Selecciona una hora (10 disponibles)');
+    expect(result.current.placeholder).toBe('Selecciona una hora (11 disponibles)');
     expect(getAvailability).toHaveBeenCalledTimes(1);
   });
 });

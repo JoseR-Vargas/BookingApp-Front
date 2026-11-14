@@ -36,11 +36,10 @@ export function buildTimeSlots(dateString, bookedTimes = []) {
     };
   }
 
-  const { start, lunchBreak } = APP_CONFIG.BUSINESS_HOURS;
+  const { start } = APP_CONFIG.BUSINESS_HOURS;
   const bookedList = bookedTimes || [];
   const slots = [];
   for (let hour = start; hour < day.closingHour; hour++) {
-    if (hour >= lunchBreak.start && hour < lunchBreak.end) continue;
     const value = hour.toString().padStart(2, '0') + ':00';
     slots.push({ value, booked: bookedList.includes(value) });
   }
@@ -59,7 +58,7 @@ export function buildTimeSlots(dateString, bookedTimes = []) {
 }
 
 // Grid times a professional cannot start at, given the start times the backend reports as free
-// (a window that does not fit - closing, lunch, occupied - is simply absent from `freeTimes`).
+// (a window that does not fit - closing or occupied - is simply absent from `freeTimes`).
 export function getUnavailableTimes(dateString, freeTimes) {
   return buildTimeSlots(dateString).slots
     .map((slot) => slot.value)

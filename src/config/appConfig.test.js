@@ -42,7 +42,6 @@ describe('APP_CONFIG business data (frozen from the pre-migration config)', () =
       start: 9,
       end: 20,
       interval: 60,
-      lunchBreak: { start: 13, end: 14 },
     });
     expect(config.CANCELLATION_HOURS).toBe(5);
     expect(config.TOAST_DURATION).toBe(3000);

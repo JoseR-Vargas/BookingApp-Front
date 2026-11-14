@@ -45,13 +45,13 @@ const jsonResponse = (status, data) => ({
   text: async () => JSON.stringify(data),
 });
 
-// Hours a professional works (lunch at 13:00 is closed; Saturday ends at 18:00, Sunday is closed).
+// Hours a professional works: a continuous day from 09:00 (Saturday ends at 18:00, Sunday is closed).
 function openHours(date) {
   const [year, month, day] = date.split('-').map(Number);
   const weekday = new Date(year, month - 1, day).getDay();
   if (weekday === 0) return [];
   const lastHour = weekday === 6 ? 17 : 19;
-  return [9, 10, 11, 12, 14, 15, 16, 17, 18, 19].filter((hour) => hour <= lastHour);
+  return [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].filter((hour) => hour <= lastHour);
 }
 
 const hourOf = (time) => Number(time.slice(0, 2));
@@ -473,7 +473,7 @@ describe('time slots', () => {
     const busy = await within(timeSelect()).findByRole('option', { name: '10:00 — Ocupado' });
     expect(busy).toBeDisabled();
     expect(within(timeSelect()).getByRole('option', { name: '09:00' })).toBeEnabled();
-    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (9 disponibles)' })).toBeInTheDocument();
+    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (10 disponibles)' })).toBeInTheDocument();
   });
 
   it('asks the backend for the whole selection and shows a window that does not fit as "Ocupado"', async () => {
@@ -488,14 +488,14 @@ describe('time slots', () => {
     expect(backend.gets[0].url).toBe(
       `${AVAILABILITY_URL}?date=${MONDAY}&serviceIds=consulta-inicial,servicio-basico,servicio-premium`,
     );
-    // Alex is busy 11:00: every 3-hour window touching it (09, 10), the lunch break (11, 12) and the closing (18, 19) is out.
-    for (const busy of ['09:00', '10:00', '11:00', '12:00', '18:00', '19:00']) {
+    // Alex is busy 11:00: every 3-hour window touching it (09, 10, 11) and the ones crossing the closing (18, 19) are out.
+    for (const busy of ['09:00', '10:00', '11:00', '18:00', '19:00']) {
       expect(within(timeSelect()).getByRole('option', { name: `${busy} — Ocupado` })).toBeDisabled();
     }
-    for (const free of ['14:00', '15:00', '16:00', '17:00']) {
+    for (const free of ['12:00', '13:00', '14:00', '15:00', '16:00', '17:00']) {
       expect(within(timeSelect()).getByRole('option', { name: free })).toBeEnabled();
     }
-    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (4 disponibles)' })).toBeInTheDocument();
+    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (6 disponibles)' })).toBeInTheDocument();
   });
 
   it('asks again with the new selection when the services change after going back', async () => {
@@ -504,14 +504,17 @@ describe('time slots', () => {
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
     await fillSchedule(user, { time: null });
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (10 disponibles)' });
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (11 disponibles)' });
 
     await user.click(screen.getByRole('button', { name: /Anterior/ }));
     await user.click(serviceCard('Consulta Inicial'));
     await user.click(nextButton());
 
-    // 60 + 30 min need two consecutive hours: the 12:00 start would cross the lunch break.
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (8 disponibles)' });
+    // 60 + 30 min need two consecutive hours: 12:00 and 13:00 are valid starts, only 19:00 would cross the closing.
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (10 disponibles)' });
+    expect(within(timeSelect()).getByRole('option', { name: '12:00' })).toBeEnabled();
+    expect(within(timeSelect()).getByRole('option', { name: '13:00' })).toBeEnabled();
+    expect(within(timeSelect()).getByRole('option', { name: '19:00 — Ocupado' })).toBeDisabled();
     expect(backend.gets).toHaveLength(2);
     expect(backend.gets[1].url).toBe(`${AVAILABILITY_URL}?date=${MONDAY}&serviceIds=servicio-basico,consulta-inicial`);
   });
@@ -529,11 +532,11 @@ describe('time slots', () => {
     await chooseService(user, 'Servicio Básico');
     await fillSchedule(user, { time: null });
 
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (10 disponibles)' });
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (11 disponibles)' });
     expect(within(timeSelect()).queryByRole('option', { name: /Ocupado/ })).not.toBeInTheDocument();
   });
 
-  it('shows the 9:00-12:00 and 14:00-19:00 hours on weekdays (lunch 13:00 excluded)', async () => {
+  it('shows every hour from 9:00 to 19:00 on weekdays, 13:00 included', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -545,8 +548,7 @@ describe('time slots', () => {
       .getAllByRole('option')
       .map((o) => o.value)
       .filter(Boolean);
-    expect(values).toEqual(['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']);
-    expect(values).not.toContain('13:00');
+    expect(values).toEqual(['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']);
     expect(values).not.toContain('20:00');
   });
 
@@ -625,7 +627,7 @@ describe('availability recomputation (deliberate improvements)', () => {
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
     await fillSchedule(user, { time: null });
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (10 disponibles)' });
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (11 disponibles)' });
     expect(backend.gets).toHaveLength(1);
 
     fireEvent.change(dateInput(), { target: { value: OTHER_MONDAY } });
@@ -713,7 +715,7 @@ describe('availability fetch failures', () => {
 
     expect(toast.warning).toHaveBeenCalledTimes(1);
     expect(toast.warning).toHaveBeenCalledWith(MESSAGES.desktopFallback, 10000);
-    expect(optionTexts()[0]).toBe('Selecciona una hora (10 disponibles)');
+    expect(optionTexts()[0]).toBe('Selecciona una hora (11 disponibles)');
     expect(within(timeSelect()).queryByRole('option', { name: /Ocupado/ })).not.toBeInTheDocument();
 
     // No further retries are scheduled.
@@ -793,7 +795,7 @@ describe('availability fetch failures', () => {
     backend.availabilityError = new Error('HTTP error! status: 500');
     await fillSchedule(user, { time: null });
 
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (10 disponibles)' });
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (11 disponibles)' });
     expect(backend.gets).toHaveLength(1);
     expect(toast.warning).toHaveBeenCalledWith(MESSAGES.desktopFallback, 10000);
   });

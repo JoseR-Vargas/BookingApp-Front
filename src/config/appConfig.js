@@ -16,10 +16,6 @@ export const APP_CONFIG = {
         start: 9,
         end: 20,
         interval: 60,
-        lunchBreak: {
-            start: 13,
-            end: 14,
-        },
     },
 
     CANCELLATION_HOURS: 5,
