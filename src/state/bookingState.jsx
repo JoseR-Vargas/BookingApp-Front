@@ -4,10 +4,11 @@
 // `eventListenersRegistered` is gone: React owns event wiring, so there is nothing to register.
 
 import { createContext, useContext, useMemo, useReducer } from 'react';
+import { offersAllServices, toggleService } from '../utils/serviceSelection.js';
 
 export const initialBookingState = {
   currentStep: 1,
-  selectedService: null,
+  selectedServices: [],
   selectedDate: null,
   selectedTime: null,
   selectedProfessional: null,
@@ -18,13 +19,15 @@ export function bookingReducer(state, action) {
   switch (action.type) {
     case 'SET_STEP':
       return { ...state, currentStep: action.step };
-    case 'SET_SERVICE': {
-      // A professional that the new service does not offer must not stay selected.
+    case 'TOGGLE_SERVICE': {
+      const selectedServices = toggleService(state.selectedServices, action.service);
+      // A professional must offer EVERY selected service, and the booked time depended on the old duration.
       const stillOffered = state.selectedProfessional
-        && action.service.professionals.includes(state.selectedProfessional.id);
+        && offersAllServices(state.selectedProfessional.id, selectedServices);
       return {
         ...state,
-        selectedService: action.service,
+        selectedServices,
+        selectedTime: null,
         selectedProfessional: stillOffered ? state.selectedProfessional : null,
       };
     }
@@ -51,7 +54,7 @@ export function BookingProvider({ children }) {
   // `dispatch` is stable, so the action creators are too: safe to use in effect dependency lists.
   const actions = useMemo(() => ({
     setStep: (step) => dispatch({ type: 'SET_STEP', step }),
-    setService: (service) => dispatch({ type: 'SET_SERVICE', service }),
+    toggleService: (service) => dispatch({ type: 'TOGGLE_SERVICE', service }),
     setDate: (date) => dispatch({ type: 'SET_DATE', date }),
     setTime: (time) => dispatch({ type: 'SET_TIME', time }),
     setProfessional: (professional) => dispatch({ type: 'SET_PROFESSIONAL', professional }),
@@ -62,9 +65,9 @@ export function BookingProvider({ children }) {
   const value = useMemo(() => ({
     state,
     ...actions,
-    // Legacy isValid(): the four selections are all present.
+    // Legacy isValid(): the four selections are all present (at least one service).
     isValid: () => !!(
-      state.selectedService
+      state.selectedServices.length > 0
       && state.selectedDate
       && state.selectedTime
       && state.selectedProfessional

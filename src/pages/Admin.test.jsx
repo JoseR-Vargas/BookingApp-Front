@@ -30,7 +30,9 @@ function makeBooking(n, overrides = {}) {
   return {
     _id: `id-${n}`,
     client: { name: `Cliente ${n}`, email: `c${n}@example.com`, phone: `0991100${n}` },
-    service: { name: 'Servicio Básico', price: 1000 },
+    services: [{ id: 's1', name: 'Servicio Básico', price: 1000, duration: 60 }],
+    totalPrice: 1000,
+    totalDuration: 60,
     professional: { name: 'Alex García' },
     date: `${YEAR}-03-1${n}`,
     time: '10:00',
@@ -47,10 +49,10 @@ function seed() {
   return [
     makeBooking(1, { notes: 'Prefiero silla baja' }),
     makeBooking(2, { client: { name: 'Ana &amp; Co', email: 'ana@example.com' }, date: `${YEAR}-03-12` }),
-    makeBooking(3, { service: { name: 'Servicio Premium', price: 2500 }, status: 'pending' }),
+    makeBooking(3, { services: [{ id: 's2', name: 'Servicio Premium', price: 2500, duration: 60 }], totalPrice: 2500, status: 'pending' }),
     makeBooking(4, { date: `${YEAR}-03-12` }),
     makeBooking(5, { professional: undefined, barber: { name: 'Barbero Viejo' } }),
-    makeBooking(6, { service: { name: 'Servicio Premium', price: 2500 } }),
+    makeBooking(6, { services: [{ id: 's2', name: 'Servicio Premium', price: 2500, duration: 60 }], totalPrice: 2500 }),
     makeBooking(7, { date: `${YEAR}-04-01` }),
   ];
 }
@@ -539,6 +541,29 @@ describe('Admin reports section', () => {
     const doughnut = JSON.parse(screen.getByTestId('doughnut-chart').getAttribute('data-config'));
     expect(doughnut.data.labels).toEqual(['Servicio Básico', 'Servicio Premium']);
     expect(doughnut.data.datasets[0].data).toEqual([5, 2]);
+  });
+
+  it('counts every service line of a multi-service booking and sums its totalPrice as revenue', async () => {
+    db.bookings[6] = makeBooking(7, {
+      date: `${YEAR}-04-01`,
+      services: [
+        { id: 's1', name: 'Servicio Básico', price: 1000, duration: 60 },
+        { id: 's2', name: 'Servicio Premium', price: 2500, duration: 60 },
+        { id: 's3', name: 'Consulta Inicial', price: 700, duration: 60 },
+      ],
+      totalPrice: 4200,
+      totalDuration: 180,
+    });
+    await loadedAdmin();
+
+    await goTo('Reportes');
+    const doughnut = JSON.parse(screen.getByTestId('doughnut-chart').getAttribute('data-config'));
+    expect(doughnut.data.labels).toEqual(['Servicio Básico', 'Servicio Premium', 'Consulta Inicial']);
+    expect(doughnut.data.datasets[0].data).toEqual([5, 3, 1]);
+
+    await goTo('Reservas');
+    // 1000*4 confirmed (1,2,4,5) + 2500 (booking 6) + 4200 (booking 7); booking 3 is pending.
+    expect(screen.getByTestId('filtered-total-revenue')).toHaveTextContent(`$${(10700).toLocaleString()}`);
   });
 
   it('updates the charts after the data changes (delete) instead of freezing at first render', async () => {

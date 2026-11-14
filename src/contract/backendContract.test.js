@@ -5,6 +5,8 @@
 //    NO global ValidationPipe, so there are no length/regex/enum limits at the HTTP layer.
 //  - The real constraints are the Mongoose `Booking` schema `required` flags (a missing required
 //    value yields "Error de validación" -> 400) and the explicit checks in BookingsService.create().
+//  - A booking holds N services: only `services[].id` is trusted (name, price and duration come from
+//    the backend catalog), ids must be unique and the professional must offer all of them.
 // The validator below encodes exactly those constraints, strictly (exact JS types, no coercion).
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -24,17 +26,18 @@ import { connectBookingSocket } from '../services/realtimeService.js';
 
 const isNonEmptyString = (v) => typeof v === 'string' && v.length > 0;
 const isString = (v) => typeof v === 'string';
-const isNumber = (v) => typeof v === 'number' && Number.isFinite(v);
+const isServiceRefList = (v) => (
+  Array.isArray(v)
+  && v.length > 0
+  && v.every((s) => s && isNonEmptyString(s.id) && Object.keys(s).length === 1)
+  && new Set(v.map((s) => s.id)).size === v.length
+);
 
 // field path -> [predicate, description]
 const REQUIRED = {
   'client.name': [isNonEmptyString, 'non-empty string'],
-  'client.email': [isNonEmptyString, 'non-empty string'],
   'client.phone': [isNonEmptyString, 'non-empty string'],
-  'service.id': [isNonEmptyString, 'non-empty string'],
-  'service.name': [isNonEmptyString, 'non-empty string'],
-  'service.price': [isNumber, 'number'],
-  'service.duration': [isNumber, 'number'],
+  services: [isServiceRefList, 'non-empty list of unique { id } references'],
   'professional.id': [isNonEmptyString, 'non-empty string'],
   'professional.name': [isNonEmptyString, 'non-empty string'],
   date: [isNonEmptyString, 'non-empty string'],
@@ -42,6 +45,7 @@ const REQUIRED = {
 };
 const OPTIONAL = {
   'client.id': [isString, 'string'],
+  'client.email': [isString, 'string'],
   notes: [isString, 'string'],
   status: [isString, 'string'],
 };
@@ -62,13 +66,13 @@ function validateCreateBooking(payload) {
 }
 
 // Fixture: worst case for escaping (every sanitized character present) and a real catalog entry.
-const SERVICE = APP_CONFIG.SERVICES[0];
+const SERVICES = APP_CONFIG.SERVICES.slice(0, 2);
 const PROFESSIONAL = APP_CONFIG.PROFESSIONALS[0];
 const NASTY = `Ana "O'Brien" <b>&</b>`;
 
 const payloadFor = (formData) => buildBookingPayload({
   formData,
-  service: SERVICE,
+  services: SERVICES,
   professional: PROFESSIONAL,
   date: '2030-01-15',
   time: '10:00',
@@ -107,37 +111,37 @@ describe('POST /api/bookings payload vs CreateBookingDto / Booking schema', () =
     const payload = payloadFor({ name: 'Ana', id: '1', email: 'a@b.co', phone: '1', notes: 'n' });
 
     expect(Object.keys(payload).sort()).toEqual(
-      ['client', 'date', 'notes', 'professional', 'service', 'status', 'time'],
+      ['client', 'date', 'notes', 'professional', 'services', 'status', 'time'],
     );
     expect(Object.keys(payload.client).sort()).toEqual(['email', 'id', 'name', 'phone']);
-    expect(Object.keys(payload.service).sort()).toEqual(['duration', 'id', 'name', 'price']);
+    expect(payload.services).toEqual(SERVICES.map(({ id }) => ({ id })));
     expect(Object.keys(payload.professional).sort()).toEqual(['id', 'name']);
   });
 
-  it('every catalog service/professional pair produces an accepted payload', () => {
-    for (const service of APP_CONFIG.SERVICES) {
-      for (const professional of APP_CONFIG.PROFESSIONALS) {
-        const payload = buildBookingPayload({
-          formData: { name: 'Ana', email: 'a@b.co', phone: '1' },
-          service,
-          professional,
-          date: '2030-01-15',
-          time: '09:00',
-        });
-        expect(validateCreateBooking(payload)).toEqual([]);
-      }
+  it('the whole catalog booked together with any professional produces an accepted payload', () => {
+    for (const professional of APP_CONFIG.PROFESSIONALS) {
+      const payload = buildBookingPayload({
+        formData: { name: 'Ana', email: 'a@b.co', phone: '1' },
+        services: APP_CONFIG.SERVICES,
+        professional,
+        date: '2030-01-15',
+        time: '09:00',
+      });
+      expect(validateCreateBooking(payload)).toEqual([]);
+      expect(payload.services).toHaveLength(APP_CONFIG.SERVICES.length);
     }
   });
 
   it('the validator itself rejects what the backend would reject (guards against a vacuous test)', () => {
     const good = payloadFor({ name: 'Ana', email: 'a@b.co', phone: '1' });
 
-    expect(validateCreateBooking({ ...good, client: { ...good.client, email: '' } })).toContain(
-      'client.email must be a non-empty string',
+    expect(validateCreateBooking({ ...good, client: { ...good.client, phone: '' } })).toContain(
+      'client.phone must be a non-empty string',
     );
-    expect(validateCreateBooking({ ...good, service: { ...good.service, price: '500' } })).toContain(
-      'service.price must be a number',
-    );
+    const refList = 'services must be a non-empty list of unique { id } references';
+    expect(validateCreateBooking({ ...good, services: [] })).toContain(refList);
+    expect(validateCreateBooking({ ...good, services: [{ id: 'a' }, { id: 'a' }] })).toContain(refList);
+    expect(validateCreateBooking({ ...good, services: [{ id: 'a', price: 1 }] })).toContain(refList);
     expect(validateCreateBooking({ ...good, professional: undefined })).toContain(
       'professional.id must be a non-empty string',
     );
@@ -151,12 +155,14 @@ describe('POST /api/bookings payload vs CreateBookingDto / Booking schema', () =
 const BACKEND_ROUTES = [
   ['POST', '/api/bookings'],
   ['GET', '/api/bookings'],
+  ['POST', '/api/bookings/availability'],
+  ['GET', '/api/availability'],
   ['GET', '/api/bookings/statistics'],
   ['DELETE', '/api/bookings/:id'],
 ];
 
 const matchesRoute = (method, url) => BACKEND_ROUTES.some(([m, template]) => (
-  m === method && new RegExp(`^${template.replace(':id', '[^/]+')}$`).test(url)
+  m === method && new RegExp(`^${template.replace(':id', '[^/]+')}$`).test(url.split('?')[0])
 ));
 
 describe('endpoints used by the services exist in the backend controller', () => {
@@ -176,14 +182,16 @@ describe('endpoints used by the services exist in the backend controller', () =>
 
   it('every call issued by bookingService and adminService maps to a backend route', async () => {
     await bookingService.createBooking(payloadFor({ name: 'Ana', email: 'a@b.co', phone: '1' }));
-    await bookingService.getBookings();
+    await bookingService.getAvailability('2030-01-15', ['consulta-inicial', 'servicio-basico']);
+    await bookingService.checkAvailability('2030-01-15', '10:00', 'alex-garcia', ['consulta-inicial']);
     await adminService.getBookings();
     await adminService.getStatistics();
     await adminService.deleteBooking('665f1c2e9b1d4a0012345678');
 
     expect(calls).toEqual([
       { method: 'POST', url: '/api/bookings' },
-      { method: 'GET', url: '/api/bookings' },
+      { method: 'GET', url: '/api/availability?date=2030-01-15&serviceIds=consulta-inicial,servicio-basico' },
+      { method: 'POST', url: '/api/bookings/availability' },
       { method: 'GET', url: '/api/bookings' },
       { method: 'GET', url: '/api/bookings/statistics' },
       { method: 'DELETE', url: '/api/bookings/665f1c2e9b1d4a0012345678' },
@@ -191,12 +199,6 @@ describe('endpoints used by the services exist in the backend controller', () =>
     for (const { method, url } of calls) {
       expect(matchesRoute(method, url), `${method} ${url}`).toBe(true);
     }
-  });
-
-  it('checkAvailability only reads GET /api/bookings (POST /availability is not used)', async () => {
-    await bookingService.checkAvailability('2030-01-15', '10:00', 'alex-garcia');
-
-    expect(calls).toEqual([{ method: 'GET', url: '/api/bookings' }]);
   });
 });
 
@@ -232,6 +234,17 @@ describe.skipIf(!backendAvailable)('cross-check with ../BookingApp_Back source (
     expect(controller).toMatch(/@Delete\(\s*':id'\s*\)/);
   });
 
+  it('availability endpoints take the date and the comma-separated service ids', () => {
+    const availability = read('availability/availability.controller.ts');
+    const bookings = read('bookings/bookings.controller.ts');
+
+    expect(availability).toMatch(/@Controller\(\s*'availability'\s*\)/);
+    expect(availability).toMatch(/@Query\(\s*'date'\s*\)/);
+    expect(availability).toMatch(/@Query\(\s*'serviceIds'\s*\)/);
+    expect(bookings).toMatch(/@Post\(\s*'availability'\s*\)/);
+    expect(bookings).toMatch(/professionalId: string;\s+serviceIds: string\[\];/);
+  });
+
   it("gateway emits the 'newBooking' event", () => {
     expect(read('bookings/bookings.gateway.ts')).toMatch(/\.emit\(\s*'newBooking'/);
   });
@@ -243,14 +256,17 @@ describe.skipIf(!backendAvailable)('cross-check with ../BookingApp_Back source (
     expect(read('app.module.ts')).not.toMatch(/ValidationPipe/);
   });
 
-  it('schema required fields equal the encoded REQUIRED set (client.id is the only optional leaf)', () => {
+  it('DTO and schema hold a list of services (no singular service) and the optional client leaves', () => {
+    const dto = read('bookings/dto/create-booking.dto.ts');
     const schema = read('bookings/schemas/booking.schema.ts');
 
+    expect(dto).toMatch(/services: \{ id: string \}\[\];/);
+    expect(dto).not.toMatch(/^\s+service:/m);
+    expect(schema).toMatch(/services: BookedService\[\];/);
+    expect(schema).not.toMatch(/^\s+service:/m);
     expect(schema).toMatch(/id: \{ type: String, required: false \}/);
-    // 3 client + 4 service + 2 professional required leaves, plus the date and time props.
-    expect((schema.match(/required: true \}/g) || []).length).toBe(11);
+    expect(schema).toMatch(/email: \{ type: String, required: false \}/);
     expect(schema).toMatch(/@Prop\(\{ required: true \}\)\s+date: string;/);
     expect(schema).toMatch(/@Prop\(\{ required: true \}\)\s+time: string;/);
-    expect(Object.keys(REQUIRED)).toHaveLength(11);
   });
 });

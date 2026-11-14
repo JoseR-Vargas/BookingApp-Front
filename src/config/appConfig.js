@@ -15,11 +15,7 @@ export const APP_CONFIG = {
     BUSINESS_HOURS: {
         start: 9,
         end: 20,
-        interval: 60,
-        lunchBreak: {
-            start: 13,
-            end: 14,
-        },
+        interval: 30, // minutes between start times (same 30-minute grid as the backend)
     },
 
     CANCELLATION_HOURS: 5,

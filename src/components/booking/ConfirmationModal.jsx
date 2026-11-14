@@ -5,7 +5,7 @@ import Modal from '../ui/Modal.jsx';
 
 function Row({ icon, label, children, last = false }) {
   return (
-    <div className={`flex items-start text-[0.95rem] text-text-primary ${last ? '' : 'mb-2'}`}>
+    <div className={`flex items-start text-[0.95rem] text-text-primary lte-md:text-[0.85rem] lte-md:leading-snug ${last ? '' : 'mb-2 lte-md:mb-1'}`}>
       <i aria-hidden="true" className={`${icon} mt-[0.15rem] mr-2 shrink-0 text-accent`} />
       <span className="mr-1 text-text-secondary">{label}</span>
       <strong>{children}</strong>
@@ -15,31 +15,31 @@ function Row({ icon, label, children, last = false }) {
 
 /**
  * Success dialog shown after the booking was created (legacy #confirmationModal).
- * `details`: { serviceName, professionalName, date ('YYYY-MM-DD'), time, price, email }.
+ * `details`: { serviceNames (string[]), professionalName, date ('YYYY-MM-DD'), time, price (total of every service), email }.
  * Legacy flags: static backdrop and `data-bs-keyboard="false"`: only the button closes it.
  */
 export default function ConfirmationModal({ open, onClose, details }) {
   return (
     <Modal open={open} onClose={onClose} keyboard={false}>
       {details && (
-        <div className="p-6 text-center md:p-12">
+        <div className="p-6 text-center md:p-12 lte-md:p-4">
           <div
             aria-hidden="true"
-            className="mx-auto mb-6 flex size-[90px] items-center justify-center rounded-full border-3 border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.15)] text-[3rem] text-success"
+            className="mx-auto mb-6 flex size-[90px] items-center justify-center rounded-full border-3 border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.15)] text-[3rem] text-success lte-md:mb-2 lte-md:size-14 lte-md:text-[1.75rem]"
           >
             <i className="fas fa-check-circle" />
           </div>
           <DialogTitle
             as="h4"
-            className="mb-1 text-[length:calc(1.275rem+0.3vw)] leading-tight font-bold xl:text-xl"
+            className="mb-1 text-[length:calc(1.275rem+0.3vw)] leading-tight font-bold xl:text-xl lte-md:text-[1.15rem]"
           >
             ¡Reserva Confirmada!
           </DialogTitle>
-          <p className="mb-6 leading-loose text-text-secondary">Te esperamos en tu cita</p>
+          <p className="mb-6 leading-loose text-text-secondary lte-md:mb-3 lte-md:text-[0.9rem] lte-md:leading-snug">Te esperamos en tu cita</p>
 
-          <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-4 text-left">
-            <Row icon="fas fa-concierge-bell" label="Servicio:">
-              {details.serviceName}
+          <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-4 text-left lte-md:mb-3 lte-md:p-3">
+            <Row icon="fas fa-concierge-bell" label="Servicios:">
+              {details.serviceNames.join(', ')}
             </Row>
             <Row icon="fas fa-user-tie" label="Profesional:">
               {details.professionalName}
@@ -50,12 +50,12 @@ export default function ConfirmationModal({ open, onClose, details }) {
             <Row icon="fas fa-clock" label="Hora:">
               {details.time}
             </Row>
-            <Row icon="fas fa-tag" label="Precio:" last>
+            <Row icon="fas fa-tag" label="Precio total:" last>
               {formatMoney(details.price)}
             </Row>
           </div>
 
-          <p className="mb-6 text-[0.875em] leading-loose text-text-secondary">
+          <p className="mb-6 text-[0.875em] leading-loose text-text-secondary lte-md:mb-3 lte-md:text-[0.8rem] lte-md:leading-snug">
             <i aria-hidden="true" className="fas fa-envelope mr-1" /> Te enviamos la confirmación a <strong>{details.email}</strong>
           </p>
 

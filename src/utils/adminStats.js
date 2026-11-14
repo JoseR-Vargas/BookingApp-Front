@@ -1,6 +1,8 @@
 // ===== ESTADÍSTICAS DEL PANEL ADMIN =====
 // Pure helpers extracted from legacy admin-app.js (recent list, filter, revenue, charts data).
 
+import { getBookingTotalPrice, getServiceNames } from './bookingServices.js';
+
 // Newest first by createdAt. Works on a copy (legacy sorted the fetched array in place).
 export function getRecentBookings(bookings, n = 5) {
   return [...(bookings || [])]
@@ -17,7 +19,7 @@ export function filterByDate(bookings, date) {
 export function sumConfirmedRevenue(bookings) {
   return (bookings || [])
     .filter((b) => b.status === 'confirmed')
-    .reduce((sum, b) => sum + ((b.service && b.service.price) || 0), 0);
+    .reduce((sum, b) => sum + getBookingTotalPrice(b), 0);
 }
 
 // Bookings per month (Jan..Dec) for one year; `date` is 'YYYY-MM-DD'.
@@ -33,11 +35,13 @@ export function getMonthlyCounts(bookings, year = new Date().getFullYear()) {
   return counts;
 }
 
+// Per service LINE: a booking with several services adds 1 to each of them.
 export function getServiceCounts(bookings) {
   const serviceCounts = {};
   (bookings || []).forEach((booking) => {
-    const name = booking.service && booking.service.name;
-    if (name) serviceCounts[name] = (serviceCounts[name] || 0) + 1;
+    getServiceNames(booking).forEach((name) => {
+      serviceCounts[name] = (serviceCounts[name] || 0) + 1;
+    });
   });
   return { labels: Object.keys(serviceCounts), data: Object.values(serviceCounts) };
 }

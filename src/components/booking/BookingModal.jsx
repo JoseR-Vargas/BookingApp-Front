@@ -3,10 +3,11 @@
 // confirmation dialogs it drives. Mount it once (inside <BookingProvider>) and toggle `open`.
 
 import { DialogTitle } from '@headlessui/react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { buildBookingPayload, checkAvailability, createBooking } from '../../services/bookingService.js';
 import { useBooking } from '../../state/bookingState.jsx';
 import { toast } from '../../ui/toast.js';
+import { getServiceIds, getTotalPrice } from '../../utils/serviceSelection.js';
 import Button from '../ui/Button.jsx';
 import Modal from '../ui/Modal.jsx';
 import Spinner from '../ui/Spinner.jsx';
@@ -17,7 +18,6 @@ import ScheduleStep from './ScheduleStep.jsx';
 import ServiceSelectionStep from './ServiceSelectionStep.jsx';
 
 const LAST_STEP = 3;
-const AUTO_ADVANCE_DELAY = 400;
 const CONFIRMATION_DELAY = 150;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -45,8 +45,8 @@ function CloseIcon() {
 
 export default function BookingModal({ open, onClose }) {
   const booking = useBooking();
-  const { state, setStep, setService, setSubmitting, reset } = booking;
-  const { currentStep, selectedService, selectedDate, selectedTime, selectedProfessional, isSubmitting } = state;
+  const { state, setStep, setSubmitting, reset } = booking;
+  const { currentStep, selectedDate, selectedTime, selectedProfessional, isSubmitting } = state;
 
   const [validated, setValidated] = useState(false);
   const [loadingOpen, setLoadingOpen] = useState(false);
@@ -56,26 +56,22 @@ export default function BookingModal({ open, onClose }) {
 
   const formRef = useRef(null);
   const submitLock = useRef(false);
-  const advanceTimer = useRef(null);
   const latest = useRef(state);
   latest.current = state;
 
   // Legacy openModal -> resetState: every opening starts from step 1 with a clean form.
   useLayoutEffect(() => {
     if (!open) return;
-    clearTimeout(advanceTimer.current);
     reset();
     setValidated(false);
     if (formRef.current) formRef.current.reset();
   }, [open, reset]);
 
-  useEffect(() => () => clearTimeout(advanceTimer.current), []);
-
   // Legacy validateCurrentStep(): `false` means a toast was shown and the flow must stop.
   const validateStep = useCallback((step, current) => {
     switch (step) {
       case 1:
-        if (!current.selectedService) {
+        if (current.selectedServices.length === 0) {
           toast.error('Por favor selecciona un servicio');
           return false;
         }
@@ -85,12 +81,13 @@ export default function BookingModal({ open, onClose }) {
           toast.error('Por favor selecciona una fecha');
           return false;
         }
-        if (!current.selectedTime) {
-          toast.error('Por favor selecciona una hora');
-          return false;
-        }
+        // Times belong to a professional, so the professional comes before the time.
         if (!current.selectedProfessional) {
           toast.error('Por favor selecciona un profesional');
+          return false;
+        }
+        if (!current.selectedTime) {
+          toast.error('Por favor selecciona una hora');
           return false;
         }
         break;
@@ -107,18 +104,6 @@ export default function BookingModal({ open, onClose }) {
     return true;
   }, []);
 
-  // Legacy click on a service card: select it and move on 400ms later.
-  const handleSelectService = (service) => {
-    setService(service);
-    clearTimeout(advanceTimer.current);
-    advanceTimer.current = setTimeout(() => {
-      // Hardening: only advance if the user is still on step 1 (legacy could skip a step).
-      if (latest.current.currentStep === 1 && validateStep(1, latest.current)) {
-        setStep(2);
-      }
-    }, AUTO_ADVANCE_DELAY);
-  };
-
   // Legacy submitBooking(). `isSubmitting` is raised as soon as the button is pressed, so the
   // button already shows "Procesando..." while the availability pre-check runs (legacy did the same
   // visually); `submitLock` makes a double click impossible even before React re-renders.
@@ -127,13 +112,13 @@ export default function BookingModal({ open, onClose }) {
     setSubmitting(true);
 
     try {
-      const { selectedService: service, selectedDate: date, selectedTime: time, selectedProfessional: professional } = latest.current;
+      const { selectedServices: services, selectedDate: date, selectedTime: time, selectedProfessional: professional } = latest.current;
       const formData = readClientForm(formRef.current);
 
       // Last-second check. A failing check must not block the booking (legacy behavior).
       let available = true;
       try {
-        available = await checkAvailability(date, time, professional.id);
+        available = await checkAvailability(date, time, professional.id, getServiceIds(services));
       } catch {
         available = true;
       }
@@ -147,7 +132,7 @@ export default function BookingModal({ open, onClose }) {
 
       setLoadingOpen(true);
       try {
-        await createBooking(buildBookingPayload({ formData, service, professional, date, time }));
+        await createBooking(buildBookingPayload({ formData, services, professional, date, time }));
         setLoadingOpen(false);
 
         await wait(CONFIRMATION_DELAY);
@@ -155,11 +140,11 @@ export default function BookingModal({ open, onClose }) {
         // Deliberate improvement: the confirmation shows the email exactly as typed (legacy showed
         // the HTML-escaped value). The payload sent to the backend is still the escaped one.
         setConfirmation({
-          serviceName: service.name,
+          serviceNames: services.map((service) => service.name),
           professionalName: professional.name,
           date,
           time,
-          price: service.price,
+          price: getTotalPrice(services),
           email: formData.email,
         });
         setConfirmationOpen(true);
@@ -193,8 +178,8 @@ export default function BookingModal({ open, onClose }) {
 
   return (
     <>
-      <Modal open={open} onClose={onClose}>
-        <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border bg-bg-primary p-4">
+      <Modal open={open} onClose={onClose} scrollResetKey={currentStep}>
+        <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border bg-bg-primary p-4 lte-md:px-4 lte-md:py-3">
           <DialogTitle
             as="h5"
             className="mb-0 text-[1.25rem] leading-normal font-bold text-text-primary lte-md:text-[1.1rem]"
@@ -212,10 +197,10 @@ export default function BookingModal({ open, onClose }) {
           </button>
         </div>
 
-        <div className="flex-auto bg-bg-secondary p-4">
+        <div className="flex-auto bg-bg-secondary p-4 lte-md:p-3">
           {/* All steps stay mounted (only hidden) like legacy: values typed in a step survive "Anterior". */}
           <div hidden={currentStep !== 1}>
-            <ServiceSelectionStep onSelect={handleSelectService} />
+            <ServiceSelectionStep />
           </div>
           <div hidden={currentStep !== 2}>
             <ScheduleStep />

@@ -1,4 +1,5 @@
 import { getProfessionalName } from '../../utils/adminStats.js';
+import { getBookingTotalPrice, getServiceNames } from '../../utils/bookingServices.js';
 import { formatBookingDate } from '../../utils/format.js';
 import { decodeEntities } from '../../utils/sanitize.js';
 import {
@@ -32,7 +33,10 @@ export default function RecentBookingsTable({ bookings }) {
               <tr key={booking._id} className={TR}>
                 <td className={TD_FIRST}>{decodeEntities(booking.client.name)}</td>
                 <td className={TD}>{decodeEntities(booking.client.phone) || 'N/A'}</td>
-                <td className={TD}>{booking.service.name}</td>
+                <td className={TD}>
+                  {getServiceNames(booking).join(', ')}
+                  <small className="block text-[0.875em] text-muted-foreground-1">${getBookingTotalPrice(booking)}</small>
+                </td>
                 <td className={TD}>{formatBookingDate(booking.date)}</td>
                 <td className={TD_END}>{getProfessionalName(booking)}</td>
               </tr>
