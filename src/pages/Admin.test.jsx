@@ -325,26 +325,56 @@ describe('Admin top bar and navigation', () => {
   });
 
   describe('logout', () => {
-    it('asks for confirmation, clears the session and goes to /login when confirmed', async () => {
+    const openLogoutDialog = async () => {
+      await userEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }));
+      return screen.findByRole('alertdialog', { name: 'Cerrar sesión' });
+    };
+
+    it('asks for confirmation in an in-app dialog (never window.confirm) before doing anything', async () => {
       await loadedAdmin();
 
-      await userEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }));
+      const dialog = await openLogoutDialog();
 
-      expect(window.confirm).toHaveBeenCalledWith('¿Estás seguro de que deseas cerrar sesión?');
+      expect(within(dialog).getByText('¿Estás seguro de que deseas cerrar sesión?')).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+      expect(window.confirm).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem('isAdmin')).toBe('true');
+    });
+
+    it('clears the session and goes to /login when confirmed', async () => {
+      await loadedAdmin();
+      const dialog = await openLogoutDialog();
+
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Cerrar sesión' }));
+
       expect(sessionStorage.getItem('isAdmin')).toBeNull();
       expect(sessionStorage.getItem('adminUser')).toBeNull();
       expect(await screen.findByText('login page')).toBeInTheDocument();
+      expect(window.confirm).not.toHaveBeenCalled();
     });
 
-    it('stays on the panel with the session intact when the confirmation is declined', async () => {
-      window.confirm.mockReturnValue(false);
+    it('stays on the panel with the session intact when Cancel is clicked', async () => {
       await loadedAdmin();
+      const dialog = await openLogoutDialog();
 
-      await userEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }));
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
 
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
       expect(sessionStorage.getItem('isAdmin')).toBe('true');
       expect(screen.queryByText('login page')).not.toBeInTheDocument();
       expect(pageTitle()).toBeInTheDocument();
+    });
+
+    it('stays on the panel with the session intact when the dialog is dismissed with Escape', async () => {
+      await loadedAdmin();
+      await openLogoutDialog();
+
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(sessionStorage.getItem('isAdmin')).toBe('true');
+      expect(screen.queryByText('login page')).not.toBeInTheDocument();
     });
   });
 });
@@ -471,17 +501,33 @@ describe('Admin bookings section', () => {
       const row = within(table).getAllByRole('row').find((r) => within(r).queryByText(name));
       return within(row).getByRole('button', { name: 'Eliminar reserva' });
     };
+    const openDeleteDialog = async (table, name) => {
+      await userEvent.click(deleteButtonFor(table, name));
+      return screen.findByRole('alertdialog', { name: 'Eliminar reserva' });
+    };
 
-    it('confirms with the legacy message, DELETEs by _id, refreshes everything and toasts success', async () => {
+    it('opens an in-app dialog (never window.confirm) and deletes nothing until it is confirmed', async () => {
+      const table = await openBookings();
+      const callsBefore = fetchMock.mock.calls.length;
+
+      const dialog = await openDeleteDialog(table, 'Cliente 3');
+
+      expect(within(dialog).getByText('¿Estás seguro de que quieres eliminar la reserva de Cliente 3?')).toBeInTheDocument();
+      expect(within(dialog).getByText('Esta acción no se puede deshacer.')).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Eliminar' })).toBeInTheDocument();
+      expect(window.confirm).not.toHaveBeenCalled();
+      expect(fetchMock.mock.calls.length).toBe(callsBefore);
+    });
+
+    it('DELETEs by _id once confirmed, refreshes everything, toasts success and closes the dialog', async () => {
       const table = await openBookings();
       const bookingsGetsBefore = callsTo('GET', '/api/bookings').length;
       const statsGetsBefore = callsTo('GET', '/api/bookings/statistics').length;
+      const dialog = await openDeleteDialog(table, 'Cliente 3');
 
-      await userEvent.click(deleteButtonFor(table, 'Cliente 3'));
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Eliminar' }));
 
-      expect(window.confirm).toHaveBeenCalledWith(
-        '¿Estás seguro de que quieres eliminar la reserva de Cliente 3?\n\nEsta acción no se puede deshacer.',
-      );
       await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Reserva de Cliente 3 eliminada exitosamente'));
       expect(toast.info).toHaveBeenCalledWith('Eliminando reserva...');
       expect(callsTo('DELETE', '/api/bookings/id-3')).toHaveLength(1);
@@ -490,41 +536,99 @@ describe('Admin bookings section', () => {
       expect(callsTo('GET', '/api/bookings').length).toBeGreaterThanOrEqual(bookingsGetsBefore + 2);
       expect(within(currentTable()).queryByText('Cliente 3')).not.toBeInTheDocument();
       expect(rowsOf(currentTable())).toHaveLength(6);
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(window.confirm).not.toHaveBeenCalled();
     });
 
-    it('shows the decoded client name in the confirm dialog and the success toast', async () => {
+    it('shows the decoded client name in the dialog and the success toast', async () => {
       const table = await openBookings();
 
-      await userEvent.click(deleteButtonFor(table, 'Ana & Co'));
+      const dialog = await openDeleteDialog(table, 'Ana & Co');
 
-      expect(window.confirm).toHaveBeenCalledWith(
-        '¿Estás seguro de que quieres eliminar la reserva de Ana & Co?\n\nEsta acción no se puede deshacer.',
-      );
+      expect(within(dialog).getByText('¿Estás seguro de que quieres eliminar la reserva de Ana & Co?')).toBeInTheDocument();
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Eliminar' }));
       await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Reserva de Ana & Co eliminada exitosamente'));
       expect(callsTo('DELETE', '/api/bookings/id-2')).toHaveLength(1);
     });
 
-    it('does nothing at all when the confirmation is declined', async () => {
-      window.confirm.mockReturnValue(false);
+    it('does nothing at all when Cancel is clicked', async () => {
       const table = await openBookings();
+      const dialog = await openDeleteDialog(table, 'Cliente 3');
       const callsBefore = fetchMock.mock.calls.length;
 
-      await userEvent.click(deleteButtonFor(table, 'Cliente 3'));
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
 
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
       expect(fetchMock.mock.calls.length).toBe(callsBefore);
       expect(toast.info).not.toHaveBeenCalledWith('Eliminando reserva...');
-      expect(rowsOf(table)).toHaveLength(7);
+      expect(rowsOf(currentTable())).toHaveLength(7);
     });
 
-    it('toasts "Error eliminando reserva: <message>" when the DELETE fails and keeps the row', async () => {
+    it('does nothing at all when the dialog is dismissed with Escape', async () => {
+      const table = await openBookings();
+      await openDeleteDialog(table, 'Cliente 3');
+      const callsBefore = fetchMock.mock.calls.length;
+
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(fetchMock.mock.calls.length).toBe(callsBefore);
+      expect(rowsOf(currentTable())).toHaveLength(7);
+    });
+
+    it('asks about the right booking after a cancelled attempt on another one', async () => {
+      const table = await openBookings();
+      const first = await openDeleteDialog(table, 'Cliente 3');
+      await userEvent.click(within(first).getByRole('button', { name: 'Cancelar' }));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+
+      const second = await openDeleteDialog(currentTable(), 'Cliente 4');
+      await userEvent.click(within(second).getByRole('button', { name: 'Eliminar' }));
+
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Reserva de Cliente 4 eliminada exitosamente'));
+      expect(callsTo('DELETE', '/api/bookings/id-3')).toHaveLength(0);
+      expect(callsTo('DELETE', '/api/bookings/id-4')).toHaveLength(1);
+    });
+
+    it('disables the dialog buttons while the deletion is in flight, so it cannot be submitted twice', async () => {
+      const table = await openBookings();
+      const dialog = await openDeleteDialog(table, 'Cliente 3');
+      const baseFetch = fetchMock.getMockImplementation();
+      let release;
+      fetchMock.mockImplementation((url, init = {}) => {
+        if (init.method === 'DELETE') {
+          return new Promise((resolve) => { release = () => resolve(baseFetch(url, init)); });
+        }
+        return baseFetch(url, init);
+      });
+
+      const confirm = within(dialog).getByRole('button', { name: 'Eliminar' });
+      await userEvent.click(confirm);
+
+      await waitFor(() => expect(confirm).toBeDisabled());
+      expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeDisabled();
+      await userEvent.click(confirm);
+      await userEvent.keyboard('{Escape}');
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(callsTo('DELETE', '/api/bookings/id-3')).toHaveLength(1);
+
+      release();
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Reserva de Cliente 3 eliminada exitosamente'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(callsTo('DELETE', '/api/bookings/id-3')).toHaveLength(1);
+    });
+
+    it('toasts "Error eliminando reserva: <message>" when the DELETE fails, keeps the row and closes the dialog', async () => {
       const table = await openBookings();
       db.failing.add('DELETE /api/bookings/id-3');
+      const dialog = await openDeleteDialog(table, 'Cliente 3');
 
-      await userEvent.click(deleteButtonFor(table, 'Cliente 3'));
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Eliminar' }));
 
       await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Error eliminando reserva: Backend roto'));
       expect(toast.success).not.toHaveBeenCalled();
-      expect(within(table).getByText('Cliente 3')).toBeInTheDocument();
+      expect(within(currentTable()).getByText('Cliente 3')).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     });
   });
 });
@@ -572,6 +676,7 @@ describe('Admin reports section', () => {
     const table = await screen.findByRole('table', { name: 'Reservas' });
     const row = within(table).getAllByRole('row').find((r) => within(r).queryByText('Cliente 6'));
     await userEvent.click(within(row).getByRole('button', { name: 'Eliminar reserva' }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
 
     await goTo('Reportes');
