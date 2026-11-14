@@ -6,10 +6,11 @@
 // of every professional for the back-to-back block of the selected services. The hook shows exactly
 // those times (a window that does not fit, closes or is occupied is simply absent).
 //
-// One request per date + services: the professional only filters the response client-side (no
-// professional = union of everyone's free times), so changing it never refetches. Deliberate
-// improvement over legacy, which left stale/unfiltered slots after a date change. Responses of
-// superseded requests are ignored. If the lookup fails for good, a local grid stands in (see below).
+// Availability belongs to each professional, not to the business: until one is selected there are no
+// times, no count and no request. Once one is, a single request per date + services answers for
+// everyone and the professional only filters the response client-side, so switching never refetches.
+// Deliberate improvement over legacy, which left stale/unfiltered slots after a date change.
+// Responses of superseded requests are ignored. If the lookup fails for good, a local grid stands in.
 
 import { useEffect, useState } from 'react';
 import { getAvailability } from '../services/bookingService.js';
@@ -21,6 +22,7 @@ const MAX_RETRIES = 2;
 const WARNING_DURATION = 10000;
 
 const NO_DATE_TEXT = 'Selecciona una fecha primero';
+const NO_PROFESSIONAL_TEXT = 'Selecciona un profesional primero';
 const PICK_TIME_TEXT = 'Selecciona una hora';
 const NO_TIMES_TEXT = 'No hay horarios disponibles';
 const CLOSED_TEXT = 'Domingo cerrado';
@@ -44,15 +46,12 @@ function isRetryable(error) {
     || message.includes('Timeout');
 }
 
-// Free start times to show for the professional (or for everyone when none is chosen).
+// Free start times of the professional; a fallback grid is the same for everyone.
 function pickTimes(result, professionalId) {
   if (result.fallbackTimes) return result.fallbackTimes;
   if (result.closed) return [];
-  if (professionalId) {
-    const professional = result.professionals.find((p) => p.id === professionalId);
-    return professional ? professional.slots : [];
-  }
-  return [...new Set(result.professionals.flatMap((p) => p.slots))].sort();
+  const professional = result.professionals.find((p) => p.id === professionalId);
+  return professional ? professional.slots : [];
 }
 
 function describeTimes(result, professionalId) {
@@ -66,7 +65,7 @@ function describeTimes(result, professionalId) {
 
 /**
  * @param {string|null} date  'YYYY-MM-DD' or null
- * @param {string|null} professionalId  filters the free times; null shows everyone's
+ * @param {string|null} professionalId  whose free times to show; null shows none (and asks for no data)
  * @param {string[]} serviceIds  ids of the selected services (the booking window is their total duration)
  * @returns {{
  *   placeholder: string,  // text of the empty first <option>
@@ -79,9 +78,11 @@ export function useAvailableTimes(date, professionalId, serviceIds) {
   // A string key keeps the effect stable while callers pass a fresh array on every render.
   const servicesKey = serviceIds.join(',');
   const key = date && servicesKey ? [date, servicesKey].join('|') : null;
+  // The request starts once a professional is selected; the key itself ignores which one.
+  const requestKey = professionalId ? key : null;
 
   useEffect(() => {
-    if (!key) return undefined;
+    if (!requestKey) return undefined;
 
     let cancelled = false;
     let retryTimer = null;
@@ -131,7 +132,7 @@ export function useAvailableTimes(date, professionalId, serviceIds) {
       cancelled = true;
       clearTimeout(retryTimer);
     };
-  }, [key, date, servicesKey]);
+  }, [requestKey, key, date, servicesKey]);
 
   if (!date) {
     return { placeholder: NO_DATE_TEXT, slots: [], settled: true };
@@ -140,6 +141,10 @@ export function useAvailableTimes(date, professionalId, serviceIds) {
   if (!key) {
     // No service chosen yet: there is nothing to ask the backend about.
     return { placeholder: PICK_TIME_TEXT, slots: [], settled: true };
+  }
+
+  if (!professionalId) {
+    return { placeholder: NO_PROFESSIONAL_TEXT, slots: [], settled: true };
   }
 
   // `remote` may still describe the previous date/services for one render: treat it as loading.

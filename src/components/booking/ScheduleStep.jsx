@@ -99,7 +99,7 @@ export default function ScheduleStep() {
             onChange={(time) => setTime(time || null)}
           />
           <div id={helperId} className={HELP_TEXT}>
-            Los horarios se actualizarán después de seleccionar un profesional
+            Elige un profesional para ver sus horarios disponibles
           </div>
         </div>
       </div>

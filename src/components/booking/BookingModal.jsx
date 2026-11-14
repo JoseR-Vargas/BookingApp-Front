@@ -81,12 +81,13 @@ export default function BookingModal({ open, onClose }) {
           toast.error('Por favor selecciona una fecha');
           return false;
         }
-        if (!current.selectedTime) {
-          toast.error('Por favor selecciona una hora');
-          return false;
-        }
+        // Times belong to a professional, so the professional comes before the time.
         if (!current.selectedProfessional) {
           toast.error('Por favor selecciona un profesional');
+          return false;
+        }
+        if (!current.selectedTime) {
+          toast.error('Por favor selecciona una hora');
           return false;
         }
         break;

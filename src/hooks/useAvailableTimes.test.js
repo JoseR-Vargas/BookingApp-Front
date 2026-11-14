@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../services/bookingService.js', () => ({ getAvailability: vi.fn() }));
@@ -47,35 +47,77 @@ describe('useAvailableTimes', () => {
     expect(result.current.placeholder).toBe('Selecciona una hora (3 disponibles)');
   });
 
-  it('fetches without a professional and shows the sorted union of every professional', async () => {
-    getAvailability.mockResolvedValue(availability(['09:30', '14:00'], ['09:00', '09:30', '10:30']));
-    const { result } = renderHook(() => useAvailableTimes(MONDAY, null, ['servicio-basico']));
+  it('asks for a professional first and does not hit the backend while none is selected', () => {
+    const { result, rerender } = renderHook(({ professionalId }) => useAvailableTimes(MONDAY, professionalId, ['servicio-basico']), {
+      initialProps: { professionalId: null },
+    });
 
-    expect(result.current.settled).toBe(false);
-    await waitFor(() => expect(result.current.settled).toBe(true));
+    expect(result.current).toEqual({ placeholder: 'Selecciona un profesional primero', slots: [], settled: true });
+    expect(getAvailability).not.toHaveBeenCalled();
 
-    expect(getAvailability).toHaveBeenCalledTimes(1);
-    expect(result.current.slots).toEqual(['09:00', '09:30', '10:30', '14:00']);
-    expect(result.current.placeholder).toBe('Selecciona una hora (4 disponibles)');
+    // Still nothing for an empty-string id: only a real professional starts the request.
+    rerender({ professionalId: '' });
+    expect(result.current).toEqual({ placeholder: 'Selecciona un profesional primero', slots: [], settled: true });
+    expect(getAvailability).not.toHaveBeenCalled();
   });
 
-  it('filters by professional on the same response, without asking the backend again', async () => {
+  it('starts the request once a professional is selected and returns only their free times', async () => {
     getAvailability.mockResolvedValue(availability(['09:30', '14:00'], ['09:00', '10:30']));
     const { result, rerender } = renderHook(({ professionalId }) => useAvailableTimes(MONDAY, professionalId, ['servicio-basico']), {
       initialProps: { professionalId: null },
     });
-    await waitFor(() => expect(result.current.settled).toBe(true));
-    expect(result.current.slots).toEqual(['09:00', '09:30', '10:30', '14:00']);
+    expect(getAvailability).not.toHaveBeenCalled();
 
     rerender({ professionalId: 'alex-garcia' });
+    expect(result.current.settled).toBe(false);
+    await waitFor(() => expect(result.current.settled).toBe(true));
+
+    expect(getAvailability).toHaveBeenCalledTimes(1);
+    expect(result.current.slots).toEqual(['09:30', '14:00']);
+    expect(result.current.placeholder).toBe('Selecciona una hora (2 disponibles)');
+  });
+
+  it('switches professional on the same response, without asking the backend again', async () => {
+    getAvailability.mockResolvedValue(availability(['09:30', '14:00'], ['09:00', '10:30']));
+    const { result, rerender } = renderHook(({ professionalId }) => useAvailableTimes(MONDAY, professionalId, ['servicio-basico']), {
+      initialProps: { professionalId: 'alex-garcia' },
+    });
+    await waitFor(() => expect(result.current.settled).toBe(true));
     expect(result.current).toMatchObject({ settled: true, slots: ['09:30', '14:00'] });
 
     rerender({ professionalId: 'maria-lopez' });
     expect(result.current).toMatchObject({ settled: true, slots: ['09:00', '10:30'] });
+    expect(getAvailability).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns to the prompt when the professional is removed, and answers again once one is back', async () => {
+    getAvailability.mockResolvedValue(availability(['09:30', '14:00']));
+    const { result, rerender } = renderHook(({ professionalId }) => useAvailableTimes(MONDAY, professionalId, ['servicio-basico']), {
+      initialProps: { professionalId: 'alex-garcia' },
+    });
+    await waitFor(() => expect(result.current.settled).toBe(true));
 
     rerender({ professionalId: null });
-    expect(result.current.slots).toEqual(['09:00', '09:30', '10:30', '14:00']);
-    expect(getAvailability).toHaveBeenCalledTimes(1);
+    expect(result.current).toEqual({ placeholder: 'Selecciona un profesional primero', slots: [], settled: true });
+
+    rerender({ professionalId: 'alex-garcia' });
+    await waitFor(() => expect(result.current.slots).toEqual(['09:30', '14:00']));
+  });
+
+  it('ignores a response that arrives after the professional was removed', async () => {
+    let resolve;
+    getAvailability.mockReturnValue(new Promise((r) => { resolve = r; }));
+    const { result, rerender } = renderHook(({ professionalId }) => useAvailableTimes(MONDAY, professionalId, ['servicio-basico']), {
+      initialProps: { professionalId: 'alex-garcia' },
+    });
+    expect(result.current.settled).toBe(false);
+
+    rerender({ professionalId: null });
+    await act(async () => {
+      resolve(availability(['09:00']));
+    });
+
+    expect(result.current).toEqual({ placeholder: 'Selecciona un profesional primero', slots: [], settled: true });
   });
 
   it('reports no times when the professional is not part of the response or has none free', async () => {
@@ -90,24 +132,24 @@ describe('useAvailableTimes', () => {
     expect(result.current).toMatchObject({ placeholder: 'No hay horarios disponibles', slots: [] });
   });
 
-  it('reports no times when nobody is free the whole day', async () => {
+  it('reports no times when the professional is free at no time of the day', async () => {
     getAvailability.mockResolvedValue(availability([], []));
-    const { result } = renderHook(() => useAvailableTimes(MONDAY, null, ['servicio-basico']));
+    const { result } = renderHook(() => useAvailableTimes(MONDAY, 'alex-garcia', ['servicio-basico']));
 
     await waitFor(() => expect(result.current.settled).toBe(true));
 
     expect(result.current).toMatchObject({ placeholder: 'No hay horarios disponibles', slots: [] });
   });
 
-  it('keeps the closed label on a closed day, with or without a professional', async () => {
+  it('shows the closed label on a closed day once a professional is selected', async () => {
     getAvailability.mockResolvedValue({ closed: true, professionals: [{ id: 'alex-garcia', slots: [] }] });
     const { result, rerender } = renderHook(({ professionalId }) => useAvailableTimes(SUNDAY, professionalId, ['servicio-basico']), {
       initialProps: { professionalId: null },
     });
-    await waitFor(() => expect(result.current.settled).toBe(true));
-    expect(result.current).toMatchObject({ placeholder: 'Domingo cerrado', slots: [] });
+    expect(result.current).toEqual({ placeholder: 'Selecciona un profesional primero', slots: [], settled: true });
 
     rerender({ professionalId: 'alex-garcia' });
+    await waitFor(() => expect(result.current.settled).toBe(true));
     expect(result.current).toMatchObject({ placeholder: 'Domingo cerrado', slots: [] });
   });
 
@@ -134,7 +176,7 @@ describe('useAvailableTimes', () => {
   });
 
   describe('when the lookup fails', () => {
-    it('warns and falls back to a local 30-minute grid, whatever the professional', async () => {
+    it('warns and falls back to a local 30-minute grid, the same for every professional', async () => {
       getAvailability.mockRejectedValue(new Error('HTTP error! status: 500'));
       const { result, rerender } = renderHook(({ professionalId }) => useAvailableTimes(MONDAY, professionalId, ['servicio-basico']), {
         initialProps: { professionalId: 'alex-garcia' },
@@ -150,13 +192,13 @@ describe('useAvailableTimes', () => {
       expect(slots.slice(-2)).toEqual(['19:00', '19:30']);
       expect(result.current.placeholder).toBe('Selecciona una hora (22 disponibles)');
 
-      rerender({ professionalId: null });
+      rerender({ professionalId: 'maria-lopez' });
       expect(result.current.slots).toEqual(slots);
     });
 
     it('closes the fallback grid at 18:00 on Saturday and keeps Sunday closed', async () => {
       getAvailability.mockRejectedValue(new Error('HTTP error! status: 500'));
-      const { result, rerender } = renderHook(({ date }) => useAvailableTimes(date, null, ['servicio-basico']), {
+      const { result, rerender } = renderHook(({ date }) => useAvailableTimes(date, 'alex-garcia', ['servicio-basico']), {
         initialProps: { date: SATURDAY },
       });
       await waitFor(() => expect(result.current.settled).toBe(true));

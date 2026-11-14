@@ -570,18 +570,18 @@ describe('time slots', () => {
     expect(values).not.toContain('20:00');
   });
 
-  it('closes on Sunday with the "Domingo cerrado" label (before and after choosing a professional)', async () => {
+  it('closes on Sunday with the "Domingo cerrado" label once a professional is chosen', async () => {
     const backend = installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
 
     fireEvent.change(dateInput(), { target: { value: SUNDAY } });
-    await within(timeSelect()).findByRole('option', { name: 'Domingo cerrado' });
-    expect(within(timeSelect()).getAllByRole('option')).toHaveLength(1);
+    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona un profesional primero' })).toBeInTheDocument();
+    expect(backend.gets).toHaveLength(0);
 
     await user.click(professionalCard('Alex García'));
-    expect(within(timeSelect()).getByRole('option', { name: 'Domingo cerrado' })).toBeInTheDocument();
+    await within(timeSelect()).findByRole('option', { name: 'Domingo cerrado' });
     expect(within(timeSelect()).getAllByRole('option')).toHaveLength(1);
     expect(backend.gets).toHaveLength(1);
   });
@@ -613,7 +613,23 @@ describe('time slots', () => {
     expect(within(timeSelect()).getAllByRole('option')).toHaveLength(1);
   });
 
-  it('shows the union of every professional before one is chosen, then filters without a new request', async () => {
+  it('shows no times, count or request until a professional is chosen', async () => {
+    const backend = installBackend();
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    await chooseService(user, 'Servicio Básico');
+
+    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una fecha primero' })).toBeInTheDocument();
+
+    fireEvent.change(dateInput(), { target: { value: MONDAY } });
+    expect(within(timeSelect()).getAllByRole('option').map((o) => o.textContent)).toEqual(['Selecciona un profesional primero']);
+    expect(optionValues()).toEqual([]);
+    expect(timeSelect()).not.toHaveTextContent(/disponibles/);
+    expect(screen.getByText('Elige un profesional para ver sus horarios disponibles')).toBeInTheDocument();
+    expect(backend.gets).toHaveLength(0);
+  });
+
+  it("shows the chosen professional's count and times, and switching professional does not refetch", async () => {
     const backend = installBackend({
       bookings: [
         existingBooking({ time: '10:00', slots: ['10:00', '10:30'] }),
@@ -623,18 +639,11 @@ describe('time slots', () => {
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
     await chooseService(user, 'Servicio Básico');
-
-    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una fecha primero' })).toBeInTheDocument();
-
     fireEvent.change(dateInput(), { target: { value: MONDAY } });
-    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (21 disponibles)' });
-    // Each time is free for at least one of them, so the union is the whole grid.
-    expect(optionValues()).toEqual(gridTimes('09:00', '19:00'));
-    expect(within(timeSelect()).getByRole('option', { name: '09:30' })).toBeEnabled();
 
     // Alex (busy 10:00-11:00): windows starting 09:30, 10:00 and 10:30 are gone.
     await user.click(professionalCard('Alex García'));
-    expect(within(timeSelect()).getByRole('option', { name: 'Selecciona una hora (18 disponibles)' })).toBeInTheDocument();
+    await within(timeSelect()).findByRole('option', { name: 'Selecciona una hora (18 disponibles)' });
     expect(optionValues()).not.toContain('10:00');
     expect(optionValues()).toContain('12:00');
 
@@ -714,6 +723,23 @@ describe('availability recomputation (deliberate improvements)', () => {
     expect(timeSelect()).toHaveValue('');
     await user.click(nextButton());
     expect(toast.error).toHaveBeenCalledWith('Por favor selecciona una hora');
+  });
+
+  it('clears the selected time when the newly chosen professional is busy at that time', async () => {
+    installBackend({
+      bookings: [existingBooking({ time: '11:00', professional: { id: 'maria-lopez', name: 'María López' } })],
+    });
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+    await chooseService(user, 'Servicio Básico');
+    await fillSchedule(user, { time: '11:00' });
+    expect(timeSelect()).toHaveValue('11:00');
+
+    await user.click(professionalCard('María López'));
+
+    await waitFor(() => expect(screen.getByTestId('selected-service-info')).toHaveTextContent('Hora: No seleccionada'));
+    expect(timeSelect()).toHaveValue('');
+    expect(within(timeSelect()).queryByRole('option', { name: '11:00' })).not.toBeInTheDocument();
   });
 
   it('keeps a 30-minute time while it is free and clears it once it is not', async () => {
@@ -919,7 +945,7 @@ describe('step navigation and validation', () => {
     expect(screen.getByRole('heading', { name: 'Elige tu Servicio' })).toBeInTheDocument();
   });
 
-  it('asks for date, then time, then professional on step 2 (in that order)', async () => {
+  it('asks for a date, then a professional, then a time on step 2; times only exist once a professional is chosen', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -930,15 +956,19 @@ describe('step navigation and validation', () => {
 
     fireEvent.change(dateInput(), { target: { value: MONDAY } });
     await user.click(nextButton());
-    expect(toast.error).toHaveBeenLastCalledWith('Por favor selecciona una hora');
+    expect(toast.error).toHaveBeenLastCalledWith('Por favor selecciona un profesional');
+    expect(optionValues()).toEqual([]);
 
-    // Slots are selectable before a professional is chosen (legacy), so the professional is asked last.
+    // Times belong to a professional, so the professional has to be chosen before the time.
+    await user.click(professionalCard('Alex García'));
+    await within(timeSelect()).findByRole('option', { name: '11:00' });
+    await user.click(nextButton());
+    expect(toast.error).toHaveBeenLastCalledWith('Por favor selecciona una hora');
     await user.selectOptions(timeSelect(), '11:00');
     await user.click(nextButton());
-    expect(toast.error).toHaveBeenLastCalledWith('Por favor selecciona un profesional');
+    await screen.findByRole('heading', { name: 'Tus Datos' });
 
     expect(toast.error).toHaveBeenCalledTimes(3);
-    expect(screen.getByRole('heading', { name: 'Fecha y Hora' })).toBeInTheDocument();
   });
 
   it('flags the form as validated and toasts when step 3 is submitted empty', async () => {
@@ -1199,10 +1229,10 @@ describe('modal lifecycle', () => {
 
     // The client form was rebuilt too.
     fireEvent.change(dateInput(), { target: { value: MONDAY } });
-    // Times come from the backend as soon as the date is known (no professional needed).
+    // Times belong to a professional: choose one before the time.
+    await user.click(professionalCard('Alex García'));
     await within(timeSelect()).findByRole('option', { name: '11:00' });
     await user.selectOptions(timeSelect(), '11:00');
-    await user.click(professionalCard('Alex García'));
     await user.click(nextButton());
     await screen.findByRole('heading', { name: 'Tus Datos' });
     expect(screen.getByLabelText('Nombre completo')).toHaveValue('');
