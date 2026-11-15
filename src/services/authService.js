@@ -1,13 +1,21 @@
 // ===== SERVICIO DE AUTENTICACIÓN =====
-// Centraliza el login con protección contra fuerza bruta.
-// TODO: Reemplazar la validación frontend con POST /api/auth/login
-//       cuando el backend implemente el endpoint de autenticación.
+// The admin "password" is the backend ADMIN_API_KEY: login validates it against GET /api/admin/session
+// and, when accepted, keeps it in sessionStorage so adminService can send it as a Bearer token.
+// The username is only a visible label. Brute-force lockout is kept on the client.
+
+import { apiClient } from '../core/apiClient.js';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 60000; // 1 minuto en ms
 
+const KEYS = ['isAdmin', 'adminUser', 'adminKey'];
+
 let attempts = 0;
 let lockoutUntil = null;
+
+export function getAdminKey() {
+  return sessionStorage.getItem('adminKey');
+}
 
 export const authService = {
   async login(username, password) {
@@ -20,11 +28,14 @@ export const authService = {
       throw new Error('Demasiados intentos fallidos. Intenta de nuevo en ' + remaining + ' segundos.');
     }
 
-    // Validación provisional en frontend.
-    // Las credenciales deberían venir del backend en producción.
-    const isValid = username === 'admin' && password === 'admin123';
-
-    if (!isValid) {
+    try {
+      await apiClient.get('/api/admin/session', { headers: { Authorization: 'Bearer ' + password } });
+    } catch (error) {
+      // Only a 401 means "wrong key". Anything else (network down, timeout, 5xx) says nothing about
+      // the key, so it does not count towards the lockout.
+      if (!error || error.status !== 401) {
+        throw new Error('No se pudo conectar con el servidor. Intenta de nuevo en unos minutos.');
+      }
       attempts++;
       if (attempts >= MAX_ATTEMPTS) {
         lockoutUntil = Date.now() + LOCKOUT_DURATION;
@@ -39,12 +50,12 @@ export const authService = {
     lockoutUntil = null;
     sessionStorage.setItem('isAdmin', 'true');
     sessionStorage.setItem('adminUser', username);
+    sessionStorage.setItem('adminKey', password);
     return { username };
   },
 
   logout() {
-    sessionStorage.removeItem('isAdmin');
-    sessionStorage.removeItem('adminUser');
+    KEYS.forEach((key) => sessionStorage.removeItem(key));
   },
 
   isAuthenticated() {
@@ -54,6 +65,8 @@ export const authService = {
   getUser() {
     return sessionStorage.getItem('adminUser');
   },
+
+  getAdminKey,
 
   // Test-only: clears the in-memory brute-force counters.
   _reset() {

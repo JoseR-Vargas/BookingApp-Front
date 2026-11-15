@@ -1,6 +1,6 @@
 // ===== SELECCIÓN DE SERVICIOS =====
 // Pure rules for a booking made of several services performed back-to-back by ONE professional.
-// A service is `{ id, price, duration, professionals: string[] }` (see APP_CONFIG.SERVICES).
+// A service is `{ id, price, duration, professionals: string[] }` (as served by GET /api/catalog).
 
 const sumBy = (services, key) => services.reduce((total, service) => total + service[key], 0);
 

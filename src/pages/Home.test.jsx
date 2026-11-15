@@ -1,11 +1,22 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CATALOG } from '../test/catalogFixture.js';
+
+// Home mounts the real CatalogProvider: serve the catalog at the service boundary.
+vi.mock('../services/catalogService.js', () => ({ getCatalog: vi.fn() }));
+
+import { getCatalog } from '../services/catalogService.js';
 import Home from './Home.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
 import Hero from '../components/home/Hero.jsx';
 import ServicesSection from '../components/home/ServicesSection.jsx';
 import ContactSection from '../components/home/ContactSection.jsx';
+
+beforeEach(() => {
+  getCatalog.mockReset();
+  getCatalog.mockResolvedValue(CATALOG);
+});
 
 describe('Home reserve CTAs', () => {
   // Each section receives `onReserve`; Home wires every one of them to the same handler.

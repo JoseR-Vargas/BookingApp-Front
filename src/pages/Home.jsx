@@ -6,6 +6,7 @@ import Hero from '../components/home/Hero.jsx';
 import ServicesSection from '../components/home/ServicesSection.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
 import { BookingProvider } from '../state/bookingState.jsx';
+import { CatalogProvider } from '../state/catalogState.jsx';
 
 // Public landing page. Every "Reservar Cita" button opens the booking flow.
 export default function Home() {
@@ -13,16 +14,18 @@ export default function Home() {
   const openBooking = () => setBookingOpen(true);
 
   return (
-    <BookingProvider>
-      <Navbar onReserve={openBooking} />
-      <main>
-        <Hero onReserve={openBooking} />
-        <ServicesSection onReserve={openBooking} />
-        <ContactSection onReserve={openBooking} />
-      </main>
-      <Footer />
-      {/* Also renders the loading and confirmation dialogs the booking flow drives. */}
-      <BookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} />
-    </BookingProvider>
+    <CatalogProvider>
+      <BookingProvider>
+        <Navbar onReserve={openBooking} />
+        <main>
+          <Hero onReserve={openBooking} />
+          <ServicesSection onReserve={openBooking} />
+          <ContactSection onReserve={openBooking} />
+        </main>
+        <Footer />
+        {/* Also renders the loading and confirmation dialogs the booking flow drives. */}
+        <BookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} />
+      </BookingProvider>
+    </CatalogProvider>
   );
 }

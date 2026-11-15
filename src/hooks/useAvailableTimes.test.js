@@ -150,7 +150,7 @@ describe('useAvailableTimes', () => {
 
     rerender({ professionalId: 'alex-garcia' });
     await waitFor(() => expect(result.current.settled).toBe(true));
-    expect(result.current).toMatchObject({ placeholder: 'Domingo cerrado', slots: [] });
+    expect(result.current).toMatchObject({ placeholder: 'Cerrado este día', slots: [] });
   });
 
   it('asks again when the date or the selected services change, and only then', async () => {
@@ -207,7 +207,7 @@ describe('useAvailableTimes', () => {
 
       rerender({ date: SUNDAY });
       await waitFor(() => expect(result.current.settled).toBe(true));
-      expect(result.current).toMatchObject({ placeholder: 'Domingo cerrado', slots: [] });
+      expect(result.current).toMatchObject({ placeholder: 'Cerrado este día', slots: [] });
     });
   });
 });

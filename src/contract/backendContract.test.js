@@ -17,9 +17,12 @@ vi.mock('socket.io-client', () => ({ io: vi.fn() }));
 
 import { io } from 'socket.io-client';
 import { APP_CONFIG } from '../config/appConfig.js';
+import { PROFESSIONALS, SERVICES } from '../test/catalogFixture.js';
 import { buildBookingPayload } from '../services/bookingService.js';
 import * as bookingService from '../services/bookingService.js';
 import * as adminService from '../services/adminService.js';
+import { authService } from '../services/authService.js';
+import * as catalogService from '../services/catalogService.js';
 import { connectBookingSocket } from '../services/realtimeService.js';
 
 // --- Encoded backend constraints (src/bookings/schemas/booking.schema.ts + bookings.service.ts) ---
@@ -66,13 +69,13 @@ function validateCreateBooking(payload) {
 }
 
 // Fixture: worst case for escaping (every sanitized character present) and a real catalog entry.
-const SERVICES = APP_CONFIG.SERVICES.slice(0, 2);
-const PROFESSIONAL = APP_CONFIG.PROFESSIONALS[0];
+const BOOKED_SERVICES = SERVICES.slice(0, 2);
+const PROFESSIONAL = PROFESSIONALS[0];
 const NASTY = `Ana "O'Brien" <b>&</b>`;
 
 const payloadFor = (formData) => buildBookingPayload({
   formData,
-  services: SERVICES,
+  services: BOOKED_SERVICES,
   professional: PROFESSIONAL,
   date: '2030-01-15',
   time: '10:00',
@@ -114,21 +117,21 @@ describe('POST /api/bookings payload vs CreateBookingDto / Booking schema', () =
       ['client', 'date', 'notes', 'professional', 'services', 'status', 'time'],
     );
     expect(Object.keys(payload.client).sort()).toEqual(['email', 'id', 'name', 'phone']);
-    expect(payload.services).toEqual(SERVICES.map(({ id }) => ({ id })));
+    expect(payload.services).toEqual(BOOKED_SERVICES.map(({ id }) => ({ id })));
     expect(Object.keys(payload.professional).sort()).toEqual(['id', 'name']);
   });
 
   it('the whole catalog booked together with any professional produces an accepted payload', () => {
-    for (const professional of APP_CONFIG.PROFESSIONALS) {
+    for (const professional of PROFESSIONALS) {
       const payload = buildBookingPayload({
         formData: { name: 'Ana', email: 'a@b.co', phone: '1' },
-        services: APP_CONFIG.SERVICES,
+        services: SERVICES,
         professional,
         date: '2030-01-15',
         time: '09:00',
       });
       expect(validateCreateBooking(payload)).toEqual([]);
-      expect(payload.services).toHaveLength(APP_CONFIG.SERVICES.length);
+      expect(payload.services).toHaveLength(SERVICES.length);
     }
   });
 
@@ -159,6 +162,16 @@ const BACKEND_ROUTES = [
   ['GET', '/api/availability'],
   ['GET', '/api/bookings/statistics'],
   ['DELETE', '/api/bookings/:id'],
+  ['GET', '/api/catalog'],
+  ['GET', '/api/admin/session'],
+  ['GET', '/api/admin/catalog'],
+  ['POST', '/api/admin/professionals'],
+  ['PATCH', '/api/admin/professionals/:id'],
+  ['DELETE', '/api/admin/professionals/:id'],
+  ['POST', '/api/admin/services'],
+  ['PATCH', '/api/admin/services/:id'],
+  ['DELETE', '/api/admin/services/:id'],
+  ['PUT', '/api/admin/schedule'],
 ];
 
 const matchesRoute = (method, url) => BACKEND_ROUTES.some(([m, template]) => (
@@ -199,6 +212,47 @@ describe('endpoints used by the services exist in the backend controller', () =>
     for (const { method, url } of calls) {
       expect(matchesRoute(method, url), `${method} ${url}`).toBe(true);
     }
+  });
+});
+
+describe('catalog and admin config endpoints exist in the backend contract', () => {
+  let calls;
+
+  beforeEach(() => {
+    sessionStorage.setItem('adminKey', 'k');
+    calls = [];
+    vi.stubGlobal('fetch', vi.fn(async (url, options) => {
+      calls.push({
+        method: options.method,
+        url: String(url).replace(APP_CONFIG.BACKEND_URL, ''),
+        auth: options.headers.Authorization,
+      });
+      return { ok: true, json: async () => ({}) };
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    sessionStorage.clear();
+  });
+
+  it('every catalog / admin call maps to a backend route; only admin routes carry the Bearer key', async () => {
+    await catalogService.getCatalog();
+    await authService.login('admin', 'k');
+    await adminService.getAdminCatalog();
+    await adminService.createProfessional({ name: 'Ana', specialty: 'x', experience: '1' });
+    await adminService.updateProfessional('ana', { active: false });
+    await adminService.deleteProfessional('ana');
+    await adminService.createService({ name: 'Corte' });
+    await adminService.updateService('corte', { price: 1 });
+    await adminService.deleteService('corte');
+    await adminService.saveSchedule({ 0: { closed: true } });
+
+    for (const { method, url, auth } of calls) {
+      expect(matchesRoute(method, url), `${method} ${url}`).toBe(true);
+      expect(auth, `${method} ${url}`).toBe(url.startsWith('/api/admin') ? 'Bearer k' : undefined);
+    }
+    expect(calls).toHaveLength(10);
   });
 });
 

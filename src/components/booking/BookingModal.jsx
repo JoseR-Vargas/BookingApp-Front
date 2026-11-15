@@ -6,6 +6,7 @@ import { DialogTitle } from '@headlessui/react';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { buildBookingPayload, checkAvailability, createBooking } from '../../services/bookingService.js';
 import { useBooking } from '../../state/bookingState.jsx';
+import { useCatalog } from '../../state/catalogState.jsx';
 import { toast } from '../../ui/toast.js';
 import { getServiceIds, getTotalPrice } from '../../utils/serviceSelection.js';
 import Button from '../ui/Button.jsx';
@@ -45,6 +46,7 @@ function CloseIcon() {
 
 export default function BookingModal({ open, onClose }) {
   const booking = useBooking();
+  const catalog = useCatalog();
   const { state, setStep, setSubmitting, reset } = booking;
   const { currentStep, selectedDate, selectedTime, selectedProfessional, isSubmitting } = state;
 
@@ -198,16 +200,34 @@ export default function BookingModal({ open, onClose }) {
         </div>
 
         <div className="flex-auto bg-bg-secondary p-4 lte-md:p-3">
+          {catalog.status === 'loading' && (
+            <div className="flex items-center justify-center gap-3 py-12 text-text-secondary">
+              <Spinner />
+              <span>Cargando servicios...</span>
+            </div>
+          )}
+          {catalog.status === 'error' && (
+            <div role="alert" className="flex flex-col items-center gap-4 py-12 text-center text-text-secondary">
+              <p>No pudimos cargar los servicios. Revisa tu conexión e intenta nuevamente.</p>
+              <Button size="sm" onClick={catalog.reload}>
+                Reintentar
+              </Button>
+            </div>
+          )}
           {/* All steps stay mounted (only hidden) like legacy: values typed in a step survive "Anterior". */}
-          <div hidden={currentStep !== 1}>
-            <ServiceSelectionStep />
-          </div>
-          <div hidden={currentStep !== 2}>
-            <ScheduleStep />
-          </div>
-          <div hidden={currentStep !== 3}>
-            <ClientFormStep formRef={formRef} validated={validated} />
-          </div>
+          {catalog.status === 'ready' && (
+            <>
+              <div hidden={currentStep !== 1}>
+                <ServiceSelectionStep />
+              </div>
+              <div hidden={currentStep !== 2}>
+                <ScheduleStep />
+              </div>
+              <div hidden={currentStep !== 3}>
+                <ClientFormStep formRef={formRef} validated={validated} />
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center justify-end border-t border-border-subtle bg-bg-secondary p-3 lte-sm:flex-col-reverse *:m-1 lte-sm:*:mx-0 lte-sm:*:w-full">
@@ -217,7 +237,7 @@ export default function BookingModal({ open, onClose }) {
               Anterior
             </Button>
           )}
-          <Button size="sm" onClick={handleNext} disabled={isSubmitting}>
+          <Button size="sm" onClick={handleNext} disabled={isSubmitting || catalog.status !== 'ready'}>
             {currentStep === LAST_STEP ? (
               isSubmitting ? (
                 <>

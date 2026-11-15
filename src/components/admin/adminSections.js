@@ -4,10 +4,12 @@ export const NAV_ITEMS = [
   { section: 'dashboard', label: 'Dashboard', icon: 'fas fa-tachometer-alt' },
   { section: 'bookings', label: 'Reservas', icon: 'fas fa-calendar-check' },
   { section: 'reports', label: 'Reportes', icon: 'fas fa-chart-bar' },
+  { section: 'config', label: 'Configuración', icon: 'fas fa-cog' },
 ];
 
 export const SECTION_TITLES = {
   dashboard: 'Dashboard',
   bookings: 'Gestión de Reservas',
   reports: 'Reportes y Estadísticas',
+  config: 'Configuración del Negocio',
 };

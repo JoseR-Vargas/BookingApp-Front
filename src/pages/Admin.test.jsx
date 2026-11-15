@@ -20,6 +20,7 @@ vi.mock('react-chartjs-2', () => ({
 
 import { io } from 'socket.io-client';
 import { audioService } from '../services/audioService.js';
+import { ADMIN_CATALOG } from '../test/catalogFixture.js';
 import { toast } from '../ui/toast.js';
 import Admin from './Admin.jsx';
 
@@ -70,6 +71,12 @@ function installFetch() {
     const key = `${method} ${String(url).replace(BASE, '')}`;
     if (db.failing.has(key)) {
       return { ok: false, status: 500, text: async () => JSON.stringify({ message: 'Backend roto' }), json: async () => ({}) };
+    }
+    if (key === 'GET /api/admin/catalog') {
+      if (db.failing401) {
+        return { ok: false, status: 401, text: async () => JSON.stringify({ message: 'Invalid or missing admin key' }) };
+      }
+      return jsonResponse(ADMIN_CATALOG);
     }
     if (key === 'GET /api/bookings') return jsonResponse(JSON.parse(JSON.stringify(db.bookings)));
     if (key === 'GET /api/bookings/statistics') return jsonResponse(db.stats);
@@ -146,6 +153,7 @@ beforeEach(() => {
   sessionStorage.clear();
   sessionStorage.setItem('isAdmin', 'true');
   sessionStorage.setItem('adminUser', 'admin');
+  sessionStorage.setItem('adminKey', 'admin-key');
   db = {
     bookings: seed(),
     stats: { totalBookings: 7, totalRevenue: 12500, todayBookings: 2 },
@@ -779,6 +787,34 @@ describe('Admin realtime notifications', () => {
     expect(bellBadge().queryByText('1')).not.toBeInTheDocument();
     expect(pageTitle()).toHaveTextContent('Gestión de Reservas');
     await waitFor(() => expect(callsTo('GET', '/api/bookings').length).toBeGreaterThan(listBefore));
+  });
+});
+
+describe('Admin configuration section', () => {
+  it('adds "Configuración" to the sidebar and renders its three tabs from the admin catalog', async () => {
+    await loadedAdmin();
+
+    await goTo('Configuración');
+
+    expect(pageTitle()).toHaveTextContent('Configuración del Negocio');
+    expect(await screen.findByText('Alex García')).toBeInTheDocument();
+    expect(callsTo('GET', '/api/admin/catalog')).toHaveLength(1);
+    expect(callsTo('GET', '/api/admin/catalog')[0][1].headers.Authorization).toBe('Bearer admin-key');
+    const tabs = within(screen.getByRole('tablist')).getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Horarios']);
+  });
+
+  it('logs the user out and goes to /login when the admin key is rejected (401)', async () => {
+    db.failing401 = true;
+    await loadedAdmin();
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+
+    await goTo('Configuración');
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/login'));
+    expect(sessionStorage.getItem('isAdmin')).toBeNull();
+    expect(sessionStorage.getItem('adminKey')).toBeNull();
   });
 });
 

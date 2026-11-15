@@ -65,6 +65,22 @@ describe('apiClient', () => {
       expect(init.body).toBeUndefined();
     });
 
+    it.each([['put', 'PUT'], ['patch', 'PATCH']])('%s sends a JSON body with the %s method', async (name, method) => {
+      fetch.mockResolvedValue(mockResponse());
+      await apiClient[name]('/api/admin/schedule', { a: 1 });
+
+      const [, init] = fetch.mock.calls[0];
+      expect(init.method).toBe(method);
+      expect(init.body).toBe(JSON.stringify({ a: 1 }));
+      expect(init.headers['Content-Type']).toBe('application/json');
+    });
+
+    it('exposes the HTTP status on the error of a failed response', async () => {
+      fetch.mockResolvedValue(mockResponse({ ok: false, status: 401, text: JSON.stringify({ message: 'nope' }) }));
+
+      await expect(apiClient.get('/api/admin/session')).rejects.toMatchObject({ message: 'nope', status: 401 });
+    });
+
     it('merges custom headers without mutating the caller object', async () => {
       fetch.mockResolvedValue(mockResponse());
       const headers = { Authorization: 'Bearer x' };
