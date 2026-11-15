@@ -35,83 +35,18 @@ describe('APP_CONFIG.BACKEND_URL', () => {
   });
 });
 
-describe('APP_CONFIG business data (frozen from the pre-migration config)', () => {
-  it('keeps scalar settings identical to legacy', async () => {
+describe('APP_CONFIG scalar settings', () => {
+  it('keeps the scalar settings identical to legacy', async () => {
     const config = await loadConfigFor('localhost');
-    expect(config.BUSINESS_HOURS).toEqual({
-      start: 9,
-      end: 20,
-      interval: 30,
-    });
     expect(config.CANCELLATION_HOURS).toBe(5);
     expect(config.TOAST_DURATION).toBe(3000);
     expect(config.ITEMS_PER_PAGE).toBe(10);
   });
 
-  it('keeps PROFESSIONALS identical to legacy', async () => {
+  it('no longer carries business data: the backend catalog owns it', async () => {
     const config = await loadConfigFor('localhost');
-    expect(config.PROFESSIONALS).toEqual([
-      {
-        id: 'alex-garcia',
-        name: 'Alex García',
-        specialty: 'Especialista',
-        experience: '8 años',
-        rating: 4.9,
-        avatar: 'fas fa-user-tie',
-        available: true,
-      },
-      {
-        id: 'maria-lopez',
-        name: 'María López',
-        specialty: 'Consultora',
-        experience: '6 años',
-        rating: 4.8,
-        avatar: 'fas fa-user',
-        available: true,
-      },
-    ]);
-  });
-
-  it('keeps SERVICES identical to legacy', async () => {
-    const config = await loadConfigFor('localhost');
-    const professionals = ['alex-garcia', 'maria-lopez'];
-    expect(config.SERVICES).toEqual([
-      {
-        id: 'consulta-inicial',
-        name: 'Consulta Inicial',
-        description: 'Sesión introductoria para evaluar tus necesidades',
-        price: 500,
-        duration: 30,
-        professionals,
-        icon: 'fas fa-clipboard-list',
-      },
-      {
-        id: 'servicio-basico',
-        name: 'Servicio Básico',
-        description: 'Atención estándar completa con seguimiento profesional',
-        price: 1200,
-        duration: 60,
-        professionals,
-        icon: 'fas fa-star',
-      },
-      {
-        id: 'servicio-premium',
-        name: 'Servicio Premium',
-        description: 'Experiencia premium con atención prioritaria y resultados garantizados',
-        price: 2500,
-        duration: 90,
-        professionals,
-        icon: 'fas fa-gem',
-      },
-      {
-        id: 'sesion-expres',
-        name: 'Sesión Exprés',
-        description: 'Atención rápida y efectiva para ajustarse a tu agenda',
-        price: 700,
-        duration: 20,
-        professionals,
-        icon: 'fas fa-bolt',
-      },
-    ]);
+    expect(config).not.toHaveProperty('PROFESSIONALS');
+    expect(config).not.toHaveProperty('SERVICES');
+    expect(config).not.toHaveProperty('BUSINESS_HOURS');
   });
 });

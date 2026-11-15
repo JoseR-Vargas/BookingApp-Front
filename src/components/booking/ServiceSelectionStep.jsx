@@ -1,5 +1,5 @@
-import { APP_CONFIG } from '../../config/appConfig.js';
 import { useBooking } from '../../state/bookingState.jsx';
+import { useCatalog } from '../../state/catalogState.jsx';
 import { canAddService } from '../../utils/serviceSelection.js';
 import ServiceSelectionCard from './ServiceSelectionCard.jsx';
 import ServiceSelectionSummary from './ServiceSelectionSummary.jsx';
@@ -9,6 +9,7 @@ import StepHeading from './StepHeading.jsx';
 export default function ServiceSelectionStep() {
   const { state, toggleService } = useBooking();
   const { selectedServices } = state;
+  const { services, professionals } = useCatalog();
 
   const isSelected = (service) => selectedServices.some((selected) => selected.id === service.id);
 
@@ -16,13 +17,13 @@ export default function ServiceSelectionStep() {
     <div>
       <StepHeading title="Elige tu Servicio" subtitle="Selecciona uno o varios servicios para tu cita" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lte-md:gap-2">
-        {APP_CONFIG.SERVICES.map((service) => {
+        {services.map((service) => {
           const selected = isSelected(service);
           return (
             <ServiceSelectionCard
               key={service.id}
               service={service}
-              professionals={APP_CONFIG.PROFESSIONALS}
+              professionals={professionals}
               selected={selected}
               disabled={!selected && !canAddService(selectedServices, service)}
               onSelect={toggleService}

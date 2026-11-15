@@ -13,3 +13,5 @@ dist/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+# Compiled backend used by the E2E run (see e2e/support/start-backend.mjs)
+/e2e/.build/

@@ -2,8 +2,9 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { APP_CONFIG } from '../../config/appConfig.js';
+import { PROFESSIONALS, SERVICES } from '../../test/catalogFixture.js';
 import { BookingProvider } from '../../state/bookingState.jsx';
+import { CatalogTestProvider } from '../../test/CatalogTestProvider.jsx';
 import { toast } from '../../ui/toast.js';
 import { formatLongDateUTC, formatMoney } from '../../utils/format.js';
 import BookingModal from './BookingModal.jsx';
@@ -102,7 +103,7 @@ function installBackend({ bookings = [] } = {}) {
 
   const isWindowFree = (date, professionalId, startMinutes, serviceIds) => {
     const totalDuration = serviceIds
-      .map((id) => APP_CONFIG.SERVICES.find((service) => service.id === id).duration)
+      .map((id) => SERVICES.find((service) => service.id === id).duration)
       .reduce((sum, duration) => sum + duration, 0);
     const open = openBlocks(date);
     const occupied = occupiedBlocks(date, professionalId);
@@ -115,7 +116,7 @@ function installBackend({ bookings = [] } = {}) {
     closed: openBlocks(date).length === 0,
     services: [],
     totalDuration: 0,
-    professionals: APP_CONFIG.PROFESSIONALS.map((professional) => ({
+    professionals: PROFESSIONALS.map((professional) => ({
       id: professional.id,
       name: professional.name,
       slots: openBlocks(date)
@@ -156,15 +157,17 @@ const existingBooking = (overrides = {}) => ({
   ...overrides,
 });
 
-function Harness({ initialOpen = true }) {
+function Harness({ initialOpen = true, catalog }) {
   const [open, setOpen] = useState(initialOpen);
   return (
-    <BookingProvider>
-      <button type="button" onClick={() => setOpen(true)}>
-        reopen
-      </button>
-      <BookingModal open={open} onClose={() => setOpen(false)} />
-    </BookingProvider>
+    <CatalogTestProvider value={catalog}>
+      <BookingProvider>
+        <button type="button" onClick={() => setOpen(true)}>
+          reopen
+        </button>
+        <BookingModal open={open} onClose={() => setOpen(false)} />
+      </BookingProvider>
+    </CatalogTestProvider>
   );
 }
 
@@ -389,8 +392,8 @@ describe('BookingModal happy path', () => {
   it('disables a service that would leave no professional offering the whole selection', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
-    const consulta = APP_CONFIG.SERVICES.find((s) => s.id === 'consulta-inicial');
-    const premium = APP_CONFIG.SERVICES.find((s) => s.id === 'servicio-premium');
+    const consulta = SERVICES.find((s) => s.id === 'consulta-inicial');
+    const premium = SERVICES.find((s) => s.id === 'servicio-premium');
     const originals = [consulta.professionals, premium.professionals];
     consulta.professionals = ['alex-garcia'];
     premium.professionals = ['maria-lopez'];
@@ -436,7 +439,7 @@ describe('BookingModal happy path', () => {
   it('offers only the professionals that offer every selected service', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
-    const service = APP_CONFIG.SERVICES.find((s) => s.id === 'consulta-inicial');
+    const service = SERVICES.find((s) => s.id === 'consulta-inicial');
     const original = service.professionals;
     service.professionals = ['maria-lopez'];
     try {
@@ -570,7 +573,7 @@ describe('time slots', () => {
     expect(values).not.toContain('20:00');
   });
 
-  it('closes on Sunday with the "Domingo cerrado" label once a professional is chosen', async () => {
+  it('closes on Sunday with the "Cerrado este día" label once a professional is chosen', async () => {
     const backend = installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -581,7 +584,7 @@ describe('time slots', () => {
     expect(backend.gets).toHaveLength(0);
 
     await user.click(professionalCard('Alex García'));
-    await within(timeSelect()).findByRole('option', { name: 'Domingo cerrado' });
+    await within(timeSelect()).findByRole('option', { name: 'Cerrado este día' });
     expect(within(timeSelect()).getAllByRole('option')).toHaveLength(1);
     expect(backend.gets).toHaveLength(1);
   });
@@ -765,7 +768,7 @@ describe('availability recomputation (deliberate improvements)', () => {
     await fillSchedule(user, { time: '11:00' });
 
     fireEvent.change(dateInput(), { target: { value: SUNDAY } });
-    await within(timeSelect()).findByRole('option', { name: 'Domingo cerrado' });
+    await within(timeSelect()).findByRole('option', { name: 'Cerrado este día' });
 
     await waitFor(() => expect(screen.getByTestId('selected-service-info')).toHaveTextContent('Hora: No seleccionada'));
   });

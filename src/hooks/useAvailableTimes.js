@@ -25,7 +25,7 @@ const NO_DATE_TEXT = 'Selecciona una fecha primero';
 const NO_PROFESSIONAL_TEXT = 'Selecciona un profesional primero';
 const PICK_TIME_TEXT = 'Selecciona una hora';
 const NO_TIMES_TEXT = 'No hay horarios disponibles';
-const CLOSED_TEXT = 'Domingo cerrado';
+const CLOSED_TEXT = 'Cerrado este día';
 
 const loadingText = (mobile) => (mobile ? 'Cargando horarios...' : 'Verificando horarios disponibles');
 const retryText = (mobile, attempt) => (mobile

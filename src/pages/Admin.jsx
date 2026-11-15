@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/admin/AdminLayout.jsx';
 import BookingsSection from '../components/admin/BookingsSection.jsx';
 import DashboardSection from '../components/admin/DashboardSection.jsx';
+import ConfigSection from '../components/admin/config/ConfigSection.jsx';
 import ReportsSection from '../components/admin/ReportsSection.jsx';
 import Sidebar from '../components/admin/Sidebar.jsx';
 import Topbar from '../components/admin/Topbar.jsx';
@@ -137,6 +138,7 @@ export default function Admin() {
           />
         )}
         {section === 'reports' && <ReportsSection bookings={data.bookings} />}
+        {section === 'config' && <ConfigSection />}
       </AdminLayout>
       <ConfirmDialog
         open={logoutOpen}

@@ -52,7 +52,11 @@ export const apiClient = {
         } catch (textErr) {
           // response.text() no disponible (ej: en mocks de test), usar mensaje por defecto
         }
-        throw new Error(errorMessage);
+        // The status travels with the error so callers can tell e.g. a 401 from a network failure.
+        // Non-enumerable so the error still compares equal to a plain `new Error(message)`.
+        const httpError = new Error(errorMessage);
+        Object.defineProperty(httpError, 'status', { value: response.status });
+        throw httpError;
       }
 
       return response.json();
@@ -71,6 +75,14 @@ export const apiClient = {
 
   post(path, body, options) {
     return apiClient.request('POST', path, body, options);
+  },
+
+  put(path, body, options) {
+    return apiClient.request('PUT', path, body, options);
+  },
+
+  patch(path, body, options) {
+    return apiClient.request('PATCH', path, body, options);
   },
 
   delete(path, options) {

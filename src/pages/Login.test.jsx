@@ -11,6 +11,17 @@ import { authService } from '../services/authService.js';
 import { toast } from '../ui/toast.js';
 import Login from './Login.jsx';
 
+// The "password" is the backend ADMIN_API_KEY: the fake backend only accepts this Bearer key.
+const GOOD_KEY = 'good-admin-key';
+
+function installBackend() {
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => (
+    init.headers.Authorization === `Bearer ${GOOD_KEY}`
+      ? { ok: true, status: 200, json: async () => ({ ok: true }) }
+      : { ok: false, status: 401, text: async () => JSON.stringify({ message: 'Invalid or missing admin key' }) }
+  )));
+}
+
 function renderLogin() {
   return render(
     <MemoryRouter initialEntries={['/login']}>
@@ -48,10 +59,12 @@ beforeEach(() => {
   globalThis.jest = { advanceTimersByTime: (ms) => vi.advanceTimersByTime(ms) };
   sessionStorage.clear();
   authService._reset();
+  installBackend();
   Object.values(toast).forEach((fn) => fn.mockClear());
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   delete globalThis.jest;
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -84,7 +97,7 @@ describe('Login success flow', () => {
   it('toasts success, stores the session and navigates to /admin after exactly 1000ms', async () => {
     const user = setup();
 
-    await submit(user, 'admin', 'admin123');
+    await submit(user, 'admin', GOOD_KEY);
 
     expect(toast.success).toHaveBeenCalledWith('✅ Inicio de sesión exitoso');
     expect(sessionStorage.getItem('isAdmin')).toBe('true');
@@ -101,9 +114,9 @@ describe('Login success flow', () => {
     const login = vi.spyOn(authService, 'login');
     const user = setup();
 
-    await submit(user, '  admin  ', 'admin123');
+    await submit(user, '  admin  ', GOOD_KEY);
 
-    expect(login).toHaveBeenCalledWith('admin', 'admin123');
+    expect(login).toHaveBeenCalledWith('admin', GOOD_KEY);
     expect(toast.success).toHaveBeenCalledWith('✅ Inicio de sesión exitoso');
   });
 
@@ -114,7 +127,7 @@ describe('Login success flow', () => {
     );
     const user = setup();
 
-    await submit(user, 'admin', 'admin123');
+    await submit(user, 'admin', GOOD_KEY);
 
     const button = screen.getByRole('button', { name: /Iniciando sesión\.\.\./ });
     expect(button).toBeDisabled();
@@ -130,7 +143,7 @@ describe('Login success flow', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const { unmount } = renderLogin();
 
-    await submit(user, 'admin', 'admin123');
+    await submit(user, 'admin', GOOD_KEY);
     unmount();
 
     expect(() => act(() => { vi.advanceTimersByTime(1000); })).not.toThrow();
@@ -159,7 +172,7 @@ describe('Login failure flow', () => {
     await submit(user, 'admin', 'nope');
     expect(toast.error).toHaveBeenLastCalledWith('❌ Cuenta bloqueada por demasiados intentos. Intenta en 60 segundos.');
 
-    await submit(user, 'admin', 'admin123');
+    await submit(user, 'admin', GOOD_KEY);
     expect(toast.error).toHaveBeenLastCalledWith(
       '❌ Demasiados intentos fallidos. Intenta de nuevo en 60 segundos.',
     );
@@ -172,9 +185,30 @@ describe('Login failure flow', () => {
     for (let i = 0; i < 5; i += 1) await submit(user, 'admin', 'nope');
 
     act(() => { vi.advanceTimersByTime(60000); });
-    await submit(user, 'admin', 'admin123');
+    await submit(user, 'admin', GOOD_KEY);
 
     expect(toast.success).toHaveBeenCalledWith('✅ Inicio de sesión exitoso');
+  });
+
+  it('rejects the old hardcoded admin / admin123 credentials', async () => {
+    const user = setup();
+
+    await submit(user, 'admin', 'admin123');
+
+    expect(toast.error).toHaveBeenCalledWith('❌ Usuario o contraseña incorrectos. Intentos restantes: 4');
+    expect(sessionStorage.getItem('isAdmin')).toBeNull();
+  });
+
+  it('shows a distinct message when the backend cannot be reached and keeps the form usable', async () => {
+    fetch.mockRejectedValue(new TypeError('Failed to fetch'));
+    const user = setup();
+
+    await submit(user, 'admin', GOOD_KEY);
+
+    expect(toast.error).toHaveBeenCalledWith(
+      '❌ No se pudo conectar con el servidor. Intenta de nuevo en unos minutos.',
+    );
+    expect(screen.getByRole('button', { name: /Iniciar Sesión/ })).toBeEnabled();
   });
 
   it('rejects an empty submission with the service message', async () => {

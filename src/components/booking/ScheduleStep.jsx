@@ -1,7 +1,7 @@
 import { useEffect, useId } from 'react';
-import { APP_CONFIG } from '../../config/appConfig.js';
 import { useAvailableTimes } from '../../hooks/useAvailableTimes.js';
 import { useBooking } from '../../state/bookingState.jsx';
+import { useCatalog } from '../../state/catalogState.jsx';
 import { formatLongDateUTC, formatMoney } from '../../utils/format.js';
 import { getCommonProfessionalIds, getServiceIds, getTotalDuration, getTotalPrice } from '../../utils/serviceSelection.js';
 import DatePicker from '../ui/DatePicker.jsx';
@@ -49,6 +49,7 @@ export default function ScheduleStep() {
   const { state, setDate, setTime, setProfessional } = useBooking();
   const { selectedServices, selectedDate, selectedTime, selectedProfessional } = state;
   const helperId = useId();
+  const { professionals: allProfessionals } = useCatalog();
 
   const times = useAvailableTimes(
     selectedDate,
@@ -66,7 +67,7 @@ export default function ScheduleStep() {
   }, [times.settled, freeTimes, selectedTime, setTime]);
 
   const commonProfessionalIds = getCommonProfessionalIds(selectedServices);
-  const professionals = APP_CONFIG.PROFESSIONALS.filter((p) => commonProfessionalIds.includes(p.id));
+  const professionals = allProfessionals.filter((p) => commonProfessionalIds.includes(p.id));
 
   return (
     <div>
