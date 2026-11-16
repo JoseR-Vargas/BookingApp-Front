@@ -14,10 +14,9 @@ import { formatLongDateUTC } from '../utils/format.js';
 const NOT_FOUND = 404;
 const TOO_LATE = 409;
 
-function Row({ icon, label, children, last = false }) {
+function Row({ label, children, last = false }) {
   return (
     <div className={`flex items-start text-[0.95rem] text-text-primary ${last ? '' : 'mb-2'}`}>
-      <i aria-hidden="true" className={`${icon} mt-[0.15rem] mr-2 shrink-0 text-accent`} />
       <span className="mr-1 text-text-secondary">{label}</span>
       <strong>{children}</strong>
     </div>
@@ -27,25 +26,19 @@ function Row({ icon, label, children, last = false }) {
 function Details({ summary }) {
   return (
     <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-4 text-left">
-      <Row icon="fas fa-concierge-bell" label="Servicios:">
+      <Row label="Servicios:">
         {summary.services.map((service) => service.name).join(', ')}
       </Row>
-      <Row icon="fas fa-user-tie" label="Profesional:">{summary.professional.name}</Row>
-      <Row icon="fas fa-calendar-alt" label="Fecha:">{formatLongDateUTC(summary.date)}</Row>
-      <Row icon="fas fa-clock" label="Hora:" last>{summary.time}</Row>
+      <Row label="Profesional:">{summary.professional.name}</Row>
+      <Row label="Fecha:">{formatLongDateUTC(summary.date)}</Row>
+      <Row label="Hora:" last>{summary.time}</Row>
     </div>
   );
 }
 
-function Notice({ icon, tone, title, children }) {
+function Notice({ title, children }) {
   return (
     <div className="mb-6 text-center">
-      <div
-        aria-hidden="true"
-        className={`mx-auto mb-4 flex size-16 items-center justify-center rounded-full border border-border bg-bg-tertiary text-[1.75rem] ${tone}`}
-      >
-        <i className={icon} />
-      </div>
       <h2 className="mb-1 text-xl font-bold">{title}</h2>
       {children && <p className="leading-loose text-text-secondary">{children}</p>}
     </div>
@@ -54,7 +47,7 @@ function Notice({ icon, tone, title, children }) {
 
 const BookAgain = () => (
   <Button href="/" size="sm" className="w-full">
-    <i aria-hidden="true" className="fas fa-calendar-plus" /> Reservar de nuevo
+    Reservar de nuevo
   </Button>
 );
 
@@ -112,25 +105,25 @@ export default function CancelBooking() {
         )}
 
         {view.kind === 'notFound' && (
-          <Notice icon="fas fa-search" tone="text-text-secondary" title="No encontramos esta reserva">
+          <Notice title="No encontramos esta reserva">
             Revisa que hayas abierto el enlace del email completo.
           </Notice>
         )}
 
         {view.kind === 'loadError' && (
           <div role="alert" className="text-center">
-            <Notice icon="fas fa-exclamation-triangle" tone="text-error" title="No pudimos cargar tu reserva">
+            <Notice title="No pudimos cargar tu reserva">
               Hubo un problema de conexión o del servidor. Intenta nuevamente.
             </Notice>
             <Button size="sm" onClick={() => setAttempt((count) => count + 1)}>
-              <i aria-hidden="true" className="fas fa-redo" /> Reintentar
+              Reintentar
             </Button>
           </div>
         )}
 
         {view.kind === 'done' && (
           <>
-            <Notice icon="fas fa-check-circle" tone="text-success" title="Tu reserva fue cancelada">
+            <Notice title="Tu reserva fue cancelada">
               El horario quedó libre.
             </Notice>
             <Details summary={summary} />
@@ -140,7 +133,7 @@ export default function CancelBooking() {
 
         {state === 'cancelled' && (
           <>
-            <Notice icon="fas fa-ban" tone="text-text-secondary" title="Esta reserva ya fue cancelada" />
+            <Notice title="Esta reserva ya fue cancelada" />
             <Details summary={summary} />
             <BookAgain />
           </>
@@ -148,7 +141,7 @@ export default function CancelBooking() {
 
         {state === 'closed' && (
           <>
-            <Notice icon="fas fa-clock" tone="text-text-secondary" title="Ya no se puede cancelar esta reserva">
+            <Notice title="Ya no se puede cancelar esta reserva">
               El límite para cancelar es 1 minuto antes de la hora de inicio.
             </Notice>
             <Details summary={summary} />

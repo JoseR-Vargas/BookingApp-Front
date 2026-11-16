@@ -16,7 +16,7 @@ export default function ServiceSelectionStep() {
   return (
     <div>
       <StepHeading title="Elige tu Servicio" subtitle="Selecciona uno o varios servicios para tu cita" />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lte-md:gap-2">
+      <div className="grid grid-cols-1 gap-4 @xl:grid-cols-2 @3xl:grid-cols-3 cq-compact:gap-2">
         {services.map((service) => {
           const selected = isSelected(service);
           return (

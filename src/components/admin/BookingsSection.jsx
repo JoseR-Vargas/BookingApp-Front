@@ -49,7 +49,7 @@ export default function BookingsSection({
               </span>
             </div>
             <Button variant="outlineSecondary" size="sm" onClick={onClearFilters} className="inline-block! text-center">
-              <i aria-hidden="true" className="fas fa-sync-alt" /> Actualizar
+              Actualizar
             </Button>
           </div>
         </div>

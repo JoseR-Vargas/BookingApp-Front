@@ -9,7 +9,10 @@ const noop = () => {};
 
 /**
  * Thin wrapper over the Headless UI Dialog that reproduces the legacy framework modal:
- *  - centered dialog box, 900px max width (legacy `.modal-dialog`), full width and flush on <=768px;
+ *  - centered dialog box with a 480px max width on phones, 680px from 768px
+ *    and 880px from 1024px (content keeps the compact mobile styling; grids add columns), full width and flush on <=576px;
+ *  - the box is a size container (`@container`): content styles itself with the `cq-*` container
+ *    variants, so it follows the box width instead of the viewport;
  *  - STATIC backdrop (legacy `data-bs-backdrop="static"`): clicking outside the box never closes it;
  *  - `keyboard` mirrors `data-bs-keyboard`: Escape closes unless it is `false`;
  *  - the box scrolls inside the viewport when it is taller than the screen;
@@ -45,7 +48,7 @@ export default function Modal({
       {/* The legacy framework default backdrop: black at 50%. */}
       <DialogBackdrop className="fixed inset-0 bg-black/50" />
       <DialogPanel ref={viewportRef} data-testid="modal-viewport" className="fixed inset-0 overflow-y-auto overflow-x-hidden">
-        <div className="mx-auto my-2 flex min-h-[calc(100%-1rem)] w-full max-w-[900px] items-center transition-transform duration-300 ease-out group-data-closed:-translate-y-12 sm:my-7 sm:min-h-[calc(100%-3.5rem)] lte-md:my-0 lte-md:max-w-full">
+        <div className="@container mx-auto my-2 flex min-h-[calc(100%-1rem)] w-full max-w-[480px] items-center md:max-w-[680px] lg:max-w-[880px] transition-transform duration-300 ease-out group-data-closed:-translate-y-12 sm:my-7 sm:min-h-[calc(100%-3.5rem)] lte-sm:my-0 lte-sm:max-w-full">
           <div className={contentClassName}>{children}</div>
         </div>
       </DialogPanel>

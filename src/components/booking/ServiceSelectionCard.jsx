@@ -1,10 +1,5 @@
 import { formatMoney } from '../../utils/format.js';
 
-// Icon rules of the legacy `.service-selection-card i` (they also hit the clock inside `.duration`).
-// Font Awesome makes `<i class="fas">` inline-block, so the legacy `margin-bottom: 1rem` does apply to both icons.
-// On <=768px the card turns into a compact row (see below), so the icons shrink and lose their bottom margin.
-const ICON_SIZE = 'text-[3rem] text-accent lte-md:text-[1.1rem]';
-
 const UNAVAILABLE_HINT = 'Sin profesional en común con tu selección';
 
 const CARD_STATE = {
@@ -24,7 +19,7 @@ function AddToggle({ serviceId, selected }) {
     : 'border-accent bg-transparent text-accent';
   return (
     <span
-      className={`mt-2 inline-flex size-7 items-center justify-center rounded-full border text-[0.75rem] lte-md:mt-0 lte-md:size-6 lte-md:shrink-0 lte-md:text-[0.7rem] ${state}`}
+      className={`mt-2 inline-flex size-7 items-center justify-center rounded-full border text-[0.75rem] cq-compact:mt-0 cq-compact:size-6 cq-compact:shrink-0 cq-compact:text-[0.7rem] ${state}`}
     >
       <i
         aria-hidden="true"
@@ -43,7 +38,7 @@ function AddToggle({ serviceId, selected }) {
  * `disabled` greys the card out (adding it would leave no professional offering the whole selection).
  *
  * Layout: centered stacked card on desktop; on <=768px (mobile-first usage) a compact row
- * (icon | name + price / description / duration + professionals) so at least two services
+ * (name + price / description / duration + professionals) so at least two services
  * fit on screen without scrolling.
  */
 export default function ServiceSelectionCard({ service, professionals, selected, disabled = false, onSelect }) {
@@ -63,34 +58,29 @@ export default function ServiceSelectionCard({ service, professionals, selected,
       aria-pressed={selected}
       disabled={disabled}
       onClick={() => onSelect(service)}
-      className={`flex h-full w-full items-start rounded-lg border-2 p-6 text-center text-text-primary transition-all duration-300 ease-[ease] pointer-coarse:min-h-11 pointer-coarse:min-w-11 lte-md:p-3 ${
+      className={`flex h-full w-full items-start rounded-lg border-2 p-6 text-center text-text-primary transition-all duration-300 ease-[ease] pointer-coarse:min-h-11 pointer-coarse:min-w-11 cq-compact:p-3 ${
         disabled ? '' : 'cursor-pointer hover:-translate-y-[3px] hover:border-accent hover:shadow-md'
       } ${cardState}`}
     >
       {/* One wrapper so the content stays top-aligned (a <button> would center it vertically). */}
-      <div className="w-full lte-md:flex lte-md:items-start lte-md:gap-3 lte-md:text-left">
-        <i
-          aria-hidden="true"
-          className={`${service.icon} mb-4 ${ICON_SIZE} lte-md:mt-0.5 lte-md:mb-0 lte-md:w-6 lte-md:shrink-0 lte-md:text-center`}
-        />
-        <div className="lte-md:grid lte-md:min-w-0 lte-md:flex-1 lte-md:grid-cols-[1fr_auto] lte-md:gap-x-2 lte-md:gap-y-0.5">
-          <h5 className="mb-2 text-[1.25rem] font-semibold text-text-primary lte-md:mb-0 lte-md:min-w-0 lte-md:text-base lte-md:leading-snug">
+      <div className="w-full cq-compact:flex cq-compact:items-start cq-compact:gap-3 cq-compact:text-left">
+        <div className="cq-compact:grid cq-compact:min-w-0 cq-compact:flex-1 cq-compact:grid-cols-[1fr_auto] cq-compact:gap-x-2 cq-compact:gap-y-0.5">
+          <h5 className="mb-2 text-[1.25rem] font-semibold text-text-primary cq-compact:mb-0 cq-compact:min-w-0 cq-compact:text-base cq-compact:leading-snug">
             {service.name}
           </h5>
-          <p className="mb-4 leading-loose text-text-secondary lte-md:order-3 lte-md:col-span-2 lte-md:mb-0 lte-md:line-clamp-2 lte-md:text-[0.85rem] lte-md:leading-snug">
+          <p className="mb-4 leading-loose text-text-secondary cq-compact:order-3 cq-compact:col-span-2 cq-compact:mb-0 cq-compact:line-clamp-2 cq-compact:text-[0.85rem] cq-compact:leading-snug">
             {service.description}
           </p>
-          <div className="mb-2 text-[1.2rem] font-bold text-accent lte-md:order-2 lte-md:mb-0 lte-md:text-base lte-md:leading-snug">
+          <div className="mb-2 text-[1.2rem] font-bold text-accent cq-compact:order-2 cq-compact:mb-0 cq-compact:text-base cq-compact:leading-snug">
             {formatMoney(service.price)}
           </div>
-          <div className="lte-md:order-4 lte-md:col-span-2 lte-md:text-[0.75rem]">
-            <div className="text-[0.9rem] text-text-muted lte-md:text-[0.75rem]">
-              <i aria-hidden="true" className={`fas fa-clock mr-1 mb-4 ${ICON_SIZE} lte-md:mb-0 lte-md:text-[0.75rem]`} />
+          <div className="cq-compact:order-4 cq-compact:col-span-2 cq-compact:text-[0.75rem]">
+            <div className="text-[0.9rem] text-text-muted cq-compact:text-[0.75rem]">
               {service.duration} minutos
             </div>
             {/* Mobile: professionals and the add toggle share one row (toggle at the right edge). */}
-            <div className="lte-md:flex lte-md:items-center lte-md:justify-between lte-md:gap-2">
-              <small className="text-[0.875em] text-text-secondary md:block lte-md:min-w-0 lte-md:text-[0.75rem]">
+            <div className="cq-compact:flex cq-compact:items-center cq-compact:justify-between cq-compact:gap-2">
+              <small className="text-[0.875em] text-text-secondary @3xl:block cq-compact:min-w-0 cq-compact:text-[0.75rem]">
                 Profesionales: {professionalNames}
               </small>
               {!disabled && <AddToggle serviceId={service.id} selected={selected} />}

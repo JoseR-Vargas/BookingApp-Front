@@ -10,22 +10,11 @@ import { toast } from '../ui/toast.js';
 
 const REDIRECT_DELAY_MS = 1000;
 
-// Legacy `.input-group-text`: tertiary surface, gold glyph, same height as the input it prefixes.
-const ADDON =
-  'flex items-center rounded-l-md border border-border-subtle bg-bg-tertiary px-3 py-1.5 text-base leading-normal text-accent';
-// The input is glued to the addon: no left border, flat left corners, overlapping the addon's right border by 1px.
-const INPUT = `${CONTROL_CLASSES} -ml-px min-w-0 flex-1 rounded-l-none border-l-0`;
-
-function Field({ id, label, icon, spacing, ...inputProps }) {
+function Field({ id, label, spacing, ...inputProps }) {
   return (
     <div className={spacing}>
       <label htmlFor={id} className={LABEL_CLASSES}>{label}</label>
-      <div className="flex">
-        <span aria-hidden="true" className={ADDON}>
-          <i className={icon} />
-        </span>
-        <input id={id} name={id} required className={INPUT} {...inputProps} />
-      </div>
+      <input id={id} name={id} required className={CONTROL_CLASSES} {...inputProps} />
     </div>
   );
 }
@@ -47,11 +36,11 @@ export default function Login() {
     setPending(true);
     try {
       await authService.login(username, password);
-      toast.success('✅ Inicio de sesión exitoso');
+      toast.success('Inicio de sesión exitoso');
       // The button stays disabled on success: the redirect follows (legacy behavior).
       redirectTimer.current = setTimeout(() => navigate('/admin'), REDIRECT_DELAY_MS);
     } catch (error) {
-      toast.error('❌ ' + error.message);
+      toast.error(error.message);
       setPending(false);
     }
   };
@@ -64,7 +53,6 @@ export default function Login() {
           <div className="rounded-lg border border-border bg-bg-secondary shadow-lg">
             <div className="p-12 lte-sm:p-8">
               <div className="mb-6 text-center">
-                <i aria-hidden="true" className="fas fa-cut mb-4 text-[3em] text-accent" />
                 <h1 className="mb-2 font-display text-[calc(1.325rem+0.9vw)] font-bold [overflow-wrap:anywhere] xl:text-[2rem]">
                   BookingApp
                 </h1>
@@ -76,7 +64,7 @@ export default function Login() {
                   id="username"
                   spacing="mb-4"
                   label="Usuario"
-                  icon="fas fa-user"
+                 
                   type="text"
                   placeholder="Ingresa tu usuario"
                   autoComplete="username"
@@ -85,7 +73,7 @@ export default function Login() {
                   id="password"
                   spacing="mb-6"
                   label="Contraseña"
-                  icon="fas fa-lock"
+                 
                   type="password"
                   placeholder="Ingresa tu contraseña"
                   autoComplete="current-password"
@@ -104,7 +92,6 @@ export default function Login() {
                     </>
                   ) : (
                     <>
-                      <i aria-hidden="true" className="fas fa-sign-in-alt mr-2" />
                       Iniciar Sesión
                     </>
                   )}
@@ -116,7 +103,7 @@ export default function Login() {
                   to="/"
                   className="text-text-secondary no-underline transition-colors duration-150 ease-[ease] hover:text-accent touch:inline-flex touch:min-h-11 touch:items-center"
                 >
-                  <i aria-hidden="true" className="fas fa-arrow-left mr-1" /> Volver al inicio
+                  Volver al inicio
                 </Link>
               </div>
             </div>

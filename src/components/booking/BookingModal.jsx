@@ -126,7 +126,7 @@ export default function BookingModal({ open, onClose }) {
       }
       if (!available) {
         toast.error(
-          '❌ Lo sentimos, ' + professional.name + ' ya tiene una reserva para ' + date + ' a las ' + time
+          'Lo sentimos, ' + professional.name + ' ya tiene una reserva para ' + date + ' a las ' + time
             + '. Por favor selecciona otra hora o profesional.',
         );
         return;
@@ -183,12 +183,11 @@ export default function BookingModal({ open, onClose }) {
   return (
     <>
       <Modal open={open} onClose={onClose} scrollResetKey={currentStep}>
-        <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border bg-bg-primary p-4 lte-md:px-4 lte-md:py-3">
+        <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border bg-bg-primary p-4 cq-compact:px-4 cq-compact:py-3">
           <DialogTitle
             as="h5"
-            className="mb-0 text-[1.25rem] leading-normal font-bold text-text-primary lte-md:text-[1.1rem]"
+            className="mb-0 text-[1.25rem] leading-normal font-bold text-text-primary cq-compact:text-[1.1rem]"
           >
-            <i aria-hidden="true" className="fas fa-calendar-alt mr-2 text-accent" />
             Reservar tu Cita
           </DialogTitle>
           <button
@@ -201,7 +200,7 @@ export default function BookingModal({ open, onClose }) {
           </button>
         </div>
 
-        <div className="flex-auto bg-bg-secondary p-4 lte-md:p-3">
+        <div className="flex-auto bg-bg-secondary p-4 cq-compact:p-3">
           {catalog.status === 'loading' && (
             <div className="flex items-center justify-center gap-3 py-12 text-text-secondary">
               <Spinner />
@@ -232,10 +231,9 @@ export default function BookingModal({ open, onClose }) {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end border-t border-border-subtle bg-bg-secondary p-3 lte-sm:flex-col-reverse *:m-1 lte-sm:*:mx-0 lte-sm:*:w-full">
+        <div className="flex flex-wrap items-center justify-end border-t border-border-subtle bg-bg-secondary p-3 cq-lte-sm:flex-col-reverse *:m-1 cq-lte-sm:*:mx-0 cq-lte-sm:*:w-full">
           {currentStep > 1 && (
             <Button variant="secondary" size="sm" onClick={handleBack}>
-              <i aria-hidden="true" className="fas fa-arrow-left mr-2" />
               Anterior
             </Button>
           )}
@@ -248,7 +246,6 @@ export default function BookingModal({ open, onClose }) {
                 </>
               ) : (
                 <>
-                  <i aria-hidden="true" className="fas fa-check mr-2" />
                   Confirmar Reserva
                 </>
               )
@@ -256,7 +253,6 @@ export default function BookingModal({ open, onClose }) {
               <>
                 Siguiente
                 {/* ml-3.5 = legacy `ms-2` + the whitespace a flex button would otherwise swallow. */}
-                <i aria-hidden="true" className="fas fa-arrow-right ml-3.5" />
               </>
             )}
           </Button>

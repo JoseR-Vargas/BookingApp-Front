@@ -27,9 +27,6 @@ export default function Navbar({ onReserve }) {
             href="#"
             className="order-1 mr-4 flex-1 py-[5px] font-display text-[1.1rem] font-bold whitespace-nowrap text-text-primary transition-colors duration-150 ease-[ease] hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-lg:min-h-11 max-lg:min-w-0 max-lg:overflow-hidden max-lg:py-0 max-lg:text-ellipsis max-lg:leading-[44px] lte-lg:text-[1.2rem] lte-md:text-base lte-sm:text-[0.9rem] lte-400:text-[0.8rem]"
           >
-            <span aria-hidden="true" className="mr-2 text-accent lte-sm:hidden">
-              <i className="fas fa-calendar-alt" />
-            </span>
             BookingApp
           </a>
 
@@ -75,9 +72,6 @@ export default function Navbar({ onReserve }) {
                   onClick={onReserve}
                   className="min-[1000px]:hidden lg:ml-2 lte-md:mt-1 lte-md:w-full"
                 >
-                  <span aria-hidden="true" className="mr-2">
-                    <i className="fas fa-calendar-alt" />
-                  </span>
                   Reservar Cita
                 </Button>
               </li>

@@ -18,7 +18,6 @@ export default function Footer() {
           <div className="grid items-center gap-6 md:grid-cols-3">
             <div>
               <div className="mb-2 flex items-center">
-                <i aria-hidden="true" className="fas fa-calendar-alt mr-2 text-accent" />
                 <span className="font-display text-lg font-bold tracking-wide text-text-primary">
                   BookingApp
                 </span>
