@@ -4,22 +4,8 @@
 import { apiClient } from '../core/apiClient.js';
 import { authService, getAdminKey } from './authService.js';
 
-// Booking admin calls: the backend does not protect them in this spec, so they carry no admin key.
-export function getBookings() {
-  return apiClient.get('/api/bookings');
-}
-
-export function getStatistics() {
-  return apiClient.get('/api/bookings/statistics');
-}
-
-export function deleteBooking(id) {
-  return apiClient.delete('/api/bookings/' + id);
-}
-
-// ----- Business configuration (every route requires the admin key) -----
-
-// Single place where an expired/invalid admin key is handled: the session is cleared and the
+// Every admin route requires the admin key (`Authorization: Bearer <ADMIN_API_KEY>`). This is the
+// single place where an expired/invalid key is handled: the session is cleared and the
 // browser goes back to /login (hard navigation, so no stale panel state survives). The error is
 // still rethrown so callers stop their own flow.
 async function adminRequest(method, path, body) {
@@ -37,6 +23,23 @@ async function adminRequest(method, path, body) {
     throw error;
   }
 }
+
+// ----- Bookings (the backend protects them with the admin key) -----
+// The public booking calls (create, availability, cancel by link) live in bookingService and
+// cancellationService and never carry the key.
+
+export const getBookings = () => adminRequest('GET', '/api/bookings');
+
+export const getStatistics = () => adminRequest('GET', '/api/bookings/statistics');
+
+// Erases the booking and its history. Use cancelBooking to just free the slot.
+export const deleteBooking = (id) => adminRequest('DELETE', '/api/bookings/' + id);
+
+// Frees the slot and keeps the booking in the history, with no time restriction (the one-minute
+// cutoff only applies to the client's cancel link).
+export const cancelBooking = (id) => adminRequest('PATCH', '/api/bookings/' + id, { status: 'cancelled' });
+
+// ----- Business configuration -----
 
 export const getAdminCatalog = () => adminRequest('GET', '/api/admin/catalog');
 

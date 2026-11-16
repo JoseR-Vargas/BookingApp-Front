@@ -29,6 +29,14 @@ describe('bookingService HTTP contract', () => {
     expect(init.body).toBe(JSON.stringify(payload));
   });
 
+  it('createBooking keeps the one-time cancelToken of the response, untouched', async () => {
+    fetch.mockResolvedValue(okJson({ _id: '1', cancelToken: 'secret-token' }));
+
+    const result = await createBooking({ client: { name: 'Ana' } });
+
+    expect(result.cancelToken).toBe('secret-token');
+  });
+
   it('createBooking aborts at 30000ms and not before', async () => {
     vi.useFakeTimers();
     let signal;
@@ -80,6 +88,23 @@ describe('bookingService HTTP contract', () => {
     expect(signal.aborted).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(signal.aborted).toBe(true);
+  });
+});
+
+describe('public booking calls never carry the admin key', () => {
+  it('createBooking, getAvailability and checkAvailability send no Authorization even with an admin session open', async () => {
+    sessionStorage.setItem('adminKey', 'secret');
+    fetch.mockResolvedValue(okJson({ available: true }));
+
+    await createBooking({ client: { name: 'Ana' } });
+    await getAvailability('2030-01-15', ['consulta-inicial']);
+    await checkAvailability('2030-01-15', '10:00', 'alex-garcia', ['consulta-inicial']);
+
+    expect(fetch).toHaveBeenCalledTimes(3);
+    for (const [, init] of fetch.mock.calls) {
+      expect(init.headers.Authorization).toBeUndefined();
+    }
+    sessionStorage.clear();
   });
 });
 

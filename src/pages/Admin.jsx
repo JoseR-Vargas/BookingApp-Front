@@ -16,6 +16,7 @@ import { useAdminData } from '../hooks/useAdminData.js';
 import { useBookingNotifications } from '../hooks/useBookingNotifications.js';
 import { authService } from '../services/authService.js';
 import { toast } from '../ui/toast.js';
+import { formatBookingDate } from '../utils/format.js';
 import { decodeEntities } from '../utils/sanitize.js';
 
 // Legacy toggleSidebar: below this width the sidebar is an off-canvas drawer.
@@ -35,12 +36,23 @@ export default function Admin() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
-  const notifications = useBookingNotifications(async () => {
-    toast.success('Nueva reserva recibida!');
-    await loadDashboard();
-    if (section === 'bookings') await loadBookings();
-  });
+  const notifications = useBookingNotifications(
+    async () => {
+      toast.success('Nueva reserva recibida!');
+      await loadDashboard();
+      if (section === 'bookings') await loadBookings();
+    },
+    // A client cancelled from their link: refresh what is on screen, no badge and no sound.
+    async () => {
+      toast.info('Un cliente canceló una reserva');
+      await loadDashboard();
+      if (section === 'bookings') await loadBookings();
+    },
+  );
 
   // Legacy init(): dashboard first, then the bookings list (the charts read the same data).
   useEffect(() => {
@@ -93,6 +105,23 @@ export default function Admin() {
     }
   };
 
+  const requestCancel = (booking) => {
+    setCancelTarget(booking);
+    setCancelOpen(true);
+  };
+
+  // Like `confirmDelete`: `cancelBooking` reports its own failures with a toast and never throws.
+  const confirmCancel = async () => {
+    setCancelling(true);
+    try {
+      await data.cancelBooking(cancelTarget);
+    } finally {
+      setCancelling(false);
+      setCancelOpen(false);
+    }
+  };
+
+  const cancelName = decodeEntities(cancelTarget && cancelTarget.client && cancelTarget.client.name);
   const deleteName = decodeEntities(deleteTarget && deleteTarget.client && deleteTarget.client.name);
 
   return (
@@ -135,6 +164,7 @@ export default function Admin() {
             onFilterChange={data.applyFilter}
             onClearFilters={data.clearFilters}
             onDelete={requestDelete}
+            onCancel={requestCancel}
           />
         )}
         {section === 'reports' && <ReportsSection bookings={data.bookings} />}
@@ -148,6 +178,25 @@ export default function Admin() {
         cancelLabel="Cancelar"
         onConfirm={handleLogout}
         onCancel={() => setLogoutOpen(false)}
+      />
+      <ConfirmDialog
+        open={cancelOpen}
+        variant="danger"
+        busy={cancelling}
+        title="Cancelar reserva"
+        message={(
+          <>
+            <p>
+              ¿Cancelar la reserva de {cancelName}
+              {cancelTarget ? ` del ${formatBookingDate(cancelTarget.date)} a las ${cancelTarget.time}` : ''}?
+            </p>
+            <p className="mt-2">El horario quedará libre. La reserva se conserva en el historial.</p>
+          </>
+        )}
+        confirmLabel="Sí, cancelar"
+        cancelLabel="Volver"
+        onConfirm={confirmCancel}
+        onCancel={() => setCancelOpen(false)}
       />
       <ConfirmDialog
         open={deleteOpen}

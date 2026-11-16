@@ -3,6 +3,7 @@ import {
   getBookings,
   getStatistics,
   deleteBooking,
+  cancelBooking,
   getAdminCatalog,
   createProfessional,
   updateProfessional,
@@ -50,10 +51,31 @@ describe('adminService HTTP contract', () => {
     expect(init.body).toBeUndefined();
   });
 
-  it('keeps the booking calls free of the admin key (the backend does not protect them)', async () => {
+  it.each([
+    ['getBookings', () => getBookings(), 'GET', '/api/bookings', undefined],
+    ['getStatistics', () => getStatistics(), 'GET', '/api/bookings/statistics', undefined],
+    ['deleteBooking', () => deleteBooking('abc123'), 'DELETE', '/api/bookings/abc123', undefined],
+    ['cancelBooking', () => cancelBooking('abc123'), 'PATCH', '/api/bookings/abc123', { status: 'cancelled' }],
+  ])('%s sends the Bearer admin key (the backend now protects these routes)', async (_name, call, method, path, body) => {
     sessionStorage.setItem('adminKey', 'secret');
-    await getBookings();
-    expect(fetch.mock.calls[0][1].headers.Authorization).toBeUndefined();
+
+    await call();
+
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe(`${APP_CONFIG.BACKEND_URL}${path}`);
+    expect(init.method).toBe(method);
+    expect(init.headers.Authorization).toBe('Bearer secret');
+    if (body === undefined) expect(init.body).toBeUndefined();
+    else expect(JSON.parse(init.body)).toEqual(body);
+  });
+
+  it('cancelBooking keeps the history: it marks the booking cancelled instead of deleting it', async () => {
+    sessionStorage.setItem('adminKey', 'secret');
+
+    await cancelBooking('abc123');
+
+    expect(fetch.mock.calls[0][1].method).toBe('PATCH');
+    expect(fetch.mock.calls[0][1].method).not.toBe('DELETE');
   });
 
   it('returns the parsed response body', async () => {
@@ -114,8 +136,14 @@ describe('adminService config endpoints', () => {
       });
     });
 
-    it('logs the user out and sends them to /login, still rejecting the call', async () => {
-      await expect(getAdminCatalog()).rejects.toThrow('Invalid or missing admin key');
+    it.each([
+      ['getAdminCatalog', () => getAdminCatalog()],
+      ['getBookings', () => getBookings()],
+      ['getStatistics', () => getStatistics()],
+      ['deleteBooking', () => deleteBooking('abc123')],
+      ['cancelBooking', () => cancelBooking('abc123')],
+    ])('%s: logs the user out and sends them to /login, still rejecting the call', async (_name, call) => {
+      await expect(call()).rejects.toThrow('Invalid or missing admin key');
 
       expect(authService.isAuthenticated()).toBe(false);
       expect(sessionStorage.getItem('adminKey')).toBeNull();

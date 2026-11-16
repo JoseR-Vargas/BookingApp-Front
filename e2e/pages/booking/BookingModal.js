@@ -60,11 +60,17 @@ export class BookingModal {
     await this.dialog.locator('input[name="terms"]').check();
   }
 
-  /** Submits step 3 and dismisses the confirmation dialog. */
-  async confirm() {
+  /** Submits step 3 and returns the confirmation dialog, still open. */
+  async submit() {
     await this.dialog.getByRole('button', { name: 'Confirmar Reserva' }).click();
     const confirmation = this.page.getByRole('dialog', { name: '¡Reserva Confirmada!' });
     await expect(confirmation.getByRole('heading', { name: '¡Reserva Confirmada!' })).toBeVisible();
+    return confirmation;
+  }
+
+  /** Submits step 3 and dismisses the confirmation dialog. */
+  async confirm() {
+    const confirmation = await this.submit();
     await confirmation.getByRole('button', { name: /Entendido/ }).click();
     await expect(confirmation).toHaveCount(0);
   }

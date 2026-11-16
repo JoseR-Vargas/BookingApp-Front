@@ -28,6 +28,7 @@ const MONDAY = '2030-03-04';
 const OTHER_MONDAY = '2030-03-11';
 const SATURDAY = '2030-03-09';
 const SUNDAY = '2030-03-10';
+const CANCEL_TOKEN = 'abcDEF123_-abcDEF123_-abcDEF123_-abcDEF1234';
 const API_URL = 'http://localhost:3000/api/bookings';
 const AVAILABILITY_URL = 'http://localhost:3000/api/availability';
 const CHECK_URL = `${API_URL}/availability`;
@@ -142,7 +143,8 @@ function installBackend({ bookings = [] } = {}) {
     }
     if (backend.postGate) await backend.postGate;
     if (backend.postResponse) return backend.postResponse;
-    return jsonResponse(201, { _id: 'new-id', ...body });
+    // Like the real backend: the one-time cancel token travels in the creation response.
+    return jsonResponse(201, { _id: 'new-id', ...body, cancelToken: CANCEL_TOKEN });
   });
   vi.stubGlobal('fetch', fetchMock);
   return backend;
@@ -244,6 +246,20 @@ afterEach(() => {
 });
 
 describe('BookingModal happy path', () => {
+  it('shows the cancel link of the booking it just created in the confirmation', async () => {
+    installBackend();
+    const user = userEvent.setup({ delay: null });
+    render(<Harness />);
+
+    await reachReadyToConfirm(user);
+    await user.click(confirmButton());
+
+    const confirmation = await screen.findByRole('dialog', { name: '¡Reserva Confirmada!' });
+    const expectedUrl = `${window.location.origin}/cancelar/${CANCEL_TOKEN}`;
+    expect(within(confirmation).getByRole('link', { name: expectedUrl })).toHaveAttribute('href', expectedUrl);
+    expect(within(confirmation).getByRole('button', { name: 'Copiar enlace' })).toBeInTheDocument();
+  });
+
   it('walks the 3 steps and posts the legacy-shaped payload, then shows the confirmation', async () => {
     const backend = installBackend({ bookings: [existingBooking({ time: '10:00' })] });
     const user = userEvent.setup({ delay: null });

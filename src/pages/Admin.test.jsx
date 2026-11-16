@@ -80,6 +80,11 @@ function installFetch() {
     }
     if (key === 'GET /api/bookings') return jsonResponse(JSON.parse(JSON.stringify(db.bookings)));
     if (key === 'GET /api/bookings/statistics') return jsonResponse(db.stats);
+    if (method === 'PATCH' && key.startsWith('PATCH /api/bookings/')) {
+      const id = key.replace('PATCH /api/bookings/', '');
+      db.bookings = db.bookings.map((b) => (b._id === id ? { ...b, ...JSON.parse(init.body) } : b));
+      return jsonResponse(db.bookings.find((b) => b._id === id));
+    }
     if (method === 'DELETE' && key.startsWith('DELETE /api/bookings/')) {
       const id = key.replace('DELETE /api/bookings/', '');
       db.bookings = db.bookings.filter((b) => b._id !== id);
@@ -504,6 +509,112 @@ describe('Admin bookings section', () => {
     });
   });
 
+  describe('cancel', () => {
+    const rowOfClient = (table, name) => within(table).getAllByRole('row').find((r) => within(r).queryByText(name));
+    const openCancelDialog = async (table, name) => {
+      await userEvent.click(within(rowOfClient(table, name)).getByRole('button', { name: 'Cancelar reserva' }));
+      return screen.findByRole('alertdialog', { name: 'Cancelar reserva' });
+    };
+
+    it('only offers cancel on confirmed bookings', async () => {
+      db.bookings = db.bookings.map((b) => (b._id === 'id-6' ? { ...b, status: 'cancelled' } : b));
+      const table = await openBookings();
+
+      expect(within(rowOfClient(table, 'Cliente 4')).getByRole('button', { name: 'Cancelar reserva' })).toBeInTheDocument();
+      expect(within(rowOfClient(table, 'Cliente 6')).queryByRole('button', { name: 'Cancelar reserva' })).not.toBeInTheDocument();
+      expect(within(rowOfClient(table, 'Cliente 6')).getByText('Cancelada')).toBeInTheDocument();
+      // Seed booking 3 has an unknown status: it is not a confirmed booking.
+      expect(within(rowOfClient(table, 'Cliente 3')).queryByRole('button', { name: 'Cancelar reserva' })).not.toBeInTheDocument();
+    });
+
+    it('asks first, in an in-app dialog, and changes nothing until it is confirmed', async () => {
+      const table = await openBookings();
+      const callsBefore = fetchMock.mock.calls.length;
+
+      const dialog = await openCancelDialog(table, 'Cliente 4');
+
+      expect(within(dialog).getByText(/¿Cancelar la reserva de Cliente 4/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/El horario quedará libre/)).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Volver' })).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Sí, cancelar' })).toBeInTheDocument();
+      expect(window.confirm).not.toHaveBeenCalled();
+      expect(fetchMock.mock.calls.length).toBe(callsBefore);
+    });
+
+    it('PATCHes status "cancelled" with the admin key, refreshes, and shows the booking as cancelled without deleting it', async () => {
+      const table = await openBookings();
+      const statsBefore = callsTo('GET', '/api/bookings/statistics').length;
+      const dialog = await openCancelDialog(table, 'Cliente 4');
+
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Sí, cancelar' }));
+
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Reserva de Cliente 4 cancelada'));
+      expect(toast.info).toHaveBeenCalledWith('Cancelando reserva...');
+      const patches = callsTo('PATCH', '/api/bookings/id-4');
+      expect(patches).toHaveLength(1);
+      expect(JSON.parse(patches[0][1].body)).toEqual({ status: 'cancelled' });
+      expect(patches[0][1].headers.Authorization).toBe('Bearer admin-key');
+      expect(callsTo('DELETE', '/api/bookings/id-4')).toHaveLength(0);
+      expect(callsTo('GET', '/api/bookings/statistics')).toHaveLength(statsBefore + 1);
+
+      // The row stays (history is kept) but now reads as cancelled with no cancel button.
+      const row = rowOfClient(currentTable(), 'Cliente 4');
+      expect(within(row).getByText('Cancelada')).toBeInTheDocument();
+      expect(within(row).queryByRole('button', { name: 'Cancelar reserva' })).not.toBeInTheDocument();
+      expect(rowsOf(currentTable())).toHaveLength(7);
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    });
+
+    it('does nothing when the dialog is dismissed with "Volver"', async () => {
+      const table = await openBookings();
+      const dialog = await openCancelDialog(table, 'Cliente 4');
+      const callsBefore = fetchMock.mock.calls.length;
+
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Volver' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(fetchMock.mock.calls.length).toBe(callsBefore);
+      expect(callsTo('PATCH', '/api/bookings/id-4')).toHaveLength(0);
+    });
+
+    it('toasts "Error cancelando reserva: <message>" when the PATCH fails and keeps the booking confirmed', async () => {
+      const table = await openBookings();
+      db.failing.add('PATCH /api/bookings/id-4');
+      const dialog = await openCancelDialog(table, 'Cliente 4');
+
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Sí, cancelar' }));
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Error cancelando reserva: Backend roto'));
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(within(rowOfClient(currentTable(), 'Cliente 4')).queryByText('Cancelada')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    });
+
+    it('freezes the dialog while the cancellation is in flight, so it cannot be sent twice', async () => {
+      const table = await openBookings();
+      const dialog = await openCancelDialog(table, 'Cliente 4');
+      const baseFetch = fetchMock.getMockImplementation();
+      let release;
+      fetchMock.mockImplementation((url, init = {}) => {
+        if (init.method === 'PATCH') {
+          return new Promise((resolve) => { release = () => resolve(baseFetch(url, init)); });
+        }
+        return baseFetch(url, init);
+      });
+
+      const confirm = within(dialog).getByRole('button', { name: 'Sí, cancelar' });
+      await userEvent.click(confirm);
+
+      await waitFor(() => expect(confirm).toBeDisabled());
+      expect(within(dialog).getByRole('button', { name: 'Volver' })).toBeDisabled();
+      await userEvent.click(confirm);
+      expect(callsTo('PATCH', '/api/bookings/id-4')).toHaveLength(1);
+
+      release();
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Reserva de Cliente 4 cancelada'));
+    });
+  });
+
   describe('delete', () => {
     const deleteButtonFor = (table, name) => {
       const row = within(table).getAllByRole('row').find((r) => within(r).queryByText(name));
@@ -787,6 +898,26 @@ describe('Admin realtime notifications', () => {
     expect(bellBadge().queryByText('1')).not.toBeInTheDocument();
     expect(pageTitle()).toHaveTextContent('Gestión de Reservas');
     await waitFor(() => expect(callsTo('GET', '/api/bookings').length).toBeGreaterThan(listBefore));
+  });
+
+  it('on bookingCancelled: toasts, refreshes the open list and marks the row, without badge or sound', async () => {
+    const play = vi.spyOn(audioService, 'playNotification').mockImplementation(() => {});
+    await loadedAdmin();
+    await goTo('Reservas');
+    const table = await screen.findByRole('table', { name: 'Reservas' });
+    expect(within(table).queryByText('Cancelada')).not.toBeInTheDocument();
+    const statsBefore = callsTo('GET', '/api/bookings/statistics').length;
+    db.bookings = db.bookings.map((b) => (b._id === 'id-4' ? { ...b, status: 'cancelled' } : b));
+
+    act(() => { latestSocket().handlers.bookingCancelled({ id: 'id-4', status: 'cancelled' }); });
+
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith('Un cliente canceló una reserva'));
+    await waitFor(() => expect(within(screen.getByRole('table', { name: 'Reservas' })).getByText('Cancelada')).toBeInTheDocument());
+    expect(callsTo('GET', '/api/bookings/statistics')).toHaveLength(statsBefore + 1);
+    expect(bellBadge().queryByText('1')).not.toBeInTheDocument();
+    await new Promise((resolve) => { setTimeout(resolve, 150); });
+    expect(play).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalledWith('Nueva reserva recibida!');
   });
 });
 

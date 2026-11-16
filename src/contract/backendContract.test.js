@@ -21,6 +21,7 @@ import { PROFESSIONALS, SERVICES } from '../test/catalogFixture.js';
 import { buildBookingPayload } from '../services/bookingService.js';
 import * as bookingService from '../services/bookingService.js';
 import * as adminService from '../services/adminService.js';
+import * as cancellationService from '../services/cancellationService.js';
 import { authService } from '../services/authService.js';
 import * as catalogService from '../services/catalogService.js';
 import { connectBookingSocket } from '../services/realtimeService.js';
@@ -161,7 +162,11 @@ const BACKEND_ROUTES = [
   ['POST', '/api/bookings/availability'],
   ['GET', '/api/availability'],
   ['GET', '/api/bookings/statistics'],
+  ['GET', '/api/bookings/:id'],
+  ['PATCH', '/api/bookings/:id'],
   ['DELETE', '/api/bookings/:id'],
+  ['GET', '/api/bookings/cancel/:token'],
+  ['POST', '/api/bookings/cancel/:token'],
   ['GET', '/api/catalog'],
   ['GET', '/api/admin/session'],
   ['GET', '/api/admin/catalog'],
@@ -175,42 +180,84 @@ const BACKEND_ROUTES = [
 ];
 
 const matchesRoute = (method, url) => BACKEND_ROUTES.some(([m, template]) => (
-  m === method && new RegExp(`^${template.replace(':id', '[^/]+')}$`).test(url.split('?')[0])
+  m === method && new RegExp(`^${template.replace(/:\w+/g, '[^/]+')}$`).test(url.split('?')[0])
+));
+
+// Routes of /api/bookings that the backend protects with ADMIN_API_KEY. The rest of the bookings
+// controller is public: creating a booking, availability, and the token-based cancel routes.
+const ADMIN_BOOKING_ROUTES = [
+  ['GET', '/api/bookings'],
+  ['GET', '/api/bookings/statistics'],
+  ['DELETE', '/api/bookings/:id'],
+  ['PATCH', '/api/bookings/:id'],
+];
+
+const isAdminBookingRoute = (method, url) => ADMIN_BOOKING_ROUTES.some(([m, template]) => (
+  m === method && new RegExp(`^${template.replace(/:\w+/g, '[^/]+')}$`).test(url.split('?')[0])
 ));
 
 describe('endpoints used by the services exist in the backend controller', () => {
   let calls;
 
   beforeEach(() => {
+    sessionStorage.setItem('adminKey', 'k');
     calls = [];
     vi.stubGlobal('fetch', vi.fn(async (url, options) => {
-      calls.push({ method: options.method, url: String(url).replace(APP_CONFIG.BACKEND_URL, '') });
+      calls.push({
+        method: options.method,
+        url: String(url).replace(APP_CONFIG.BACKEND_URL, ''),
+        auth: options.headers.Authorization,
+      });
       return { ok: true, json: async () => [] };
     }));
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    sessionStorage.clear();
   });
 
-  it('every call issued by bookingService and adminService maps to a backend route', async () => {
+  it('every call issued by bookingService, cancellationService and adminService maps to a backend route', async () => {
     await bookingService.createBooking(payloadFor({ name: 'Ana', email: 'a@b.co', phone: '1' }));
     await bookingService.getAvailability('2030-01-15', ['consulta-inicial', 'servicio-basico']);
     await bookingService.checkAvailability('2030-01-15', '10:00', 'alex-garcia', ['consulta-inicial']);
+    await cancellationService.getCancellation('tok_en-123');
+    await cancellationService.cancelByToken('tok_en-123');
     await adminService.getBookings();
     await adminService.getStatistics();
     await adminService.deleteBooking('665f1c2e9b1d4a0012345678');
+    await adminService.cancelBooking('665f1c2e9b1d4a0012345678');
 
-    expect(calls).toEqual([
+    expect(calls.map(({ method, url }) => ({ method, url }))).toEqual([
       { method: 'POST', url: '/api/bookings' },
       { method: 'GET', url: '/api/availability?date=2030-01-15&serviceIds=consulta-inicial,servicio-basico' },
       { method: 'POST', url: '/api/bookings/availability' },
+      { method: 'GET', url: '/api/bookings/cancel/tok_en-123' },
+      { method: 'POST', url: '/api/bookings/cancel/tok_en-123' },
       { method: 'GET', url: '/api/bookings' },
       { method: 'GET', url: '/api/bookings/statistics' },
       { method: 'DELETE', url: '/api/bookings/665f1c2e9b1d4a0012345678' },
+      { method: 'PATCH', url: '/api/bookings/665f1c2e9b1d4a0012345678' },
     ]);
     for (const { method, url } of calls) {
       expect(matchesRoute(method, url), `${method} ${url}`).toBe(true);
+    }
+  });
+
+  it('only the admin booking routes carry the Bearer key; the public ones never do', async () => {
+    await bookingService.createBooking(payloadFor({ name: 'Ana', email: 'a@b.co', phone: '1' }));
+    await bookingService.getAvailability('2030-01-15', ['consulta-inicial']);
+    await bookingService.checkAvailability('2030-01-15', '10:00', 'alex-garcia', ['consulta-inicial']);
+    await cancellationService.getCancellation('tok_en-123');
+    await cancellationService.cancelByToken('tok_en-123');
+    await adminService.getBookings();
+    await adminService.getStatistics();
+    await adminService.deleteBooking('665f1c2e9b1d4a0012345678');
+    await adminService.cancelBooking('665f1c2e9b1d4a0012345678');
+
+    expect(calls).toHaveLength(9);
+    for (const { method, url, auth } of calls) {
+      expect(auth, `${method} ${url}`).toBe(isAdminBookingRoute(method, url) ? 'Bearer k' : undefined);
     }
   });
 });

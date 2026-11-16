@@ -40,6 +40,30 @@ describe('connectBookingSocket', () => {
     expect(() => handlers.newBooking({ _id: '1' })).not.toThrow();
   });
 
+  it('invokes onBookingCancelled with the payload of the "bookingCancelled" event', () => {
+    const onBookingCancelled = vi.fn();
+    connectBookingSocket('http://x', { onBookingCancelled });
+
+    handlers.bookingCancelled({ id: 'b1', status: 'cancelled' });
+
+    expect(onBookingCancelled).toHaveBeenCalledWith({ id: 'b1', status: 'cancelled' });
+  });
+
+  it('keeps the two events apart', () => {
+    const onNewBooking = vi.fn();
+    const onBookingCancelled = vi.fn();
+    connectBookingSocket('http://x', { onNewBooking, onBookingCancelled });
+
+    handlers.bookingCancelled({ id: 'b1', status: 'cancelled' });
+
+    expect(onNewBooking).not.toHaveBeenCalled();
+  });
+
+  it('tolerates a missing onBookingCancelled callback', () => {
+    connectBookingSocket('http://x');
+    expect(() => handlers.bookingCancelled({ id: 'b1' })).not.toThrow();
+  });
+
   it('logs connect_error and forwards it to onError', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const onError = vi.fn();

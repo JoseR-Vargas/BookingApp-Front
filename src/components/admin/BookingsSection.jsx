@@ -17,6 +17,7 @@ export default function BookingsSection({
   onProfessionalChange,
   onClearFilters,
   onDelete,
+  onCancel,
 }) {
   return (
     <section aria-label="Reservas">
@@ -55,7 +56,7 @@ export default function BookingsSection({
       </div>
 
       <Card>
-        <BookingsTable bookings={bookings} onDelete={onDelete} />
+        <BookingsTable bookings={bookings} onDelete={onDelete} onCancel={onCancel} />
       </Card>
     </section>
   );

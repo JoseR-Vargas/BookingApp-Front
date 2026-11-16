@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('./pages/Home.jsx', () => ({ default: () => <p>home page</p> }));
 vi.mock('./pages/Login.jsx', () => ({ default: () => <p>login page</p> }));
 vi.mock('./pages/Admin.jsx', () => ({ default: () => <p>admin page</p> }));
+vi.mock('./pages/CancelBooking.jsx', () => ({ default: () => <p>cancel page</p> }));
 
 import App from './App.jsx';
 
@@ -38,6 +39,12 @@ describe('App routing', () => {
   it('keeps /login and / public', () => {
     renderAt('/login');
     expect(screen.getByText('login page')).toBeInTheDocument();
+  });
+
+  it('serves the cancel page at /cancelar/:token without any session', () => {
+    renderAt('/cancelar/some-token');
+
+    expect(screen.getByText('cancel page')).toBeInTheDocument();
   });
 
   it('serves the home page at /', () => {

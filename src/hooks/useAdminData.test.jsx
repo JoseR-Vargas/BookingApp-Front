@@ -8,9 +8,10 @@ vi.mock('../services/adminService.js', () => ({
   getBookings: vi.fn(),
   getStatistics: vi.fn(),
   deleteBooking: vi.fn(),
+  cancelBooking: vi.fn(),
 }));
 
-import { getBookings } from '../services/adminService.js';
+import { cancelBooking, getBookings, getStatistics } from '../services/adminService.js';
 import { toast } from '../ui/toast.js';
 import { useAdminData } from './useAdminData.js';
 
@@ -99,5 +100,33 @@ describe('useAdminData professional filter', () => {
     await waitFor(() => expect(result.current.visibleBookings).toHaveLength(3));
     expect(result.current.filterDate).toBe('');
     expect(result.current.professional).toBe('');
+  });
+});
+
+describe('useAdminData cancelBooking', () => {
+  it('cancels by _id, reloads the dashboard and the list, and toasts the decoded name', async () => {
+    const { result } = await loaded();
+    cancelBooking.mockResolvedValue({});
+    getStatistics.mockResolvedValue({ totalBookings: 2, totalRevenue: 0, todayBookings: 0 });
+    const target = make('2', { client: { name: 'Ana &amp; Co', email: 'a@b.co' } });
+    getBookings.mockClear();
+
+    await act(async () => { await result.current.cancelBooking(target); });
+
+    expect(cancelBooking).toHaveBeenCalledWith('2');
+    expect(toast.info).toHaveBeenCalledWith('Cancelando reserva...');
+    expect(getStatistics).toHaveBeenCalled();
+    expect(getBookings.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(toast.success).toHaveBeenCalledWith('Reserva de Ana & Co cancelada');
+  });
+
+  it('toasts the error and does not claim success when the backend refuses', async () => {
+    const { result } = await loaded();
+    cancelBooking.mockRejectedValue(new Error('Backend roto'));
+
+    await act(async () => { await result.current.cancelBooking(make('2')); });
+
+    expect(toast.error).toHaveBeenCalledWith('Error cancelando reserva: Backend roto');
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

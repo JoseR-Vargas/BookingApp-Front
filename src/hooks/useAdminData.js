@@ -5,6 +5,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  cancelBooking as cancelBookingRequest,
   deleteBooking as deleteBookingRequest,
   getBookings,
   getStatistics,
@@ -109,6 +110,20 @@ export function useAdminData() {
     }
   }, [loadDashboard, loadBookings]);
 
+  // Frees the slot but keeps the booking in the history. The caller owns the confirmation step.
+  const cancelBooking = useCallback(async (booking) => {
+    const name = decodeEntities(booking.client && booking.client.name);
+    try {
+      toast.info('Cancelando reserva...');
+      await cancelBookingRequest(booking._id);
+      await loadDashboard();
+      await loadBookings();
+      toast.success('Reserva de ' + name + ' cancelada');
+    } catch (error) {
+      toast.error('Error cancelando reserva: ' + error.message);
+    }
+  }, [loadDashboard, loadBookings]);
+
   const recentBookings = useMemo(() => getRecentBookings(bookings, 5), [bookings]);
   const visibleBookings = useMemo(
     () => filterByProfessional(filterByDate(bookings, filterDate), professional),
@@ -133,5 +148,6 @@ export function useAdminData() {
     applyFilter,
     clearFilters,
     deleteBooking,
+    cancelBooking,
   };
 }

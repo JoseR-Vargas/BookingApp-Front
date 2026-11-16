@@ -13,14 +13,18 @@ const SOUND_DELAY_MS = 100;
 /**
  * @param {(booking: object) => void | Promise<void>} onNewBooking called after the counter and the
  *   sound were handled; always the latest callback, so changing it never reconnects the socket.
+ * @param {(payload: {id: string, status: string}) => void | Promise<void>} [onBookingCancelled] a
+ *   client cancelled from their link. No counter and no sound: it is not a new booking.
  */
-export function useBookingNotifications(onNewBooking) {
+export function useBookingNotifications(onNewBooking, onBookingCancelled) {
   const [count, setCount] = useState(0);
   const [needsSoundActivation, setNeedsSoundActivation] = useState(false);
   const handlerRef = useRef(onNewBooking);
+  const cancelledRef = useRef(onBookingCancelled);
 
   useEffect(() => {
     handlerRef.current = onNewBooking;
+    cancelledRef.current = onBookingCancelled;
   });
 
   useEffect(() => {
@@ -47,6 +51,7 @@ export function useBookingNotifications(onNewBooking) {
         timers.add(timer);
         return handlerRef.current && handlerRef.current(booking);
       },
+      onBookingCancelled: (payload) => cancelledRef.current && cancelledRef.current(payload),
     });
 
     // StrictMode mounts, unmounts and mounts again: tear everything down so only one socket stays live.
