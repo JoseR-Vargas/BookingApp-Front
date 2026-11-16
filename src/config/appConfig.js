@@ -12,7 +12,6 @@ export const APP_CONFIG = {
         return 'https://booking-app-back.vercel.app';
     })(),
 
-    CANCELLATION_HOURS: 5,
     TOAST_DURATION: 3000,
     ITEMS_PER_PAGE: 10,
 };

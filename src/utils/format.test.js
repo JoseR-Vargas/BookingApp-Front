@@ -4,10 +4,9 @@ import {
   formatDate,
   formatBookingDate,
   formatLongDateUTC,
-  canCancelBooking,
   formatMoney,
 } from './format.js';
-import { APP_CONFIG } from '../config/appConfig.js';
+import * as format from './format.js';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -49,15 +48,7 @@ describe('format', () => {
     expect(formatMoney(undefined)).toBe('$0');
   });
 
-  describe('canCancelBooking', () => {
-    it('allows cancelling when the booking is at least CANCELLATION_HOURS away', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2030-01-07T08:00:00Z'));
-      const hours = APP_CONFIG.CANCELLATION_HOURS;
-      const exactly = new Date(Date.now() + hours * 3600 * 1000);
-      const justUnder = new Date(Date.now() + hours * 3600 * 1000 - 1000);
-      expect(canCancelBooking(exactly)).toBe(true);
-      expect(canCancelBooking(justUnder)).toBe(false);
-    });
+  it('no longer exports the client-side 5-hour cancel rule', () => {
+    expect(format).not.toHaveProperty('canCancelBooking');
   });
 });

@@ -163,6 +163,70 @@ describe('BookingsTable', () => {
   });
 });
 
+describe('BookingsTable cancel action and status', () => {
+  it('offers "Cancelar reserva" on a confirmed booking and hands the booking object to onCancel', async () => {
+    const onCancel = vi.fn();
+    const target = booking({ _id: 'zzz', client: { name: 'Zoe', email: 'z@z.com' } });
+    render(<BookingsTable bookings={[booking(), target]} onDelete={vi.fn()} onCancel={onCancel} />);
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Cancelar reserva' })[1]);
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCancel).toHaveBeenCalledWith(target);
+  });
+
+  it('marks a cancelled booking as "Cancelada" and no longer offers to cancel it, keeping delete', () => {
+    render(
+      <BookingsTable
+        bookings={[booking({ _id: 'c1', status: 'cancelled' })]}
+        onDelete={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const row = screen.getAllByRole('row')[1];
+    expect(within(row).getByText('Cancelada')).toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: 'Cancelar reserva' })).not.toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Eliminar reserva' })).toBeInTheDocument();
+  });
+
+  it('keeps the cancel and delete buttons apart, in one aligned group at the end of the cell', () => {
+    render(<BookingsTable bookings={[booking()]} onDelete={vi.fn()} onCancel={vi.fn()} />);
+
+    const cancel = screen.getByRole('button', { name: 'Cancelar reserva' });
+    const remove = screen.getByRole('button', { name: 'Eliminar reserva' });
+
+    const group = cancel.parentElement;
+    expect(remove.parentElement).toBe(group);
+    expect(group).toHaveClass('flex', 'items-center', 'justify-end', 'gap-3');
+    expect(group.parentElement).toBe(cancel.closest('td'));
+  });
+
+  it('shows no "Cancelada" mark on a confirmed booking', () => {
+    render(<BookingsTable bookings={[booking()]} onDelete={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.queryByText('Cancelada')).not.toBeInTheDocument();
+  });
+
+  it('shows no cancel button when the table is not given onCancel', () => {
+    render(<BookingsTable bookings={[booking()]} onDelete={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: 'Cancelar reserva' })).not.toBeInTheDocument();
+  });
+
+  it('offers cancel only for confirmed bookings, not for any other status', () => {
+    render(
+      <BookingsTable
+        bookings={[booking({ _id: 'p1', status: 'pending' })]}
+        onDelete={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Cancelar reserva' })).not.toBeInTheDocument();
+  });
+});
+
 describe('Preline table markup', () => {
   const scroller = (table) => table.parentElement;
 

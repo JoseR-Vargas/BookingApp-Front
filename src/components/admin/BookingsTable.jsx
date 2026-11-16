@@ -46,8 +46,12 @@ const PAGE_ARROW = 'inline-flex min-w-10 items-center justify-center gap-x-2 rou
 const SORTABLE =
   `${TH_START} relative cursor-pointer select-none touch:h-11 [&_.dt-column-order]:absolute [&_.dt-column-order]:inset-x-0 [&_.dt-column-order]:top-0 [&_.dt-column-order]:-bottom-px [&_.dt-column-order]:focus-visible:outline-2 [&_.dt-column-order]:focus-visible:-outline-offset-2 [&_.dt-column-order]:focus-visible:outline-accent`;
 
-function BookingRow({ booking, onDelete }) {
+// Only a confirmed booking can be cancelled; a cancelled one is kept in the history and marked.
+const CANCELLED_BADGE = 'mt-1 inline-block rounded-full border border-error px-2 py-0.5 text-xs font-medium text-error';
+
+function BookingRow({ booking, onDelete, onCancel }) {
   const notes = decodeEntities(booking.notes);
+  const canCancel = Boolean(onCancel) && booking.status === 'confirmed';
   return (
     <tr className={TR}>
       <td className={TD_FIRST}>
@@ -55,6 +59,12 @@ function BookingRow({ booking, onDelete }) {
           <strong className="font-bold">{decodeEntities(booking.client.name)}</strong>
           <br />
           <small className="text-[0.875em] text-muted-foreground-1">{decodeEntities(booking.client.email)}</small>
+          {booking.status === 'cancelled' && (
+            <>
+              <br />
+              <span className={CANCELLED_BADGE}>Cancelada</span>
+            </>
+          )}
         </div>
       </td>
       <td className={TD}>
@@ -82,16 +92,30 @@ function BookingRow({ booking, onDelete }) {
         )}
       </td>
       <td className={TD_ACTIONS}>
-        {/* Preline text-link button (icon only: the column stays narrow). Destructive action, so it keeps the error color instead of the primary gold. */}
-        <button
-          type="button"
-          title="Eliminar reserva"
-          aria-label="Eliminar reserva"
-          onClick={() => onDelete(booking)}
-          className={`${LINK_BUTTON} text-error hover:text-destructive-hover focus:text-destructive-hover`}
-        >
-          <i aria-hidden="true" className="fas fa-trash text-sm" />
-        </button>
+        {/* One group so the icon buttons never touch: `gap-3` separates them and `items-center` aligns them. */}
+        <div className="flex items-center justify-end gap-3">
+          {canCancel && (
+            <button
+              type="button"
+              title="Cancelar reserva"
+              aria-label="Cancelar reserva"
+              onClick={() => onCancel(booking)}
+              className={`${LINK_BUTTON} text-accent hover:text-accent-light focus:text-accent-light`}
+            >
+              <i aria-hidden="true" className="fas fa-ban text-sm" />
+            </button>
+          )}
+          {/* Preline text-link button (icon only: the column stays narrow). Destructive action, so it keeps the error color instead of the primary gold. */}
+          <button
+            type="button"
+            title="Eliminar reserva"
+            aria-label="Eliminar reserva"
+            onClick={() => onDelete(booking)}
+            className={`${LINK_BUTTON} text-error hover:text-destructive-hover focus:text-destructive-hover`}
+          >
+            <i aria-hidden="true" className="fas fa-trash text-sm" />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -129,6 +153,7 @@ function bookingsSignature(bookings) {
     booking.time,
     getProfessionalName(booking),
     booking.notes,
+    booking.status,
   ]));
 }
 
@@ -145,7 +170,7 @@ function bookingsSignature(bookings) {
  * Cell text is read by datatables from the DOM (no `data`/`render` options), so booking fields are
  * never interpreted as HTML.
  */
-function BookingsDataTable({ bookings, onDelete, viewState }) {
+function BookingsDataTable({ bookings, onDelete, onCancel, viewState }) {
   const rootRef = useRef(null);
 
   usePrelineInstance(
@@ -208,7 +233,7 @@ function BookingsDataTable({ bookings, onDelete, viewState }) {
             </thead>
             <tbody className={TBODY}>
               {bookings.map((booking) => (
-                <BookingRow key={booking._id} booking={booking} onDelete={onDelete} />
+                <BookingRow key={booking._id} booking={booking} onDelete={onDelete} onCancel={onCancel} />
               ))}
             </tbody>
           </table>
@@ -263,10 +288,10 @@ function EmptyBookingsTable() {
 }
 
 /**
- * Full bookings table. `onDelete` receives the booking OBJECT: the id never travels through
- * string-built HTML. Every user-provided string is decoded and rendered as text.
+ * Full bookings table. `onDelete` and `onCancel` (optional: without it no cancel button is shown)
+ * receive the booking OBJECT: the id never travels through string-built HTML. Every user-provided string is decoded and rendered as text.
  */
-export default function BookingsTable({ bookings, onDelete }) {
+export default function BookingsTable({ bookings, onDelete, onCancel }) {
   // Search text / sort order to carry over when the table has to be rebuilt after a data change.
   const viewState = useRef({ search: '', order: [] });
 
@@ -280,6 +305,7 @@ export default function BookingsTable({ bookings, onDelete }) {
       key={bookingsSignature(bookings)}
       bookings={bookings}
       onDelete={onDelete}
+      onCancel={onCancel}
       viewState={viewState}
     />
   );

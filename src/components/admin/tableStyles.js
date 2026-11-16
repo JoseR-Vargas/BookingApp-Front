@@ -21,8 +21,9 @@ export const TD_END = 'px-6 py-4 whitespace-nowrap text-end text-sm text-foregro
 export const TD_ACTIONS = 'px-6 py-4 whitespace-nowrap text-end text-sm font-medium';
 export const EMPTY_CELL = 'px-6 py-4 text-center text-sm text-muted-foreground-1';
 // Preline text-link button used inside action cells.
+// Tailwind v4 preflight sets `cursor: default` on buttons: `cursor-pointer` plus the hover scale signal the action is clickable.
 export const LINK_BUTTON =
-  'inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none touch:min-h-11 touch:min-w-11 touch:justify-center touch:px-2';
+  'inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg cursor-pointer transition duration-150 hover:scale-125 focus-visible:scale-125 focus:outline-hidden disabled:opacity-50 disabled:pointer-events-none touch:min-h-11 touch:min-w-11 touch:justify-center touch:px-2';
 
 // The 8-column bookings table is denser than the Preline 3-5 column examples: horizontal padding goes
 // from px-6 to px-3 so the row actions stay in view at 1440px instead of behind a scroll.

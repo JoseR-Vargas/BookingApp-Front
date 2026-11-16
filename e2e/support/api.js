@@ -20,7 +20,24 @@ export async function createApi() {
     availability: async (date, serviceId) => json(await ctx.get('/api/availability', {
       params: { date, serviceIds: serviceId },
     })),
-    bookings: async () => json(await ctx.get('/api/bookings')),
+    bookings: async () => json(await ctx.get('/api/bookings', { headers: AUTH })),
+    booking: async (id) => json(await ctx.get(`/api/bookings/${id}`, { headers: AUTH })),
+    // Public routes, no key. The cancel helpers return the raw response so a test can assert the status.
+    getCancellation: (token) => ctx.get(`/api/bookings/cancel/${token}`),
+    cancelByToken: (token) => ctx.post(`/api/bookings/cancel/${token}`),
+
+    /** Books through the public API. Returns the created booking plus its one-time `cancelToken`. */
+    createBooking: async ({ client, date, time, serviceId = 'consulta-inicial', professionalId = 'alex-garcia' }) => json(
+      await ctx.post('/api/bookings', {
+        data: {
+          client,
+          date,
+          time,
+          services: [{ id: serviceId }],
+          professional: { id: professionalId, name: 'ignored: the server takes it from the catalog' },
+        },
+      }),
+    ),
     dispose: () => ctx.dispose(),
 
     // Refuses to continue unless this is the seeded throwaway database: every booking must be fake.
@@ -34,7 +51,7 @@ export async function createApi() {
     // Removes the bookings of this suite (and of earlier aborted runs) and restores the global config.
     async cleanup({ serviceId, professionalId } = {}) {
       for (const booking of (await api.bookings()).filter(isFake)) {
-        await ctx.delete(`/api/bookings/${booking._id}`);
+        await ctx.delete(`/api/bookings/${booking._id}`, { headers: AUTH });
       }
       await api.saveSchedule(SEED_WEEKLY);
       if (serviceId) await ctx.delete(`/api/admin/services/${serviceId}`, { headers: AUTH });

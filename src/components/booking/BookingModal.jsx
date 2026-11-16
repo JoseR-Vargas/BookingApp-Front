@@ -134,7 +134,7 @@ export default function BookingModal({ open, onClose }) {
 
       setLoadingOpen(true);
       try {
-        await createBooking(buildBookingPayload({ formData, services, professional, date, time }));
+        const created = await createBooking(buildBookingPayload({ formData, services, professional, date, time }));
         setLoadingOpen(false);
 
         await wait(CONFIRMATION_DELAY);
@@ -148,6 +148,8 @@ export default function BookingModal({ open, onClose }) {
           time,
           price: getTotalPrice(services),
           email: formData.email,
+          // One-time secret for the cancel link; the backend only returns it on creation.
+          cancelToken: created?.cancelToken,
         });
         setConfirmationOpen(true);
         onClose();

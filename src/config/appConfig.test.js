@@ -38,9 +38,13 @@ describe('APP_CONFIG.BACKEND_URL', () => {
 describe('APP_CONFIG scalar settings', () => {
   it('keeps the scalar settings identical to legacy', async () => {
     const config = await loadConfigFor('localhost');
-    expect(config.CANCELLATION_HOURS).toBe(5);
     expect(config.TOAST_DURATION).toBe(3000);
     expect(config.ITEMS_PER_PAGE).toBe(10);
+  });
+
+  it('no longer carries the 5-hour rule: the backend owns the one-minute cutoff', async () => {
+    const config = await loadConfigFor('localhost');
+    expect(config).not.toHaveProperty('CANCELLATION_HOURS');
   });
 
   it('no longer carries business data: the backend catalog owns it', async () => {

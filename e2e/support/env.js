@@ -23,6 +23,9 @@ export const BACKEND_ENV = {
   PORT: String(BACKEND_PORT),
   NODE_ENV: 'development',
   BUSINESS_TIMEZONE: 'UTC',
+  // Booking cancellation: the link in emails points at the E2E front; no admin WhatsApp notice is sent.
+  PUBLIC_APP_URL: FRONT_URL,
+  WHATSAPP_ADMIN_CANCEL_TEMPLATE_NAME: '',
   GMAIL_USER: '',
   GMAIL_APP_PASSWORD: '',
   MAIL_FROM: '',

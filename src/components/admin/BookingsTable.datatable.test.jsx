@@ -99,6 +99,15 @@ describe('BookingsTable as a Preline datatable', () => {
     await waitFor(() => expect(instances).toHaveLength(2));
   });
 
+  it('rebuilds the table when only the status of a booking changes (DataTables owns the rows)', async () => {
+    const { rerender } = render(<BookingsTable bookings={[booking(1)]} onDelete={vi.fn()} onCancel={vi.fn()} />);
+    await waitFor(() => expect(instances).toHaveLength(1));
+
+    rerender(<BookingsTable bookings={[booking(1, { status: 'cancelled' })]} onDelete={vi.fn()} onCancel={vi.fn()} />);
+
+    await waitFor(() => expect(instances).toHaveLength(2));
+  });
+
   it('sorts the date column by the ISO date, not by the localized text', () => {
     render(<BookingsTable bookings={[booking(1)]} onDelete={vi.fn()} />);
 
