@@ -1,18 +1,22 @@
 import Container from '../layout/Container.jsx';
 import Button from '../ui/Button.jsx';
 import Ornament from '../ui/Ornament.jsx';
+import { useBranding } from '../../state/brandingState.jsx';
 
-// Faint dot grid (accent color at 6% opacity) laid over the hero gradient.
-// Kept as an inline style: an SVG data URI is not practical as a Tailwind class.
+// Faint dot grid (accent color at 6% opacity) laid over the hero gradient. Built from the brand
+// variables so it follows the admin's colors (an SVG data URI cannot read CSS variables).
 const DOT_PATTERN =
-  "url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 200\"><defs><pattern id=\"dots\" width=\"20\" height=\"20\" patternUnits=\"userSpaceOnUse\"><circle cx=\"10\" cy=\"10\" r=\"0.8\" fill=\"rgba(201,169,110,0.06)\"/></pattern></defs><rect width=\"200\" height=\"200\" fill=\"url(%23dots)\"/></svg>')";
+  'radial-gradient(circle, color-mix(in srgb, var(--color-accent) 6%, transparent) 0.8px, transparent 1px) 0 0 / 20px 20px';
 
 export default function Hero({ onReserve }) {
+  // The admin's business name replaces the default tagline (SPEC 03); without one it stays.
+  const { businessName } = useBranding();
+
   return (
     <section
       id="inicio"
       aria-labelledby="hero-heading"
-      className="relative scroll-mt-16 flex min-h-screen-dvh items-center overflow-hidden bg-bg-primary bg-[linear-gradient(135deg,rgba(13,13,13,0.96)_0%,rgba(28,28,28,0.92)_100%)] lte-lg:pt-20 lte-md:pt-[100px] lte-md:pb-[60px] lte-sm:pt-20 lte-sm:pb-10"
+      className="relative scroll-mt-16 flex min-h-screen-dvh items-center overflow-hidden bg-bg-primary bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-bg-primary)_96%,transparent)_0%,color-mix(in_srgb,var(--color-bg-tertiary)_92%,transparent)_100%)] lte-lg:pt-20 lte-md:pt-[100px] lte-md:pb-[60px] lte-sm:pt-20 lte-sm:pb-10"
     >
       <div
         aria-hidden="true"
@@ -28,13 +32,19 @@ export default function Hero({ onReserve }) {
             </p>
             <h1
               id="hero-heading"
-              className="mb-6 font-display text-[length:clamp(3rem,8vw,6rem)] leading-[1.05] font-bold tracking-tight text-text-primary uppercase lte-md:text-[length:clamp(2.2rem,10vw,3.5rem)] lte-sm:text-[length:clamp(2rem,12vw,2.8rem)]"
+              className="mb-6 font-display text-[length:clamp(3rem,8vw,6rem)] leading-[1.05] font-bold tracking-tight text-text-primary uppercase [overflow-wrap:anywhere] lte-md:text-[length:clamp(2.2rem,10vw,3.5rem)] lte-sm:text-[length:clamp(2rem,12vw,2.8rem)]"
             >
-              Tu tiempo,{' '}
-              <br />
-              nuestra{' '}
-              <br />
-              <span className="text-accent">prioridad</span>
+              {businessName ? (
+                businessName
+              ) : (
+                <>
+                  Tu tiempo,{' '}
+                  <br />
+                  nuestra{' '}
+                  <br />
+                  <span className="text-accent">prioridad</span>
+                </>
+              )}
             </h1>
 
             <Ornament size="hero" />

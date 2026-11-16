@@ -922,7 +922,7 @@ describe('Admin realtime notifications', () => {
 });
 
 describe('Admin configuration section', () => {
-  it('adds "Configuración" to the sidebar and renders its three tabs from the admin catalog', async () => {
+  it('adds "Configuración" to the sidebar and renders its tabs from the admin catalog', async () => {
     await loadedAdmin();
 
     await goTo('Configuración');
@@ -932,7 +932,7 @@ describe('Admin configuration section', () => {
     expect(callsTo('GET', '/api/admin/catalog')).toHaveLength(1);
     expect(callsTo('GET', '/api/admin/catalog')[0][1].headers.Authorization).toBe('Bearer admin-key');
     const tabs = within(screen.getByRole('tablist')).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Horarios']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Horarios', 'Marca']);
   });
 
   it('logs the user out and goes to /login when the admin key is rejected (401)', async () => {

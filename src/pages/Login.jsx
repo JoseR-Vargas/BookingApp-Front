@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import BrandMark from '../components/ui/BrandMark.jsx';
 import Button from '../components/ui/Button.jsx';
 import { CONTROL_CLASSES, LABEL_CLASSES } from '../components/ui/controls.js';
 import Spinner from '../components/ui/Spinner.jsx';
@@ -54,7 +55,7 @@ export default function Login() {
             <div className="p-12 lte-sm:p-8">
               <div className="mb-6 text-center">
                 <h1 className="mb-2 font-display text-[calc(1.325rem+0.9vw)] font-bold [overflow-wrap:anywhere] xl:text-[2rem]">
-                  BookingApp
+                  <BrandMark logoClassName="h-[1.2em] w-[1.2em]" />
                 </h1>
                 <p className="mb-4 leading-loose text-text-secondary">Panel de Administración</p>
               </div>

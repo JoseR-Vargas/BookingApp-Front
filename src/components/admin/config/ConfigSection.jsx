@@ -1,4 +1,4 @@
-// "Configuración del Negocio": professionals, services and opening hours. The data comes from the admin
+// "Configuración del Negocio": professionals, services, opening hours and the brand (SPEC 03). The data comes from the admin
 // catalog (GET /api/admin/catalog, inactive items included), not from the public CatalogProvider.
 // After any mutation the tabs call `refresh`, which re-reads the admin catalog.
 
@@ -8,6 +8,7 @@ import { toast } from '../../../ui/toast.js';
 import Button from '../../ui/Button.jsx';
 import Spinner from '../../ui/Spinner.jsx';
 import SectionHeader from '../SectionHeader.jsx';
+import BrandingTab from './BrandingTab.jsx';
 import ProfessionalsTab from './ProfessionalsTab.jsx';
 import ScheduleTab from './ScheduleTab.jsx';
 import ServicesTab from './ServicesTab.jsx';
@@ -16,6 +17,7 @@ const TABS = [
   { key: 'professionals', label: 'Profesionales' },
   { key: 'services', label: 'Servicios' },
   { key: 'schedule', label: 'Horarios' },
+  { key: 'branding', label: 'Marca' },
 ];
 
 const TAB_CLASSES = 'cursor-pointer border-b-2 px-4 py-2 text-sm font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent touch:min-h-11';
@@ -54,7 +56,14 @@ export default function ConfigSection() {
   };
 
   let body;
-  if (error) {
+  if (tab === 'branding') {
+    // The brand lives apart from the admin catalog: it never waits for (or fails with) it.
+    body = (
+      <div role="tabpanel" id="config-panel-branding" aria-labelledby="config-tab-branding" tabIndex={0}>
+        <BrandingTab />
+      </div>
+    );
+  } else if (error) {
     body = (
       <div role="alert" className="flex flex-col items-center gap-4 py-12 text-center text-text-secondary">
         <p>{error}</p>

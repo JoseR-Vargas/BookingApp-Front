@@ -24,3 +24,20 @@ describe('Preline tokens used by the table / toast / loading / spinner markup', 
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*spinner-wave-bar/);
   });
 });
+
+describe('Brand palette (SPEC 03)', () => {
+  it('declares the four Haas-inspired brand inputs', () => {
+    expect(css).toMatch(/--brand-accent:\s*#f62039;/);
+    expect(css).toMatch(/--brand-bg:\s*#f9f2f2;/);
+    expect(css).toMatch(/--brand-text:\s*#111111;/);
+    expect(css).toMatch(/--brand-accent-secondary:\s*#295294;/);
+  });
+
+  it('derives every palette color from the brand inputs instead of hard-coded gold or black', () => {
+    const withoutBrandInputs = css.replace(/^\s*--brand-[a-z-]+:.*$/gm, '');
+    expect(withoutBrandInputs).not.toMatch(/#c9a96e|201,\s*169,\s*110|#0d0d0d|#141414|#1c1c1c|#f5f0e8|#242424|#2c2c2c/i);
+    for (const token of ['bg-primary', 'bg-secondary', 'bg-tertiary', 'accent', 'accent-light', 'accent-dark', 'text-primary', 'text-secondary', 'text-muted']) {
+      expect(css).toMatch(new RegExp(`--color-${token}:[^;]*var\\(--brand-`));
+    }
+  });
+});

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { usePrelineInstance } from '../../lib/usePrelineInstance.js';
+import BrandMark from '../ui/BrandMark.jsx';
 import { NAV_ITEMS } from './adminSections.js';
 
 // Legacy `.sidebar .nav-link` in its three presentations. Kept as whole strings (see the
@@ -107,11 +108,11 @@ export default function Sidebar({ collapsed: collapsedProp, show, section, onNav
         className={`h-screen-dvh ${width} overflow-y-auto border-r border-border-subtle bg-bg-secondary shadow-md transition-[width] duration-300 ease-[ease]`}
       >
         <div className="flex items-center gap-3 border-b border-border-subtle p-6">
-          <span
-            className={`font-display text-[1.1rem] font-bold text-text-primary ${collapsed ? 'hidden' : ''}`}
-          >
-            BookingApp
-          </span>
+          <BrandMark
+            hideText={collapsed}
+            textClassName="font-display text-[1.1rem] font-bold text-text-primary"
+            logoClassName="h-8 w-8"
+          />
         </div>
 
         <nav

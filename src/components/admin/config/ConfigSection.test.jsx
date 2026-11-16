@@ -12,6 +12,9 @@ vi.mock('../../../services/adminService.js', () => ({
   updateService: vi.fn(),
   deleteService: vi.fn(),
   saveSchedule: vi.fn(),
+  saveBranding: vi.fn(),
+  uploadLogo: vi.fn(),
+  deleteLogo: vi.fn(),
 }));
 vi.mock('../../../ui/toast.js', () => ({
   toast: { show: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
@@ -41,8 +44,8 @@ describe('ConfigSection', () => {
 
     const tablist = screen.getByRole('tablist');
     const tabs = within(tablist).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Horarios']);
-    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Horarios', 'Marca']);
+    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
 
     const panel = screen.getByRole('tabpanel');
     expect(panel).toHaveAttribute('aria-labelledby', tabs[0].id);
@@ -100,5 +103,20 @@ describe('ConfigSection', () => {
 
     await waitFor(() => expect(screen.getByText('Ana Nueva')).toBeInTheDocument());
     expect(getAdminCatalog).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ConfigSection "Marca" tab', () => {
+  it('shows the branding editor even when the catalog failed to load', async () => {
+    const user = userEvent.setup();
+    getAdminCatalog.mockRejectedValue(new Error('Sin conexión'));
+    render(<ConfigSection />);
+    await screen.findByText('Sin conexión');
+
+    await user.click(screen.getByTestId('config-tab-branding'));
+
+    expect(screen.getByTestId('config-tab-branding')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('Nombre del negocio')).toBeInTheDocument();
+    expect(screen.getByLabelText('Acento (hexadecimal)')).toBeInTheDocument();
   });
 });

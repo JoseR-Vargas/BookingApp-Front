@@ -8,6 +8,27 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
+    <!--
+      Paints the last saved brand colors before React loads, so a reload never flashes the default
+      palette. Same cache key and variables as src/theme/brandTheme.js; anything invalid is ignored.
+    -->
+    <script id="brand-cache">
+      (function () {
+        try {
+          var entry = JSON.parse(localStorage.getItem('branding:v1'));
+          var colors = entry && entry.colors;
+          if (!colors) return;
+          var hex = /^#[0-9a-fA-F]{6}$/;
+          var vars = { accent: '--brand-accent', background: '--brand-bg', text: '--brand-text', accentSecondary: '--brand-accent-secondary' };
+          for (var field in vars) {
+            if (hex.test(colors[field])) document.documentElement.style.setProperty(vars[field], colors[field].toLowerCase());
+          }
+        } catch (error) {
+          // No storage or a corrupt entry: keep the default palette.
+        }
+      })();
+    </script>
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

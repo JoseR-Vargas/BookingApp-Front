@@ -1,5 +1,6 @@
 import Container from '../layout/Container.jsx';
 import { NAV_LINKS } from '../layout/navLinks.js';
+import BrandMark from '../ui/BrandMark.jsx';
 import Ornament from '../ui/Ornament.jsx';
 
 const SOCIAL_LINKS = [
@@ -18,9 +19,7 @@ export default function Footer() {
           <div className="grid items-center gap-6 md:grid-cols-3">
             <div>
               <div className="mb-2 flex items-center">
-                <span className="font-display text-lg font-bold tracking-wide text-text-primary">
-                  BookingApp
-                </span>
+                <BrandMark textClassName="font-display text-lg font-bold tracking-wide text-text-primary" logoClassName="h-8 w-8" />
               </div>
               <p className="text-sm leading-loose text-text-muted">Tu tiempo, nuestra prioridad.</p>
             </div>

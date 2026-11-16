@@ -12,6 +12,9 @@ import {
   updateService,
   deleteService,
   saveSchedule,
+  saveBranding,
+  uploadLogo,
+  deleteLogo,
 } from './adminService.js';
 import { authService } from './authService.js';
 import { APP_CONFIG } from '../config/appConfig.js';
@@ -94,6 +97,9 @@ describe('adminService config endpoints', () => {
     ['updateService', () => updateService('corte', { price: 10 }), 'PATCH', '/api/admin/services/corte', { price: 10 }],
     ['deleteService', () => deleteService('corte'), 'DELETE', '/api/admin/services/corte', undefined],
     ['saveSchedule', () => saveSchedule({ 0: { closed: true } }), 'PUT', '/api/admin/schedule', { weekly: { 0: { closed: true } } }],
+    ['saveBranding', () => saveBranding({ businessName: 'Pepe', colors: { accent: '#c9a96e' } }), 'PUT', '/api/admin/branding', { businessName: 'Pepe', colors: { accent: '#c9a96e' } }],
+    ['uploadLogo', () => uploadLogo('data:image/png;base64,AAAA'), 'PUT', '/api/admin/branding/logo', { dataUrl: 'data:image/png;base64,AAAA' }],
+    ['deleteLogo', () => deleteLogo(), 'DELETE', '/api/admin/branding/logo', undefined],
   ];
 
   it.each(cases)('%s sends the Bearer admin key to the right route', async (_name, call, method, path, body) => {
