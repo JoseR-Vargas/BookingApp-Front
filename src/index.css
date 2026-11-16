@@ -213,6 +213,11 @@
 @custom-variant lte-md (@media (width <= 768px));
 @custom-variant lte-sm (@media (width <= 576px));
 @custom-variant lte-400 (@media (width <= 400px));
+/* Container variants for content inside a `@container` box (e.g. the Modal): they follow the box
+   width, not the viewport. `cq-compact` covers every booking modal width (max 880px), so the flow
+   keeps its compact mobile styling on desktop and tablet; grids add columns with `@xl`/`@3xl`. */
+@custom-variant cq-compact (@container (width <= 960px));
+@custom-variant cq-lte-sm (@container (width <= 576px));
 /* Touch layouts: phones/tablets in portrait (<= 768px) AND coarse-pointer devices in landscape (e.g. 844x390). */
 @custom-variant touch {
   @media (width <= 768px) {

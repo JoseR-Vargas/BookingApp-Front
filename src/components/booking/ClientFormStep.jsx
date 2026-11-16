@@ -28,7 +28,7 @@ export default function ClientFormStep({ formRef, validated }) {
         onSubmit={(event) => event.preventDefault()}
         className="group/form"
       >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 @3xl:grid-cols-2">
           <div>
             <label htmlFor={fieldId('name')} className={FIELD_LABEL}>Nombre Completo *</label>
             <input
@@ -84,7 +84,7 @@ export default function ClientFormStep({ formRef, validated }) {
             <div className={INVALID_FEEDBACK}>Por favor ingresa tu teléfono</div>
           </div>
 
-          <div className="md:col-span-2">
+          <div className="@3xl:col-span-2">
             <label htmlFor={fieldId('notes')} className={FIELD_LABEL}>Notas (Opcional)</label>
             <textarea
               id={fieldId('notes')}
@@ -96,7 +96,7 @@ export default function ClientFormStep({ formRef, validated }) {
             />
           </div>
 
-          <div className="md:col-span-2">
+          <div className="@3xl:col-span-2">
             <div className="relative mb-0.5 block min-h-6 pl-[1.5em] touch:min-h-11 touch:pl-0">
               <input id={termsId} type="checkbox" name="terms" required className={CHECKBOX} />
               <label

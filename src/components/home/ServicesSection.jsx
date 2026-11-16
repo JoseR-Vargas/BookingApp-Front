@@ -5,17 +5,14 @@ import ServiceDecoCard from './ServiceDecoCard.jsx';
 
 const SERVICES = [
   {
-    icon: 'fa-clipboard-list',
     title: 'Consultoría',
     text: 'Evaluación personalizada y asesoramiento profesional para encontrar la mejor solución',
   },
   {
-    icon: 'fa-star',
     title: 'Servicios Estándar',
     text: 'Atención completa con seguimiento y garantía de resultados en cada sesión',
   },
   {
-    icon: 'fa-gem',
     title: 'Premium',
     text: 'Experiencia exclusiva con prioridad de agenda y acompañamiento dedicado',
   },

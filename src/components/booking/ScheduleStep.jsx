@@ -20,7 +20,7 @@ function SelectedServiceInfo({ services, date, time, professional }) {
   return (
     <div
       data-testid="selected-service-info"
-      className="mb-4 grid rounded-[0.375rem] border border-border bg-bg-tertiary p-4 text-text-secondary md:grid-cols-2 md:gap-x-6 lte-md:mb-2 lte-md:p-3 lte-md:text-[0.9rem] lte-md:leading-snug"
+      className="mb-4 grid rounded-[0.375rem] border border-border bg-bg-tertiary p-4 text-text-secondary @3xl:grid-cols-2 @3xl:gap-x-6 cq-compact:mb-2 cq-compact:p-3 cq-compact:text-[0.9rem] cq-compact:leading-snug"
     >
       <div>
         <strong>Servicios:</strong>
@@ -73,7 +73,7 @@ export default function ScheduleStep() {
     <div>
       <StepHeading title="Fecha y Hora" subtitle="Selecciona cuándo quieres tu cita" />
 
-      <div className="grid md:grid-cols-2 md:gap-x-6">
+      <div className="grid @3xl:grid-cols-2 @3xl:gap-x-6">
         <div>
           <label className={FIELD_LABEL}>Fecha de la Cita</label>
           <DatePicker
@@ -107,7 +107,7 @@ export default function ScheduleStep() {
 
       <div className="mt-4">
         <label className={FIELD_LABEL}>Elige tu Profesional</label>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lte-md:gap-2">
+        <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-2 @5xl:grid-cols-3 cq-compact:gap-2">
           {professionals.map((professional) => (
             <ProfessionalCard
               key={professional.id}

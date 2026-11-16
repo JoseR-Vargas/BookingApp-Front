@@ -29,8 +29,8 @@ const CLOSED_TEXT = 'Cerrado este día';
 
 const loadingText = (mobile) => (mobile ? 'Cargando horarios...' : 'Verificando horarios disponibles');
 const retryText = (mobile, attempt) => (mobile
-  ? '📱 Reintentando conexión... (' + attempt + '/' + MAX_RETRIES + ')'
-  : '🔄 Reintentando... (' + attempt + '/' + MAX_RETRIES + ')');
+  ? 'Reintentando conexión... (' + attempt + '/' + MAX_RETRIES + ')'
+  : 'Reintentando... (' + attempt + '/' + MAX_RETRIES + ')');
 const retryDelay = (mobile) => (mobile ? 2500 : 1500);
 
 const FALLBACK_MESSAGE = {

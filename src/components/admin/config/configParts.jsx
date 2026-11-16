@@ -46,7 +46,6 @@ export function SaveButton({ saving, testId, children }) {
         </>
       ) : (
         <>
-          <i aria-hidden="true" className="fas fa-save mr-2" />
           {children}
         </>
       )}

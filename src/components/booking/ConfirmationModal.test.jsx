@@ -50,7 +50,7 @@ describe('ConfirmationModal cancel link', () => {
     await user.click(await screen.findByRole('button', { name: 'Copiar enlace' }));
 
     expect(writeText).toHaveBeenCalledWith(CANCEL_URL);
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('✅ Enlace copiado'));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Enlace copiado'));
     expect(toast.error).not.toHaveBeenCalled();
   });
 
@@ -62,7 +62,7 @@ describe('ConfirmationModal cancel link', () => {
     await user.click(await screen.findByRole('button', { name: 'Copiar enlace' }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(
-      '❌ No se pudo copiar el enlace. Cópialo manualmente.',
+      'No se pudo copiar el enlace. Cópialo manualmente.',
     ));
     expect(toast.success).not.toHaveBeenCalled();
   });

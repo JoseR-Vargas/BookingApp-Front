@@ -147,7 +147,6 @@ export default function ScheduleTab({ schedule, onChanged }) {
         <FormError message={error} testId="schedule-error" />
         {affected > 0 && (
           <p role="status" data-testid="schedule-warning" className="mt-4 rounded-md border border-warning bg-warning/10 p-3 text-sm text-warning">
-            <i aria-hidden="true" className="fas fa-exclamation-triangle mr-2" />
             {affectedMessage(affected)}
           </p>
         )}

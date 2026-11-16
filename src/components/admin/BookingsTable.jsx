@@ -204,11 +204,7 @@ function BookingsDataTable({ bookings, onDelete, onCancel, viewState }) {
           type="text"
           placeholder="Buscar..."
           data-hs-datatable-search
-          className={`${CONTROL_CLASSES} pl-9`}
-        />
-        <i
-          aria-hidden="true"
-          className="fas fa-search pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-text-muted"
+          className={CONTROL_CLASSES}
         />
       </div>
 

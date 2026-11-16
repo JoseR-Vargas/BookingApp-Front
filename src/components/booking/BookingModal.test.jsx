@@ -808,7 +808,7 @@ describe('availability fetch failures', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(optionTexts()).toEqual(['🔄 Reintentando... (1/2)']);
+    expect(optionTexts()).toEqual(['Reintentando... (1/2)']);
     expect(backend.gets).toHaveLength(1);
 
     await act(async () => {
@@ -819,7 +819,7 @@ describe('availability fetch failures', () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(backend.gets).toHaveLength(2);
-    expect(optionTexts()).toEqual(['🔄 Reintentando... (2/2)']);
+    expect(optionTexts()).toEqual(['Reintentando... (2/2)']);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1500);
@@ -858,7 +858,7 @@ describe('availability fetch failures', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(optionTexts()).toEqual(['📱 Reintentando conexión... (1/2)']);
+    expect(optionTexts()).toEqual(['Reintentando conexión... (1/2)']);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2499);
@@ -868,7 +868,7 @@ describe('availability fetch failures', () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(backend.gets).toHaveLength(2);
-    expect(optionTexts()).toEqual(['📱 Reintentando conexión... (2/2)']);
+    expect(optionTexts()).toEqual(['Reintentando conexión... (2/2)']);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2500);
@@ -890,7 +890,7 @@ describe('availability fetch failures', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(within(timeSelect()).getByRole('option', { name: '🔄 Reintentando... (1/2)' })).toBeInTheDocument();
+    expect(within(timeSelect()).getByRole('option', { name: 'Reintentando... (1/2)' })).toBeInTheDocument();
 
     backend.availabilityError = null;
     await act(async () => {
@@ -1084,7 +1084,7 @@ describe('submit sequence', () => {
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
-        `❌ Lo sentimos, Alex García ya tiene una reserva para ${MONDAY} a las 11:00. Por favor selecciona otra hora o profesional.`,
+        `Lo sentimos, Alex García ya tiene una reserva para ${MONDAY} a las 11:00. Por favor selecciona otra hora o profesional.`,
       ),
     );
     expect(backend.posts).toHaveLength(0);

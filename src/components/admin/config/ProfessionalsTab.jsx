@@ -130,7 +130,6 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
       ) : (
         <div className="mb-4 flex justify-end">
           <Button size="sm" onClick={() => setEditing('new')}>
-            <i aria-hidden="true" className="fas fa-plus mr-2" />
             Nuevo profesional
           </Button>
         </div>

@@ -4,10 +4,9 @@ import { formatLongDateUTC, formatMoney } from '../../utils/format.js';
 import Button from '../ui/Button.jsx';
 import Modal from '../ui/Modal.jsx';
 
-function Row({ icon, label, children, last = false }) {
+function Row({ label, children, last = false }) {
   return (
-    <div className={`flex items-start text-[0.95rem] text-text-primary lte-md:text-[0.85rem] lte-md:leading-snug ${last ? '' : 'mb-2 lte-md:mb-1'}`}>
-      <i aria-hidden="true" className={`${icon} mt-[0.15rem] mr-2 shrink-0 text-accent`} />
+    <div className={`flex items-start text-[0.95rem] text-text-primary cq-compact:text-[0.85rem] cq-compact:leading-snug ${last ? '' : 'mb-2 cq-compact:mb-1'}`}>
       <span className="mr-1 text-text-secondary">{label}</span>
       <strong>{children}</strong>
     </div>
@@ -17,10 +16,10 @@ function Row({ icon, label, children, last = false }) {
 async function copyLink(url) {
   try {
     await navigator.clipboard.writeText(url);
-    toast.success('✅ Enlace copiado');
+    toast.success('Enlace copiado');
   } catch {
     // No clipboard API (insecure context, old browser) or the user denied it: the link is also on screen.
-    toast.error('❌ No se pudo copiar el enlace. Cópialo manualmente.');
+    toast.error('No se pudo copiar el enlace. Cópialo manualmente.');
   }
 }
 
@@ -39,61 +38,53 @@ export default function ConfirmationModal({ open, onClose, details }) {
   return (
     <Modal open={open} onClose={onClose} keyboard={false}>
       {details && (
-        <div className="p-6 text-center md:p-12 lte-md:p-4">
-          <div
-            aria-hidden="true"
-            className="mx-auto mb-6 flex size-[90px] items-center justify-center rounded-full border-3 border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.15)] text-[3rem] text-success lte-md:mb-2 lte-md:size-14 lte-md:text-[1.75rem]"
-          >
-            <i className="fas fa-check-circle" />
-          </div>
+        <div className="p-6 text-center cq-compact:p-4">
           <DialogTitle
             as="h4"
-            className="mb-1 text-[length:calc(1.275rem+0.3vw)] leading-tight font-bold xl:text-xl lte-md:text-[1.15rem]"
+            className="mb-1 text-[length:calc(1.275rem+0.3vw)] leading-tight font-bold @7xl:text-xl cq-compact:text-[1.15rem]"
           >
             ¡Reserva Confirmada!
           </DialogTitle>
-          <p className="mb-6 leading-loose text-text-secondary lte-md:mb-3 lte-md:text-[0.9rem] lte-md:leading-snug">Te esperamos en tu cita</p>
+          <p className="mb-6 leading-loose text-text-secondary cq-compact:mb-3 cq-compact:text-[0.9rem] cq-compact:leading-snug">Te esperamos en tu cita</p>
 
-          <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-4 text-left lte-md:mb-3 lte-md:p-3">
-            <Row icon="fas fa-concierge-bell" label="Servicios:">
+          <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-4 text-left cq-compact:mb-3 cq-compact:p-3">
+            <Row label="Servicios:">
               {details.serviceNames.join(', ')}
             </Row>
-            <Row icon="fas fa-user-tie" label="Profesional:">
+            <Row label="Profesional:">
               {details.professionalName}
             </Row>
-            <Row icon="fas fa-calendar-alt" label="Fecha:">
+            <Row label="Fecha:">
               {formatLongDateUTC(details.date)}
             </Row>
-            <Row icon="fas fa-clock" label="Hora:">
+            <Row label="Hora:">
               {details.time}
             </Row>
-            <Row icon="fas fa-tag" label="Precio total:" last>
+            <Row label="Precio total:" last>
               {formatMoney(details.price)}
             </Row>
           </div>
 
-          <p className="mb-6 text-[0.875em] leading-loose text-text-secondary lte-md:mb-3 lte-md:text-[0.8rem] lte-md:leading-snug">
-            <i aria-hidden="true" className="fas fa-envelope mr-1" /> Te enviamos la confirmación a <strong>{details.email}</strong>
+          <p className="mb-6 text-[0.875em] leading-loose text-text-secondary cq-compact:mb-3 cq-compact:text-[0.8rem] cq-compact:leading-snug">
+            Te enviamos la confirmación a <strong>{details.email}</strong>
           </p>
 
           {cancelUrl && (
-            <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-3 text-left lte-md:mb-3">
+            <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-3 text-left cq-compact:mb-3">
               <p className="mb-2 text-[0.875em] leading-snug text-text-secondary">
-                <i aria-hidden="true" className="fas fa-link mr-1" />
                 ¿Necesitas cancelar? Puedes hacerlo con este enlace:
               </p>
               <a href={cancelUrl} className="mb-3 block text-[0.8rem] break-all text-accent underline">
                 {cancelUrl}
               </a>
               <Button variant="outline" size="xs" onClick={() => copyLink(cancelUrl)}>
-                <i aria-hidden="true" className="fas fa-copy" /> Copiar enlace
+                Copiar enlace
               </Button>
             </div>
           )}
 
           <Button size="cta" onClick={onClose}>
             Entendido
-            <i aria-hidden="true" className="fas fa-check ml-3.5" />
           </Button>
         </div>
       )}

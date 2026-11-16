@@ -99,7 +99,7 @@ describe('Login success flow', () => {
 
     await submit(user, 'admin', GOOD_KEY);
 
-    expect(toast.success).toHaveBeenCalledWith('✅ Inicio de sesión exitoso');
+    expect(toast.success).toHaveBeenCalledWith('Inicio de sesión exitoso');
     expect(sessionStorage.getItem('isAdmin')).toBe('true');
     expect(screen.queryByText('admin page')).not.toBeInTheDocument();
 
@@ -117,7 +117,7 @@ describe('Login success flow', () => {
     await submit(user, '  admin  ', GOOD_KEY);
 
     expect(login).toHaveBeenCalledWith('admin', GOOD_KEY);
-    expect(toast.success).toHaveBeenCalledWith('✅ Inicio de sesión exitoso');
+    expect(toast.success).toHaveBeenCalledWith('Inicio de sesión exitoso');
   });
 
   it('shows the spinner label and disables the button while the request is pending', async () => {
@@ -156,7 +156,7 @@ describe('Login failure flow', () => {
 
     await submit(user, 'admin', 'wrong');
 
-    expect(toast.error).toHaveBeenCalledWith('❌ Usuario o contraseña incorrectos. Intentos restantes: 4');
+    expect(toast.error).toHaveBeenCalledWith('Usuario o contraseña incorrectos. Intentos restantes: 4');
     expect(toast.success).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /Iniciar Sesión/ })).toBeEnabled();
     expect(sessionStorage.getItem('isAdmin')).toBeNull();
@@ -167,14 +167,14 @@ describe('Login failure flow', () => {
     const user = setup();
 
     for (let i = 0; i < 4; i += 1) await submit(user, 'admin', 'nope');
-    expect(toast.error).toHaveBeenLastCalledWith('❌ Usuario o contraseña incorrectos. Intentos restantes: 1');
+    expect(toast.error).toHaveBeenLastCalledWith('Usuario o contraseña incorrectos. Intentos restantes: 1');
 
     await submit(user, 'admin', 'nope');
-    expect(toast.error).toHaveBeenLastCalledWith('❌ Cuenta bloqueada por demasiados intentos. Intenta en 60 segundos.');
+    expect(toast.error).toHaveBeenLastCalledWith('Cuenta bloqueada por demasiados intentos. Intenta en 60 segundos.');
 
     await submit(user, 'admin', GOOD_KEY);
     expect(toast.error).toHaveBeenLastCalledWith(
-      '❌ Demasiados intentos fallidos. Intenta de nuevo en 60 segundos.',
+      'Demasiados intentos fallidos. Intenta de nuevo en 60 segundos.',
     );
     expect(sessionStorage.getItem('isAdmin')).toBeNull();
     expect(screen.getByRole('button', { name: /Iniciar Sesión/ })).toBeEnabled();
@@ -187,7 +187,7 @@ describe('Login failure flow', () => {
     act(() => { vi.advanceTimersByTime(60000); });
     await submit(user, 'admin', GOOD_KEY);
 
-    expect(toast.success).toHaveBeenCalledWith('✅ Inicio de sesión exitoso');
+    expect(toast.success).toHaveBeenCalledWith('Inicio de sesión exitoso');
   });
 
   it('rejects the old hardcoded admin / admin123 credentials', async () => {
@@ -195,7 +195,7 @@ describe('Login failure flow', () => {
 
     await submit(user, 'admin', 'admin123');
 
-    expect(toast.error).toHaveBeenCalledWith('❌ Usuario o contraseña incorrectos. Intentos restantes: 4');
+    expect(toast.error).toHaveBeenCalledWith('Usuario o contraseña incorrectos. Intentos restantes: 4');
     expect(sessionStorage.getItem('isAdmin')).toBeNull();
   });
 
@@ -206,7 +206,7 @@ describe('Login failure flow', () => {
     await submit(user, 'admin', GOOD_KEY);
 
     expect(toast.error).toHaveBeenCalledWith(
-      '❌ No se pudo conectar con el servidor. Intenta de nuevo en unos minutos.',
+      'No se pudo conectar con el servidor. Intenta de nuevo en unos minutos.',
     );
     expect(screen.getByRole('button', { name: /Iniciar Sesión/ })).toBeEnabled();
   });
@@ -217,7 +217,7 @@ describe('Login failure flow', () => {
     // whitespace-only input, which passes `required` but trims to empty.
     await submit(user, '   ', 'something');
 
-    expect(toast.error).toHaveBeenCalledWith('❌ Por favor completa todos los campos');
+    expect(toast.error).toHaveBeenCalledWith('Por favor completa todos los campos');
     expect(screen.getByRole('button', { name: /Iniciar Sesión/ })).toBeEnabled();
   });
 });
