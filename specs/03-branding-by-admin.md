@@ -249,3 +249,28 @@ Un script chico en `index.html` lo lee antes de cargar React y aplica las 4 vari
 - Paletas predefinidas, almacenamiento externo del logo, historial de cambios.
 
 Cada uno, si llega, va en su propia spec.
+
+---
+
+## Revisión posterior: paleta negra y color de botones (2026-11-16)
+
+Esta sección reemplaza lo que el resto de la spec dice sobre el dorado y sobre el acento secundario.
+
+- **Colores por defecto** (livery Haas): fondo `#111111`, texto `#ffffff`, acento azul `#5b8dd9`, botones `#f62039`.
+- **El azul `#295294` original no sirve como acento sobre negro.** Su contraste es 2.45:1 y la regla exige 3:1. Se usa `#5b8dd9` (5.6:1) y `#295294` queda libre para rellenos.
+- **Los 4 colores editables son Fondo, Texto, Acento y Botones.** Botones es opcional y reemplaza al "acento secundario". Sin color de botones, los botones usan el acento.
+- **El campo `accentSecondary` pasa a llamarse `button`** en la API, la base y el front. Un documento guardado antes del cambio se lee con `button: null`, así sus botones siguen usando el acento como antes.
+- **Contraste de Botones contra el fondo:** mínimo 3:1, con el mismo mensaje de error: `"El color de los botones no contrasta lo suficiente con el fondo (mínimo 3:1)."`.
+- **Variables CSS:** `--brand-button` reemplaza a `--brand-accent-secondary`. Los botones usan `--button`, `--button-hover` y `--button-active`.
+- **Grises neutros:** el texto secundario y el atenuado son mezclas del texto con el fondo, sin tinte del acento.
+- **Caché del navegador:** la clave pasa a `branding:v2`, para no aplicar colores guardados con el formato anterior.
+
+### Segunda revisión: acento fucsia y botones azules (2026-11-16)
+
+Esta sección reemplaza los valores de acento y botones de la revisión anterior.
+
+- **Acento:** `#f62039` (fucsia). Se usa en enlaces, bordes, selección, precios y textos destacados.
+- **Botones:** `#295294` (azul). El hover se calcula en `90% azul + 10% blanco` (`--button-hover`).
+- **Texto de los botones: se elige automáticamente**, blanco o negro según lo que se lea mejor sobre el botón. Sobre `#295294` el blanco da 7.7:1; el negro daría 2.45:1 y no se leería. La regla garantiza 4.5:1 con el botón para cualquier color. Se calcula en `buttonTextColor` de `src/theme/brandTheme.js` y también en el script de `index.html`.
+- **Contraste de Botones contra el fondo: mínimo 2:1** (antes 3:1). Un botón es una superficie con su propia etiqueta, así que su legibilidad se garantiza con el color del texto, no con el contraste contra la página. `#295294` sobre el fondo negro da 2.45:1 y se acepta. Mensaje: `"El color de los botones no contrasta lo suficiente con el fondo (mínimo 2:1)."`.
+- **Variable nueva:** `--brand-button-text`, que alimenta `--button-text` y el texto de los botones. El "check" del servicio elegido usa texto oscuro sobre el acento fucsia.

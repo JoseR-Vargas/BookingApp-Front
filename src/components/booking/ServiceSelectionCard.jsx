@@ -15,7 +15,7 @@ const CARD_STATE = {
  */
 function AddToggle({ serviceId, selected }) {
   const state = selected
-    ? 'border-accent bg-accent text-primary-foreground'
+    ? 'border-accent bg-accent text-text-inverse'
     : 'border-accent bg-transparent text-accent';
   return (
     <span

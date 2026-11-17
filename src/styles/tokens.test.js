@@ -26,11 +26,19 @@ describe('Preline tokens used by the table / toast / loading / spinner markup', 
 });
 
 describe('Brand palette (SPEC 03)', () => {
-  it('declares the four Haas-inspired brand inputs', () => {
+  it('declares the four brand inputs with the Haas livery defaults', () => {
     expect(css).toMatch(/--brand-accent:\s*#f62039;/);
-    expect(css).toMatch(/--brand-bg:\s*#f9f2f2;/);
-    expect(css).toMatch(/--brand-text:\s*#111111;/);
-    expect(css).toMatch(/--brand-accent-secondary:\s*#295294;/);
+    expect(css).toMatch(/--brand-bg:\s*#111111;/);
+    expect(css).toMatch(/--brand-text:\s*#ffffff;/);
+    expect(css).toMatch(/--brand-button:\s*#295294;/);
+  });
+
+  it('gives buttons their own color, falling back to the accent when none is chosen', () => {
+    expect(css).toMatch(/--button-text:\s*var\(--brand-button-text,\s*#ffffff\);/);
+    expect(css).toMatch(/--primary-foreground:\s*var\(--button-text\);/);
+    expect(css).toMatch(/--button:\s*var\(--brand-button,\s*var\(--brand-accent\)\);/);
+    expect(css).toMatch(/--primary:\s*var\(--button\);/);
+    expect(css).toMatch(/--primary-hover:\s*var\(--button-hover\);/);
   });
 
   it('derives every palette color from the brand inputs instead of hard-coded gold or black', () => {

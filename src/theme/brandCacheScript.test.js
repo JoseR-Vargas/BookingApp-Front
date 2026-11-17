@@ -18,13 +18,39 @@ describe('index.html brand cache script', () => {
   it('applies the cached colors to the brand variables', () => {
     localStorage.setItem(
       BRANDING_CACHE_KEY,
-      JSON.stringify({ colors: { accent: '#336699', background: '#FFFFFF', text: '#111111', accentSecondary: null }, businessName: null }),
+      JSON.stringify({ colors: { accent: '#336699', background: '#FFFFFF', text: '#111111', button: null }, businessName: null }),
     );
     runScript();
     expect(style().getPropertyValue('--brand-accent')).toBe('#336699');
     expect(style().getPropertyValue('--brand-bg')).toBe('#ffffff');
     expect(style().getPropertyValue('--brand-text')).toBe('#111111');
-    expect(style().getPropertyValue('--brand-accent-secondary')).toBe('');
+    expect(style().getPropertyValue('--brand-button')).toBe('initial');
+  });
+
+  it('applies a cached button color', () => {
+    localStorage.setItem(
+      BRANDING_CACHE_KEY,
+      JSON.stringify({ colors: { accent: '#f62039', background: '#111111', text: '#ffffff', button: '#295294' }, businessName: null }),
+    );
+    runScript();
+    expect(style().getPropertyValue('--brand-button')).toBe('#295294');
+  });
+
+  it('picks a readable label color for the buttons', () => {
+    const cache = (colors) => localStorage.setItem(BRANDING_CACHE_KEY, JSON.stringify({ colors, businessName: null }));
+    cache({ accent: '#f62039', background: '#111111', text: '#ffffff', button: '#295294' });
+    runScript();
+    expect(style().getPropertyValue('--brand-button-text')).toBe('#ffffff');
+
+    document.documentElement.removeAttribute('style');
+    cache({ accent: '#f62039', background: '#111111', text: '#ffffff', button: '#f62039' });
+    runScript();
+    expect(style().getPropertyValue('--brand-button-text')).toBe('#000000');
+
+    document.documentElement.removeAttribute('style');
+    cache({ accent: '#10205a', background: '#ffffff', text: '#111111', button: null });
+    runScript();
+    expect(style().getPropertyValue('--brand-button-text')).toBe('#ffffff');
   });
 
   it.each([

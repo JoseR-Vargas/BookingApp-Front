@@ -3,6 +3,7 @@ import {
   BRANDING_CACHE_KEY,
   DEFAULT_COLORS,
   applyBrandColors,
+  buttonTextColor,
   contrastRatio,
   readBrandingCache,
   validateBrandColors,
@@ -29,7 +30,7 @@ describe('validateBrandColors', () => {
   });
 
   it('requires accent, background and text in #rrggbb form', () => {
-    const errors = validateBrandColors({ accent: '', background: '#0d0d0d', text: 'red', accentSecondary: null });
+    const errors = validateBrandColors({ accent: '', background: '#0d0d0d', text: 'red', button: null });
     expect(errors.accent).toBe('Usa un color en formato #rrggbb.');
     expect(errors.text).toBe('Usa un color en formato #rrggbb.');
     expect(errors.background).toBeUndefined();
@@ -41,42 +42,73 @@ describe('validateBrandColors', () => {
   });
 
   it('blocks an accent below 3:1 against the background', () => {
-    const errors = validateBrandColors({ ...DEFAULT_COLORS, accent: '#f0e0e0' });
+    const errors = validateBrandColors({ ...DEFAULT_COLORS, accent: '#1f1f1f' });
     expect(errors.accent).toBe('El acento no contrasta lo suficiente con el fondo (mínimo 3:1).');
   });
 
-  it('checks the secondary accent only when present', () => {
-    expect(validateBrandColors({ ...DEFAULT_COLORS, accentSecondary: null })).toEqual({});
-    const errors = validateBrandColors({ ...DEFAULT_COLORS, accentSecondary: '#f0e0e0' });
-    expect(errors.accentSecondary).toBe('El acento secundario no contrasta lo suficiente con el fondo (mínimo 3:1).');
+  it('checks the button color only when present', () => {
+    expect(validateBrandColors({ ...DEFAULT_COLORS, button: null })).toEqual({});
+    const errors = validateBrandColors({ ...DEFAULT_COLORS, button: '#1f1f1f' });
+    expect(errors.button).toBe('El color de los botones no contrasta lo suficiente con el fondo (mínimo 2:1).');
+  });
+
+  it('accepts a blue button on black: below 3:1 against the page, but its label is readable', () => {
+    expect(validateBrandColors({ ...DEFAULT_COLORS, button: '#295294' })).toEqual({});
+  });
+});
+
+describe('buttonTextColor', () => {
+  it('picks white on a dark button and black on a light one', () => {
+    expect(buttonTextColor({ ...DEFAULT_COLORS, button: '#295294' })).toBe('#ffffff');
+    expect(buttonTextColor({ ...DEFAULT_COLORS, button: '#f62039' })).toBe('#000000');
+    expect(buttonTextColor({ ...DEFAULT_COLORS, button: '#ffffff' })).toBe('#000000');
+  });
+
+  it('uses the accent when no button color is chosen', () => {
+    expect(buttonTextColor({ ...DEFAULT_COLORS, accent: '#10205a', button: null })).toBe('#ffffff');
+    expect(buttonTextColor({ ...DEFAULT_COLORS, accent: '#f62039', button: null })).toBe('#000000');
+  });
+
+  it('always reaches 4.5:1 with the label it picks', () => {
+    for (const button of ['#808080', '#777777', '#999999', '#2e8b57', '#d2691e']) {
+      const label = buttonTextColor({ ...DEFAULT_COLORS, button });
+      expect(contrastRatio(label, button)).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
 
 describe('applyBrandColors', () => {
+  it('writes the label color of the buttons so it stays readable on the button color', () => {
+    applyBrandColors({ ...DEFAULT_COLORS, button: '#295294' });
+    expect(root().style.getPropertyValue('--brand-button-text')).toBe('#ffffff');
+    applyBrandColors({ ...DEFAULT_COLORS, button: '#f62039' });
+    expect(root().style.getPropertyValue('--brand-button-text')).toBe('#000000');
+  });
+
   afterEach(() => root().removeAttribute('style'));
 
   it('writes the four brand variables on <html>', () => {
-    applyBrandColors({ accent: '#336699', background: '#ffffff', text: '#111111', accentSecondary: '#224466' });
+    applyBrandColors({ accent: '#336699', background: '#ffffff', text: '#111111', button: '#224466' });
     expect(root().style.getPropertyValue('--brand-accent')).toBe('#336699');
     expect(root().style.getPropertyValue('--brand-bg')).toBe('#ffffff');
     expect(root().style.getPropertyValue('--brand-text')).toBe('#111111');
-    expect(root().style.getPropertyValue('--brand-accent-secondary')).toBe('#224466');
+    expect(root().style.getPropertyValue('--brand-button')).toBe('#224466');
   });
 
-  it('removes the secondary accent when it is null, so CSS derives it', () => {
-    applyBrandColors({ ...DEFAULT_COLORS, accentSecondary: '#224466' });
-    applyBrandColors({ ...DEFAULT_COLORS, accentSecondary: null });
-    expect(root().style.getPropertyValue('--brand-accent-secondary')).toBe('');
+  it('hides the stylesheet default when the button color is null, so buttons follow the accent', () => {
+    applyBrandColors({ ...DEFAULT_COLORS, button: '#224466' });
+    applyBrandColors({ ...DEFAULT_COLORS, button: null });
+    expect(root().style.getPropertyValue('--brand-button')).toBe('initial');
   });
 
   it('ignores invalid colors instead of writing them', () => {
-    applyBrandColors({ accent: 'javascript:alert(1)', background: '#ffffff', text: '#111111', accentSecondary: null });
+    applyBrandColors({ accent: 'javascript:alert(1)', background: '#ffffff', text: '#111111', button: null });
     expect(root().style.getPropertyValue('--brand-accent')).toBe('');
     expect(root().style.getPropertyValue('--brand-bg')).toBe('#ffffff');
   });
 });
 
-describe('branding cache (localStorage branding:v1)', () => {
+describe('branding cache (localStorage branding:v2)', () => {
   beforeEach(() => localStorage.clear());
 
   it('round-trips colors and business name', () => {

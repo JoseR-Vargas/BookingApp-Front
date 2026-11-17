@@ -15,13 +15,32 @@
     <script id="brand-cache">
       (function () {
         try {
-          var entry = JSON.parse(localStorage.getItem('branding:v1'));
+          var entry = JSON.parse(localStorage.getItem('branding:v2'));
           var colors = entry && entry.colors;
           if (!colors) return;
           var hex = /^#[0-9a-fA-F]{6}$/;
-          var vars = { accent: '--brand-accent', background: '--brand-bg', text: '--brand-text', accentSecondary: '--brand-accent-secondary' };
+          var vars = { accent: '--brand-accent', background: '--brand-bg', text: '--brand-text', button: '--brand-button' };
           for (var field in vars) {
             if (hex.test(colors[field])) document.documentElement.style.setProperty(vars[field], colors[field].toLowerCase());
+          }
+          // No button color chosen: buttons follow the accent instead of the stylesheet default.
+          if (colors.button === null) document.documentElement.style.setProperty('--brand-button', 'initial');
+
+          // Label of the buttons: white or black, whichever reads better on the button (same rule
+          // as buttonTextColor in src/theme/brandTheme.js).
+          var fill = hex.test(colors.button) ? colors.button : colors.accent;
+          if (hex.test(fill)) {
+            var luminance = function (color) {
+              var channels = [1, 3, 5].map(function (start) {
+                var c = parseInt(color.slice(start, start + 2), 16) / 255;
+                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+              });
+              return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+            };
+            var l = luminance(fill);
+            var white = 1.05 / (l + 0.05);
+            var black = (l + 0.05) / 0.05;
+            document.documentElement.style.setProperty('--brand-button-text', white >= black ? '#ffffff' : '#000000');
           }
         } catch (error) {
           // No storage or a corrupt entry: keep the default palette.

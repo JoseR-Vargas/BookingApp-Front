@@ -11,7 +11,7 @@ vi.mock('../services/brandingService.js', async (importOriginal) => ({
 
 const SAVED = {
   businessName: 'Barbería Don Pepe',
-  colors: { accent: '#336699', background: '#ffffff', text: '#111111', accentSecondary: null },
+  colors: { accent: '#336699', background: '#ffffff', text: '#111111', button: null },
   logoUrl: '/api/branding/logo?v=1',
 };
 

@@ -1,17 +1,17 @@
 // ===== BRAND THEME =====
 // The whole palette (src/index.css) derives from four CSS variables on <html>: --brand-accent,
-// --brand-bg, --brand-text and the optional --brand-accent-secondary. This module writes them,
+// --brand-bg, --brand-text and the optional --brand-button. This module writes them,
 // validates a palette with the same WCAG contrast rules as the backend (SPEC 03), and keeps the
 // last known branding in localStorage so a reload paints the right colors before React runs
 // (see the inline script in index.html, which reads the same key).
 
-export const BRANDING_CACHE_KEY = 'branding:v1';
+export const BRANDING_CACHE_KEY = 'branding:v2';
 
 export const DEFAULT_COLORS = Object.freeze({
   accent: '#f62039',
-  background: '#f9f2f2',
-  text: '#111111',
-  accentSecondary: '#295294',
+  background: '#111111',
+  text: '#ffffff',
+  button: '#295294',
 });
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
@@ -20,17 +20,19 @@ const CSS_VARIABLES = {
   accent: '--brand-accent',
   background: '--brand-bg',
   text: '--brand-text',
-  accentSecondary: '--brand-accent-secondary',
+  button: '--brand-button',
 };
 
 export const MIN_TEXT_CONTRAST = 4.5;
 export const MIN_ACCENT_CONTRAST = 3;
+// A button only has to stand out from the page: its label color is picked for readability.
+export const MIN_BUTTON_CONTRAST = 2;
 
 const MESSAGES = {
   format: 'Usa un color en formato #rrggbb.',
   text: 'El texto no contrasta lo suficiente con el fondo (mínimo 4.5:1).',
   accent: 'El acento no contrasta lo suficiente con el fondo (mínimo 3:1).',
-  accentSecondary: 'El acento secundario no contrasta lo suficiente con el fondo (mínimo 3:1).',
+  button: 'El color de los botones no contrasta lo suficiente con el fondo (mínimo 2:1).',
 };
 
 export const isHexColor = (value) => typeof value === 'string' && HEX_COLOR.test(value);
@@ -58,35 +60,50 @@ export function validateBrandColors(colors) {
   for (const field of ['accent', 'background', 'text']) {
     if (!isHexColor(colors?.[field])) errors[field] = MESSAGES.format;
   }
-  const secondary = colors?.accentSecondary;
-  if (secondary !== null && secondary !== undefined && !isHexColor(secondary)) {
-    errors.accentSecondary = MESSAGES.format;
+  const button = colors?.button;
+  if (button !== null && button !== undefined && !isHexColor(button)) {
+    errors.button = MESSAGES.format;
   }
   if (errors.background) return errors;
 
   const { background } = colors;
   if (!errors.text && contrastRatio(colors.text, background) < MIN_TEXT_CONTRAST) errors.text = MESSAGES.text;
   if (!errors.accent && contrastRatio(colors.accent, background) < MIN_ACCENT_CONTRAST) errors.accent = MESSAGES.accent;
-  if (isHexColor(secondary) && !errors.accentSecondary && contrastRatio(secondary, background) < MIN_ACCENT_CONTRAST) {
-    errors.accentSecondary = MESSAGES.accentSecondary;
+  if (isHexColor(button) && !errors.button && contrastRatio(button, background) < MIN_BUTTON_CONTRAST) {
+    errors.button = MESSAGES.button;
   }
   return errors;
 }
 
-/** Writes the brand variables on <html>. Invalid values are skipped; a null secondary is removed. */
+/**
+ * Label color of the primary buttons: white or black, whichever reads better on the button
+ * (the chosen button color, or the accent when none). Against pure white or black one of them
+ * always reaches 4.5:1, so no palette can produce an unreadable label.
+ */
+export function buttonTextColor(colors) {
+  const fill = isHexColor(colors?.button) ? colors.button : colors?.accent;
+  if (!isHexColor(fill)) return '#ffffff';
+  return contrastRatio('#ffffff', fill) >= contrastRatio('#000000', fill) ? '#ffffff' : '#000000';
+}
+
+/**
+ * Writes the brand variables on <html>. Invalid values are skipped. A null button color becomes
+ * `initial`, which hides the stylesheet default so the buttons follow the accent.
+ */
 export function applyBrandColors(colors, element = document.documentElement) {
   for (const [field, variable] of Object.entries(CSS_VARIABLES)) {
     const value = colors?.[field];
     if (isHexColor(value)) element.style.setProperty(variable, value.toLowerCase());
-    else if (field === 'accentSecondary' && (value === null || value === undefined)) element.style.removeProperty(variable);
+    else if (field === 'button' && (value === null || value === undefined)) element.style.setProperty(variable, 'initial');
   }
+  element.style.setProperty('--brand-button-text', buttonTextColor(colors));
 }
 
 const isValidCache = (entry) =>
   entry !== null &&
   typeof entry === 'object' &&
   ['accent', 'background', 'text'].every((field) => isHexColor(entry.colors?.[field])) &&
-  (entry.colors.accentSecondary === null || isHexColor(entry.colors.accentSecondary)) &&
+  (entry.colors.button === null || isHexColor(entry.colors.button)) &&
   (entry.businessName === null || typeof entry.businessName === 'string');
 
 /** Last branding seen by this browser, or null when absent or not trustworthy. */
