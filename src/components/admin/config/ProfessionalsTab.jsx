@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import {
   createProfessional,
   deleteProfessional,
+  deleteProfessionalPermanently,
   deleteProfessionalPhoto,
   updateProfessional,
   uploadProfessionalPhoto,
@@ -163,6 +164,9 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
   const [busyId, setBusyId] = useState(null);
   const [deactivating, setDeactivating] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Permanent delete has its own confirmation: it cannot be undone.
+  const [removing, setRemoving] = useState(null);
+  const [removeOpen, setRemoveOpen] = useState(false);
 
   const closeForm = () => setEditing(null);
   const handleSaved = () => {
@@ -190,6 +194,18 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
     } else {
       runChange(professional, () => updateProfessional(professional.id, { active: true }), 'Profesional activado');
     }
+  };
+
+  const handleRemove = (professional) => {
+    setRemoving(professional);
+    setRemoveOpen(true);
+  };
+
+  // A blocked delete (future bookings, last professional of a service) comes back as a 409 whose
+  // message already explains what to do: runChange shows it as an error toast.
+  const confirmRemove = async () => {
+    setRemoveOpen(false);
+    await runChange(removing, () => deleteProfessionalPermanently(removing.id), 'Profesional eliminado');
   };
 
   const confirmDeactivate = async () => {
@@ -262,6 +278,15 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
                         >
                           {professional.active ? 'Desactivar' : 'Activar'}
                         </button>
+                        <button
+                          type="button"
+                          data-testid={`professional-delete-${professional.id}`}
+                          className={`${LINK_BUTTON} text-error`}
+                          disabled={busyId === professional.id}
+                          onClick={() => handleRemove(professional)}
+                        >
+                          Eliminar
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -286,6 +311,22 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
         cancelLabel="Cancelar"
         onConfirm={confirmDeactivate}
         onCancel={() => setConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={removeOpen}
+        variant="danger"
+        title="Eliminar profesional"
+        message={(
+          <>
+            <p>¿Eliminar a {removing && removing.name} de forma permanente? Se borran su ficha y su foto, y no se puede deshacer.</p>
+            <p className="mt-2">Sus reservas pasadas se conservan con su nombre. Si solo quieres ocultarlo del sitio, usa Desactivar.</p>
+          </>
+        )}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={confirmRemove}
+        onCancel={() => setRemoveOpen(false)}
       />
     </div>
   );

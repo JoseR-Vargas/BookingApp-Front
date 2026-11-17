@@ -52,11 +52,21 @@ export const updateProfessional = (id, data) => adminRequest('PATCH', '/api/admi
 export const uploadProfessionalPhoto = (id, dataUrl) =>
   adminRequest('PUT', '/api/admin/professionals/' + id + '/photo', { dataUrl });
 export const deleteProfessionalPhoto = (id) => adminRequest('DELETE', '/api/admin/professionals/' + id + '/photo');
+// Soft delete: the professional stays in the database, inactive ("Desactivar").
 export const deleteProfessional = (id) => adminRequest('DELETE', '/api/admin/professionals/' + id);
+// Permanent delete ("Eliminar"). The backend answers 409 with a readable message while the
+// professional still has future confirmed bookings or is the only one offering a service.
+export const deleteProfessionalPermanently = (id) =>
+  adminRequest('DELETE', '/api/admin/professionals/' + id + '/permanent');
 
 export const createService = (data) => adminRequest('POST', '/api/admin/services', data);
 export const updateService = (id, data) => adminRequest('PATCH', '/api/admin/services/' + id, data);
+// Soft delete: the service stays in the database, inactive ("Desactivar").
 export const deleteService = (id) => adminRequest('DELETE', '/api/admin/services/' + id);
+// Permanent delete ("Eliminar"). The backend answers 409 with a readable message while the
+// service still has future confirmed bookings.
+export const deleteServicePermanently = (id) =>
+  adminRequest('DELETE', '/api/admin/services/' + id + '/permanent');
 
 /** @param weekly {Record<0..6, {closed:true}|{closed:false,open:'HH:mm',close:'HH:mm'}>} all 7 days */
 export const saveSchedule = (weekly) => adminRequest('PUT', '/api/admin/schedule', { weekly });

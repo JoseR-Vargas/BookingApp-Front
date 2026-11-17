@@ -26,6 +26,13 @@ describe('BrandMark', () => {
     expect(logo.compareDocumentPosition(screen.getByText('BookingApp')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('draws the logo as a perfect circle that fills its box', () => {
+    renderWith({ logoUrl: '/api/branding/logo?v=7' });
+    const logo = screen.getByRole('img');
+    expect(logo).toHaveClass('rounded-full', 'object-cover');
+    expect(logo).not.toHaveClass('rounded-sm', 'object-contain');
+  });
+
   it('uses "Logo" as alt text without a business name', () => {
     renderWith({ logoUrl: '/api/branding/logo?v=7' });
     expect(screen.getByRole('img', { name: 'Logo' })).toBeInTheDocument();

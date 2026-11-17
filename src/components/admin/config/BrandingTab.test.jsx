@@ -190,6 +190,20 @@ describe('BrandingTab', () => {
       await waitFor(() => expect(setBranding).toHaveBeenCalledWith(saved));
     });
 
+    it('previews the current logo as a perfect circle', () => {
+      renderTab({ ...SAVED, logoUrl: '/api/branding/logo?v=5' });
+
+      const logo = screen.getByRole('img', { name: 'Logo actual' });
+      expect(logo).toHaveClass('rounded-full', 'object-cover');
+      expect(logo.parentElement).toHaveClass('rounded-full', 'overflow-hidden');
+    });
+
+    it('shows the empty logo slot as a circle too', () => {
+      renderTab();
+
+      expect(screen.getByText('Sin logo').parentElement).toHaveClass('rounded-full');
+    });
+
     it('"Quitar logo" deletes the current logo', async () => {
       const user = userEvent.setup();
       const saved = { ...SAVED, logoUrl: null };

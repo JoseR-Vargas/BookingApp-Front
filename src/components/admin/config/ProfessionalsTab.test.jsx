@@ -9,6 +9,7 @@ vi.mock('../../../services/adminService.js', () => ({
   deleteProfessional: vi.fn(),
   uploadProfessionalPhoto: vi.fn(),
   deleteProfessionalPhoto: vi.fn(),
+  deleteProfessionalPermanently: vi.fn(),
 }));
 vi.mock('../../../utils/resizeImage.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -21,6 +22,7 @@ vi.mock('../../../ui/toast.js', () => ({
 import {
   createProfessional,
   deleteProfessional,
+  deleteProfessionalPermanently,
   deleteProfessionalPhoto,
   updateProfessional,
   uploadProfessionalPhoto,
@@ -350,5 +352,79 @@ describe('ProfessionalsTab photo on edit', () => {
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('La foto debe ser PNG, JPG o WebP de hasta 200 KB.'));
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('datos'));
+  });
+});
+
+
+describe('ProfessionalsTab permanent delete', () => {
+  const clickDelete = (user, id) => user.click(screen.getByTestId(`professional-delete-${id}`));
+  const dialog = () => screen.getByRole('alertdialog');
+
+  it('offers "Eliminar" for active and inactive professionals, next to Editar and Desactivar', () => {
+    setup();
+
+    const active = screen.getByTestId('professional-row-alex-garcia');
+    expect(within(active).getByRole('button', { name: 'Editar' })).toBeInTheDocument();
+    expect(within(active).getByRole('button', { name: 'Desactivar' })).toBeInTheDocument();
+    expect(within(active).getByRole('button', { name: 'Eliminar' })).toBeInTheDocument();
+    expect(within(screen.getByTestId('professional-row-inactivo')).getByRole('button', { name: 'Eliminar' })).toBeInTheDocument();
+  });
+
+  it('asks for confirmation naming the professional, and says what is kept and what is lost', async () => {
+    const user = setup();
+    await clickDelete(user, 'alex-garcia');
+
+    expect(dialog()).toHaveTextContent('Eliminar profesional');
+    expect(dialog()).toHaveTextContent('Alex García');
+    expect(dialog()).toHaveTextContent('permanente');
+    expect(dialog()).toHaveTextContent('reservas pasadas se conservan');
+    expect(dialog()).toHaveTextContent('Desactivar');
+    expect(deleteProfessionalPermanently).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when the confirmation is cancelled', async () => {
+    const user = setup();
+    await clickDelete(user, 'alex-garcia');
+
+    await user.click(within(dialog()).getByRole('button', { name: 'Cancelar' }));
+
+    expect(deleteProfessionalPermanently).not.toHaveBeenCalled();
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it('deletes after confirming, toasts and refreshes the list', async () => {
+    const user = setup();
+    deleteProfessionalPermanently.mockResolvedValue({ id: 'alex-garcia', deleted: true });
+    await clickDelete(user, 'alex-garcia');
+
+    await user.click(within(dialog()).getByRole('button', { name: 'Eliminar' }));
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    expect(deleteProfessionalPermanently).toHaveBeenCalledWith('alex-garcia');
+    expect(deleteProfessional).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith('Profesional eliminado');
+  });
+
+  it('shows the backend reason when the delete is blocked and does not refresh', async () => {
+    const user = setup();
+    const reason = 'No se puede eliminar a Alex García: tiene 2 reservas futuras confirmadas. Cancélalas o desactiva al profesional.';
+    deleteProfessionalPermanently.mockRejectedValue(new Error(reason));
+    await clickDelete(user, 'alex-garcia');
+
+    await user.click(within(dialog()).getByRole('button', { name: 'Eliminar' }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(reason));
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('"Desactivar" still deactivates and never deletes permanently', async () => {
+    const user = setup();
+    deleteProfessional.mockResolvedValue({});
+    await user.click(screen.getByTestId('professional-toggle-alex-garcia'));
+    await user.click(within(dialog()).getByRole('button', { name: 'Desactivar' }));
+
+    await waitFor(() => expect(deleteProfessional).toHaveBeenCalledWith('alex-garcia'));
+    expect(deleteProfessionalPermanently).not.toHaveBeenCalled();
   });
 });
