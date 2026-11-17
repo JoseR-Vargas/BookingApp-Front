@@ -1,3 +1,5 @@
+import ProfessionalAvatar from '../ui/ProfessionalAvatar.jsx';
+
 /** One selectable professional in step 2 (legacy renderProfessionalCard). */
 export default function ProfessionalCard({ professional, selected, onSelect }) {
   return (
@@ -15,6 +17,12 @@ export default function ProfessionalCard({ professional, selected, onSelect }) {
       {/* One wrapper so the content stays top-aligned (a <button> would center it vertically).
           On <=768px (mobile-first usage) the card becomes a compact row: name, specialty, stats. */}
       <div className="w-full cq-compact:flex cq-compact:items-center cq-compact:gap-3 cq-compact:text-left">
+        <ProfessionalAvatar
+          name={professional.name}
+          photoUrl={professional.photoUrl}
+          size="md"
+          className="mx-auto mb-3 cq-compact:mx-0 cq-compact:mb-0"
+        />
         <div className="cq-compact:min-w-0 cq-compact:flex-1">
           <h6 className="mb-2 font-semibold text-text-primary cq-compact:mb-0 cq-compact:text-[0.95rem] cq-compact:leading-snug">
             {professional.name}

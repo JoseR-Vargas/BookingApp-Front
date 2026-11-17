@@ -15,6 +15,8 @@ import {
   saveBranding,
   uploadLogo,
   deleteLogo,
+  uploadProfessionalPhoto,
+  deleteProfessionalPhoto,
 } from './adminService.js';
 import { authService } from './authService.js';
 import { APP_CONFIG } from '../config/appConfig.js';
@@ -100,6 +102,9 @@ describe('adminService config endpoints', () => {
     ['saveBranding', () => saveBranding({ businessName: 'Pepe', colors: { accent: '#c9a96e' } }), 'PUT', '/api/admin/branding', { businessName: 'Pepe', colors: { accent: '#c9a96e' } }],
     ['uploadLogo', () => uploadLogo('data:image/png;base64,AAAA'), 'PUT', '/api/admin/branding/logo', { dataUrl: 'data:image/png;base64,AAAA' }],
     ['deleteLogo', () => deleteLogo(), 'DELETE', '/api/admin/branding/logo', undefined],
+    ['uploadProfessionalPhoto', () => uploadProfessionalPhoto('ana', 'data:image/jpeg;base64,AAAA'), 'PUT', '/api/admin/professionals/ana/photo', { dataUrl: 'data:image/jpeg;base64,AAAA' }],
+    ['deleteProfessionalPhoto', () => deleteProfessionalPhoto('ana'), 'DELETE', '/api/admin/professionals/ana/photo', undefined],
+    ['createProfessional with a photo', () => createProfessional({ name: 'Ana', photoDataUrl: 'data:image/jpeg;base64,AAAA' }), 'POST', '/api/admin/professionals', { name: 'Ana', photoDataUrl: 'data:image/jpeg;base64,AAAA' }],
   ];
 
   it.each(cases)('%s sends the Bearer admin key to the right route', async (_name, call, method, path, body) => {
