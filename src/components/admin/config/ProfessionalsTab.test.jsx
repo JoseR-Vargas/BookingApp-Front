@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ADMIN_CATALOG } from '../../../test/catalogFixture.js';
@@ -7,12 +7,25 @@ vi.mock('../../../services/adminService.js', () => ({
   createProfessional: vi.fn(),
   updateProfessional: vi.fn(),
   deleteProfessional: vi.fn(),
+  uploadProfessionalPhoto: vi.fn(),
+  deleteProfessionalPhoto: vi.fn(),
+}));
+vi.mock('../../../utils/resizeImage.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  resizeToSquareJpeg: vi.fn(),
 }));
 vi.mock('../../../ui/toast.js', () => ({
   toast: { show: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }));
 
-import { createProfessional, deleteProfessional, updateProfessional } from '../../../services/adminService.js';
+import {
+  createProfessional,
+  deleteProfessional,
+  deleteProfessionalPhoto,
+  updateProfessional,
+  uploadProfessionalPhoto,
+} from '../../../services/adminService.js';
+import { INVALID_PHOTO_MESSAGE, UNREADABLE_PHOTO_MESSAGE, resizeToSquareJpeg } from '../../../utils/resizeImage.js';
 import { toast } from '../../../ui/toast.js';
 import ProfessionalsTab from './ProfessionalsTab.jsx';
 
@@ -23,9 +36,9 @@ const professionals = [
 
 let onChanged;
 
-function setup() {
+function setup(list = professionals) {
   onChanged = vi.fn();
-  render(<ProfessionalsTab professionals={professionals} onChanged={onChanged} />);
+  render(<ProfessionalsTab professionals={list} onChanged={onChanged} />);
   return userEvent.setup();
 }
 
@@ -165,5 +178,177 @@ describe('ProfessionalsTab edit and activation', () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Professional not found'));
     expect(onChanged).not.toHaveBeenCalled();
+  });
+});
+
+const PHOTO_URL = '/api/catalog/professionals/alex-garcia/photo?v=5';
+const NEW_PHOTO = 'data:image/jpeg;base64,NEWPHOTO';
+const withPhoto = [{ ...professionals[0], photoUrl: PHOTO_URL }, ...professionals.slice(1)];
+const pick = (file) => fireEvent.change(screen.getByTestId('professional-photo-input'), { target: { files: [file] } });
+const imageFile = (type = 'image/png') => new File([new Uint8Array(2048)], 'foto', { type });
+const rowImage = (id) => screen.getByTestId(`professional-row-${id}`).querySelector('img');
+
+describe('ProfessionalsTab list photos', () => {
+  it('shows the photo, or the initials without one, next to each name', () => {
+    setup(withPhoto);
+
+    expect(rowImage('alex-garcia')).toHaveAttribute('src', expect.stringContaining(PHOTO_URL));
+    expect(rowImage('alex-garcia')).toHaveClass('rounded-full');
+    const withoutPhoto = screen.getByTestId('professional-row-maria-lopez');
+    expect(withoutPhoto.querySelector('img')).toBeNull();
+    expect(within(withoutPhoto).getByText('ML')).toBeInTheDocument();
+  });
+});
+
+describe('ProfessionalsTab photo on create', () => {
+  it('offers an optional profile photo field with a round preview', async () => {
+    const user = setup();
+    await user.click(screen.getByRole('button', { name: /Nuevo profesional/ }));
+
+    expect(screen.getByLabelText(/Foto de perfil/)).toBe(screen.getByTestId('professional-photo-input'));
+    expect(screen.getByTestId('professional-photo-input')).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp');
+    expect(screen.queryByRole('button', { name: 'Quitar foto' })).not.toBeInTheDocument();
+  });
+
+  it('resizes the picked photo, previews it round and creates the professional with it', async () => {
+    const user = setup();
+    resizeToSquareJpeg.mockResolvedValue(NEW_PHOTO);
+    createProfessional.mockResolvedValue({ id: 'ana' });
+    await user.click(screen.getByRole('button', { name: /Nuevo profesional/ }));
+    await user.type(screen.getByTestId('professional-name-input'), 'Ana Prueba');
+
+    const file = imageFile();
+    pick(file);
+
+    const preview = await screen.findByTestId('professional-photo-preview');
+    await waitFor(() => expect(preview.querySelector('img')).toHaveAttribute('src', NEW_PHOTO));
+    expect(preview.querySelector('img')).toHaveClass('rounded-full');
+    expect(resizeToSquareJpeg).toHaveBeenCalledWith(file);
+
+    await user.click(screen.getByTestId('professional-save'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(createProfessional).toHaveBeenCalledWith({
+      name: 'Ana Prueba',
+      specialty: '',
+      experience: '',
+      photoDataUrl: NEW_PHOTO,
+    });
+    expect(uploadProfessionalPhoto).not.toHaveBeenCalled();
+  });
+
+  it('"Quitar foto" drops the picked photo before saving', async () => {
+    const user = setup();
+    resizeToSquareJpeg.mockResolvedValue(NEW_PHOTO);
+    createProfessional.mockResolvedValue({ id: 'ana' });
+    await user.click(screen.getByRole('button', { name: /Nuevo profesional/ }));
+    await user.type(screen.getByTestId('professional-name-input'), 'Ana Prueba');
+    pick(imageFile());
+    await user.click(await screen.findByRole('button', { name: 'Quitar foto' }));
+
+    expect(screen.getByTestId('professional-photo-preview').querySelector('img')).toBeNull();
+    await user.click(screen.getByTestId('professional-save'));
+    await waitFor(() => expect(createProfessional).toHaveBeenCalled());
+    expect(createProfessional.mock.calls[0][0]).not.toHaveProperty('photoDataUrl');
+  });
+
+  it('shows the file error under the field and never resizes or uploads an invalid file', async () => {
+    const user = setup();
+    resizeToSquareJpeg.mockRejectedValue(new Error(INVALID_PHOTO_MESSAGE));
+    await user.click(screen.getByRole('button', { name: /Nuevo profesional/ }));
+
+    pick(imageFile('image/svg+xml'));
+
+    expect(await screen.findByTestId('professional-photo-error')).toHaveTextContent(INVALID_PHOTO_MESSAGE);
+    expect(createProfessional).not.toHaveBeenCalled();
+    expect(screen.getByTestId('professional-photo-preview').querySelector('img')).toBeNull();
+  });
+
+  it('shows the "cannot read" message for an image the browser cannot decode', async () => {
+    const user = setup();
+    resizeToSquareJpeg.mockRejectedValue(new Error(UNREADABLE_PHOTO_MESSAGE));
+    await user.click(screen.getByRole('button', { name: /Nuevo profesional/ }));
+
+    pick(imageFile('image/jpeg'));
+
+    expect(await screen.findByTestId('professional-photo-error')).toHaveTextContent(UNREADABLE_PHOTO_MESSAGE);
+  });
+});
+
+describe('ProfessionalsTab photo on edit', () => {
+  const openEdit = async (user) => user.click(screen.getByTestId('professional-edit-alex-garcia'));
+
+  it('shows the current photo and keeps it untouched when nothing is changed', async () => {
+    const user = setup(withPhoto);
+    updateProfessional.mockResolvedValue({});
+    await openEdit(user);
+
+    expect(screen.getByTestId('professional-photo-preview').querySelector('img')).toHaveAttribute(
+      'src',
+      expect.stringContaining(PHOTO_URL),
+    );
+    await user.click(screen.getByTestId('professional-save'));
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(uploadProfessionalPhoto).not.toHaveBeenCalled();
+    expect(deleteProfessionalPhoto).not.toHaveBeenCalled();
+  });
+
+  it('uploads a new photo after the data update, only on save', async () => {
+    const user = setup(withPhoto);
+    resizeToSquareJpeg.mockResolvedValue(NEW_PHOTO);
+    updateProfessional.mockResolvedValue({});
+    uploadProfessionalPhoto.mockResolvedValue({});
+    await openEdit(user);
+
+    pick(imageFile());
+    await waitFor(() => expect(resizeToSquareJpeg).toHaveBeenCalled());
+    expect(uploadProfessionalPhoto).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId('professional-save'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(updateProfessional).toHaveBeenCalledWith('alex-garcia', expect.not.objectContaining({ photoDataUrl: expect.anything() }));
+    expect(uploadProfessionalPhoto).toHaveBeenCalledWith('alex-garcia', NEW_PHOTO);
+  });
+
+  it('removes the current photo on save with "Quitar foto"', async () => {
+    const user = setup(withPhoto);
+    updateProfessional.mockResolvedValue({});
+    deleteProfessionalPhoto.mockResolvedValue({});
+    await openEdit(user);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar foto' }));
+    expect(screen.getByTestId('professional-photo-preview').querySelector('img')).toBeNull();
+    expect(deleteProfessionalPhoto).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId('professional-save'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(deleteProfessionalPhoto).toHaveBeenCalledWith('alex-garcia');
+  });
+
+  it('does not call the delete endpoint for a professional that never had a photo', async () => {
+    const user = setup();
+    updateProfessional.mockResolvedValue({});
+    await openEdit(user);
+
+    expect(screen.queryByRole('button', { name: 'Quitar foto' })).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('professional-save'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(deleteProfessionalPhoto).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed photo after the data was saved, and still refreshes the list', async () => {
+    const user = setup(withPhoto);
+    resizeToSquareJpeg.mockResolvedValue(NEW_PHOTO);
+    updateProfessional.mockResolvedValue({});
+    uploadProfessionalPhoto.mockRejectedValue(new Error('La foto debe ser PNG, JPG o WebP de hasta 200 KB.'));
+    await openEdit(user);
+    pick(imageFile());
+    await waitFor(() => expect(resizeToSquareJpeg).toHaveBeenCalled());
+
+    await user.click(screen.getByTestId('professional-save'));
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('La foto debe ser PNG, JPG o WebP de hasta 200 KB.'));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('datos'));
   });
 });

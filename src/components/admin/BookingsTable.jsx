@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { usePrelineInstance } from '../../lib/usePrelineInstance.js';
 import { CONTROL_CLASSES } from '../ui/controls.js';
+import ProfessionalAvatar from '../ui/ProfessionalAvatar.jsx';
 import { getProfessionalName } from '../../utils/adminStats.js';
 import { getBookingServices, getBookingTotalPrice } from '../../utils/bookingServices.js';
 import { formatBookingDate } from '../../utils/format.js';
@@ -49,8 +50,10 @@ const SORTABLE =
 // Only a confirmed booking can be cancelled; a cancelled one is kept in the history and marked.
 const CANCELLED_BADGE = 'mt-1 inline-block rounded-full border border-error px-2 py-0.5 text-xs font-medium text-error';
 
-function BookingRow({ booking, onDelete, onCancel }) {
+function BookingRow({ booking, professionalPhotos, onDelete, onCancel }) {
   const notes = decodeEntities(booking.notes);
+  const professionalName = getProfessionalName(booking);
+  const professionalId = booking.professional && booking.professional.id;
   const canCancel = Boolean(onCancel) && booking.status === 'confirmed';
   return (
     <tr className={TR}>
@@ -81,7 +84,13 @@ function BookingRow({ booking, onDelete, onCancel }) {
       {/* data-order: datatables sorts by the ISO date instead of the localized text. */}
       <td className={TD} data-order={booking.date}>{formatBookingDate(booking.date)}</td>
       <td className={TD}>{booking.time}</td>
-      <td className={TD}>{getProfessionalName(booking)}</td>
+      {/* data-order / data-search: datatables sorts and searches by the name, not by the initials of the avatar. */}
+      <td className={TD} data-order={professionalName} data-search={professionalName}>
+        <div className="flex items-center gap-2">
+          <ProfessionalAvatar name={professionalName} photoUrl={professionalPhotos[professionalId]} size="sm" />
+          <span>{professionalName}</span>
+        </div>
+      </td>
       <td className={TD}>
         {notes ? (
           <div className={NOTES_CELL}>
@@ -170,7 +179,7 @@ function bookingsSignature(bookings) {
  * Cell text is read by datatables from the DOM (no `data`/`render` options), so booking fields are
  * never interpreted as HTML.
  */
-function BookingsDataTable({ bookings, onDelete, onCancel, viewState }) {
+function BookingsDataTable({ bookings, professionalPhotos, onDelete, onCancel, viewState }) {
   const rootRef = useRef(null);
 
   usePrelineInstance(
@@ -229,7 +238,7 @@ function BookingsDataTable({ bookings, onDelete, onCancel, viewState }) {
             </thead>
             <tbody className={TBODY}>
               {bookings.map((booking) => (
-                <BookingRow key={booking._id} booking={booking} onDelete={onDelete} onCancel={onCancel} />
+                <BookingRow key={booking._id} booking={booking} professionalPhotos={professionalPhotos} onDelete={onDelete} onCancel={onCancel} />
               ))}
             </tbody>
           </table>
@@ -287,7 +296,7 @@ function EmptyBookingsTable() {
  * Full bookings table. `onDelete` and `onCancel` (optional: without it no cancel button is shown)
  * receive the booking OBJECT: the id never travels through string-built HTML. Every user-provided string is decoded and rendered as text.
  */
-export default function BookingsTable({ bookings, onDelete, onCancel }) {
+export default function BookingsTable({ bookings, professionalPhotos = {}, onDelete, onCancel }) {
   // Search text / sort order to carry over when the table has to be rebuilt after a data change.
   const viewState = useRef({ search: '', order: [] });
 
@@ -298,7 +307,8 @@ export default function BookingsTable({ bookings, onDelete, onCancel }) {
 
   return (
     <BookingsDataTable
-      key={bookingsSignature(bookings)}
+      professionalPhotos={professionalPhotos}
+      key={`${bookingsSignature(bookings)}|${JSON.stringify(professionalPhotos)}`}
       bookings={bookings}
       onDelete={onDelete}
       onCancel={onCancel}

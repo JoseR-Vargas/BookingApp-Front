@@ -45,6 +45,13 @@ export const getAdminCatalog = () => adminRequest('GET', '/api/admin/catalog');
 
 export const createProfessional = (data) => adminRequest('POST', '/api/admin/professionals', data);
 export const updateProfessional = (id, data) => adminRequest('PATCH', '/api/admin/professionals/' + id, data);
+
+// Profile photo (SPEC 04). `createProfessional` also takes an optional `photoDataUrl` so the
+// professional and the photo are saved in one request. Both data URLs come from resizeToSquareJpeg.
+/** @param dataUrl {string} 'data:image/jpeg;base64,...' (PNG, JPEG or WebP, up to 200 KB) */
+export const uploadProfessionalPhoto = (id, dataUrl) =>
+  adminRequest('PUT', '/api/admin/professionals/' + id + '/photo', { dataUrl });
+export const deleteProfessionalPhoto = (id) => adminRequest('DELETE', '/api/admin/professionals/' + id + '/photo');
 export const deleteProfessional = (id) => adminRequest('DELETE', '/api/admin/professionals/' + id);
 
 export const createService = (data) => adminRequest('POST', '/api/admin/services', data);

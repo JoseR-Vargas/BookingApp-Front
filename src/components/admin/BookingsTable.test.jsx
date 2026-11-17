@@ -337,3 +337,40 @@ describe('RecentBookingsTable', () => {
     expect(screen.getAllByText(XSS)).toHaveLength(2);
   });
 });
+
+
+describe('BookingsTable professional photos', () => {
+  const photos = { 'alex-garcia': '/api/catalog/professionals/alex-garcia/photo?v=5' };
+  const alex = (over = {}) => booking({ professional: { id: 'alex-garcia', name: 'Alex García' }, ...over });
+  const professionalCell = () => within(screen.getAllByRole('row')[1]).getAllByRole('cell')[5];
+
+  it('shows the round photo next to the professional name', () => {
+    render(<BookingsTable bookings={[alex()]} professionalPhotos={photos} onDelete={vi.fn()} />);
+
+    const image = professionalCell().querySelector('img');
+    expect(image).toHaveAttribute('src', expect.stringContaining(photos['alex-garcia']));
+    expect(image).toHaveClass('rounded-full');
+    expect(professionalCell()).toHaveTextContent('Alex García');
+  });
+
+  it('shows the initials when the professional has no photo or is unknown', () => {
+    render(<BookingsTable bookings={[alex({ professional: { id: 'maria-lopez', name: 'María López' } })]} professionalPhotos={photos} onDelete={vi.fn()} />);
+
+    expect(professionalCell().querySelector('img')).toBeNull();
+    expect(within(professionalCell()).getByText('ML')).toBeInTheDocument();
+  });
+
+  it('works without the photos prop and for bookings with no professional id', () => {
+    render(<BookingsTable bookings={[booking()]} onDelete={vi.fn()} />);
+
+    expect(professionalCell()).toHaveTextContent('Alex García');
+    expect(professionalCell().querySelector('img')).toBeNull();
+  });
+
+  it('sorts and searches by the name, not by the initials next to it', () => {
+    render(<BookingsTable bookings={[alex()]} professionalPhotos={photos} onDelete={vi.fn()} />);
+
+    expect(professionalCell()).toHaveAttribute('data-order', 'Alex García');
+    expect(professionalCell()).toHaveAttribute('data-search', 'Alex García');
+  });
+});

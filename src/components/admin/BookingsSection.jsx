@@ -1,6 +1,7 @@
 import Button from '../ui/Button.jsx';
 import { CONTROL_CLASSES } from '../ui/controls.js';
 import DatePicker from '../ui/DatePicker.jsx';
+import { useProfessionalPhotos } from '../../hooks/useProfessionalPhotos.js';
 import { formatMoney } from '../../utils/format.js';
 import BookingsTable from './BookingsTable.jsx';
 import Card from './Card.jsx';
@@ -19,6 +20,8 @@ export default function BookingsSection({
   onDelete,
   onCancel,
 }) {
+  const professionalPhotos = useProfessionalPhotos();
+
   return (
     <section aria-label="Reservas">
       <SectionHeader title="Gestión de Reservas" />
@@ -56,7 +59,12 @@ export default function BookingsSection({
       </div>
 
       <Card>
-        <BookingsTable bookings={bookings} onDelete={onDelete} onCancel={onCancel} />
+        <BookingsTable
+          bookings={bookings}
+          professionalPhotos={professionalPhotos}
+          onDelete={onDelete}
+          onCancel={onCancel}
+        />
       </Card>
     </section>
   );

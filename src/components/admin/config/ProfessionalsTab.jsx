@@ -1,8 +1,16 @@
-import { useState } from 'react';
-import { createProfessional, deleteProfessional, updateProfessional } from '../../../services/adminService.js';
+import { useRef, useState } from 'react';
+import {
+  createProfessional,
+  deleteProfessional,
+  deleteProfessionalPhoto,
+  updateProfessional,
+  uploadProfessionalPhoto,
+} from '../../../services/adminService.js';
 import { toast } from '../../../ui/toast.js';
+import { PHOTO_TYPES, resizeToSquareJpeg } from '../../../utils/resizeImage.js';
 import Button from '../../ui/Button.jsx';
 import ConfirmDialog from '../../ui/ConfirmDialog.jsx';
+import ProfessionalAvatar from '../../ui/ProfessionalAvatar.jsx';
 import Card from '../Card.jsx';
 import {
   EMPTY_CELL, LINK_BUTTON, TABLE, TABLE_SCROLL, TABLE_WRAPPER, TBODY, TD, TD_ACTIONS, TD_FIRST, TH, TH_END, TH_START, TR,
@@ -20,6 +28,38 @@ function ProfessionalForm({ professional, onSaved, onCancel }) {
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Profile photo (SPEC 04): `newPhoto` is the resized data URL picked in this form (uploaded on
+  // save); `photoRemoved` marks the current photo for deletion on save.
+  const [newPhoto, setNewPhoto] = useState(null);
+  const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const fileInput = useRef(null);
+
+  const currentPhotoUrl = editing && !photoRemoved ? professional.photoUrl || null : null;
+  const previewUrl = newPhoto || currentPhotoUrl;
+
+  const handlePhotoPick = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (fileInput.current) fileInput.current.value = '';
+    if (!file) return;
+    setPhotoError('');
+    setPhotoBusy(true);
+    try {
+      setNewPhoto(await resizeToSquareJpeg(file));
+      setPhotoRemoved(false);
+    } catch (err) {
+      setPhotoError(err.message);
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const handlePhotoRemove = () => {
+    setNewPhoto(null);
+    setPhotoRemoved(true);
+    setPhotoError('');
+  };
 
   const bind = (key) => ({
     value: form[key],
@@ -42,19 +82,59 @@ function ProfessionalForm({ professional, onSaved, onCancel }) {
     setError('');
     try {
       if (editing) await updateProfessional(professional.id, data);
-      else await createProfessional(data);
-      toast.success(editing ? 'Profesional actualizado' : 'Profesional creado');
-      onSaved();
+      else await createProfessional(newPhoto ? { ...data, photoDataUrl: newPhoto } : data);
     } catch (err) {
       setError(err.message);
       setSaving(false);
+      return;
     }
+
+    // Creating sends the photo with the professional. Editing changes it right after the data.
+    if (editing && (newPhoto || (photoRemoved && professional.photoUrl))) {
+      try {
+        if (newPhoto) await uploadProfessionalPhoto(professional.id, newPhoto);
+        else await deleteProfessionalPhoto(professional.id);
+      } catch (err) {
+        toast.error(`Los datos se guardaron, pero la foto no: ${err.message}`);
+        onSaved();
+        return;
+      }
+    }
+    toast.success(editing ? 'Profesional actualizado' : 'Profesional creado');
+    onSaved();
   };
 
   return (
     <div className="mb-6">
       <Card title={editing ? 'Editar profesional' : 'Nuevo profesional'}>
         <form onSubmit={handleSubmit} noValidate>
+          <div className="mb-6 flex flex-wrap items-center gap-4">
+            <div data-testid="professional-photo-preview">
+              <ProfessionalAvatar name={form.name} photoUrl={previewUrl} size="lg" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="professional-photo" className="text-sm font-semibold text-text-secondary">
+                Foto de perfil (opcional)
+              </label>
+              <input
+                id="professional-photo"
+                ref={fileInput}
+                data-testid="professional-photo-input"
+                type="file"
+                accept={PHOTO_TYPES.join(',')}
+                disabled={photoBusy || saving}
+                onChange={handlePhotoPick}
+                className="text-sm text-text-secondary file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-border file:bg-bg-tertiary file:px-3 file:py-1.5 file:text-text-primary"
+              />
+              <p className="text-xs text-text-muted">PNG, JPG o WebP. Se recorta en círculo desde el centro.</p>
+            </div>
+            {previewUrl && (
+              <Button variant="outline" size="sm" disabled={photoBusy || saving} onClick={handlePhotoRemove}>
+                Quitar foto
+              </Button>
+            )}
+          </div>
+          <FormError message={photoError} testId="professional-photo-error" />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Field id="professional-name" label="Nombre">
               <input id="professional-name" data-testid="professional-name-input" type="text" className={CONTROL} {...bind('name')} />
@@ -154,7 +234,12 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
                 )}
                 {professionals.map((professional) => (
                   <tr key={professional.id} data-testid={`professional-row-${professional.id}`} className={TR}>
-                    <td className={TD_FIRST}>{professional.name}</td>
+                    <td className={TD_FIRST}>
+                      <div className="flex items-center gap-3">
+                        <ProfessionalAvatar name={professional.name} photoUrl={professional.photoUrl} size="sm" />
+                        <span>{professional.name}</span>
+                      </div>
+                    </td>
                     <td className={TD}>{professional.specialty}</td>
                     <td className={TD}>{professional.experience}</td>
                     <td className={TD}><ActiveBadge active={professional.active} /></td>
