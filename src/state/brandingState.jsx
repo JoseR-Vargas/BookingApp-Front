@@ -72,7 +72,7 @@ export function BrandingProvider({ children }) {
 }
 
 /**
- * @returns {{businessName: string|null, colors: {accent: string, background: string, text: string, accentSecondary: string|null},
+ * @returns {{businessName: string|null, colors: {accent: string, background: string, text: string, button: string|null},
  *   logoUrl: string|null, status: 'loading'|'ready'|'error', refresh: () => Promise<void>, setBranding: (data: object) => void}}
  */
 export function useBranding() {

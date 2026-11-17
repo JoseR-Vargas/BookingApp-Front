@@ -4,7 +4,7 @@ import { brandLogoSrc, getBranding } from './brandingService.js';
 
 const BRANDING = {
   businessName: 'Barbería Don Pepe',
-  colors: { accent: '#c9a96e', background: '#0d0d0d', text: '#f5f0e8', accentSecondary: null },
+  colors: { accent: '#c9a96e', background: '#0d0d0d', text: '#f5f0e8', button: null },
   logoUrl: '/api/branding/logo?v=1763300000000',
 };
 

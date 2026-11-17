@@ -15,7 +15,7 @@ vi.mock('../../../ui/toast.js', () => ({ toast: { success: vi.fn(), error: vi.fn
 
 const SAVED = {
   businessName: 'Barbería Don Pepe',
-  colors: { accent: '#c9a96e', background: '#0d0d0d', text: '#f5f0e8', accentSecondary: null },
+  colors: { accent: '#c9a96e', background: '#0d0d0d', text: '#f5f0e8', button: null },
   logoUrl: null,
 };
 
@@ -72,7 +72,7 @@ describe('BrandingTab', () => {
 
     expect(saveBranding).toHaveBeenCalledWith({
       businessName: 'Peluquería Sol',
-      colors: { accent: '#3399ff', background: '#0d0d0d', text: '#f5f0e8', accentSecondary: null },
+      colors: { accent: '#3399ff', background: '#0d0d0d', text: '#f5f0e8', button: null },
     });
     await waitFor(() => expect(setBranding).toHaveBeenCalledWith(saved));
     expect(toast.success).toHaveBeenCalledWith('Marca guardada');
@@ -102,18 +102,18 @@ describe('BrandingTab', () => {
     expect(saveBranding).not.toHaveBeenCalled();
   });
 
-  it('sends the secondary accent only when it is enabled', async () => {
+  it('sends the button color only when it is enabled', async () => {
     const user = userEvent.setup();
     saveBranding.mockResolvedValue(SAVED);
     renderTab();
 
-    await user.click(screen.getByLabelText('Usar acento secundario'));
-    await typeHex(user, 'Acento secundario', '#e0c080');
-    expect(rootVar('--brand-accent-secondary')).toBe('#e0c080');
+    await user.click(screen.getByLabelText('Botones con otro color'));
+    await typeHex(user, 'Botones', '#e0c080');
+    expect(rootVar('--brand-button')).toBe('#e0c080');
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(saveBranding).toHaveBeenCalledWith(
-      expect.objectContaining({ colors: expect.objectContaining({ accentSecondary: '#e0c080' }) }),
+      expect.objectContaining({ colors: expect.objectContaining({ button: '#e0c080' }) }),
     );
   });
 
@@ -140,15 +140,15 @@ describe('BrandingTab', () => {
 
   it('"Restaurar colores originales" loads the default palette without saving', async () => {
     const user = userEvent.setup();
-    renderTab({ ...SAVED, colors: { accent: '#3366cc', background: '#ffffff', text: '#111111', accentSecondary: '#224488' } });
+    renderTab({ ...SAVED, colors: { accent: '#3366cc', background: '#ffffff', text: '#111111', button: '#224488' } });
 
     await user.click(screen.getByRole('button', { name: 'Restaurar colores originales' }));
 
     expect(hexInput('Acento')).toHaveValue('#f62039');
-    expect(hexInput('Fondo')).toHaveValue('#f9f2f2');
-    expect(hexInput('Texto')).toHaveValue('#111111');
-    expect(hexInput('Acento secundario')).toHaveValue('#295294');
-    expect(screen.getByLabelText('Usar acento secundario')).toBeChecked();
+    expect(hexInput('Fondo')).toHaveValue('#111111');
+    expect(hexInput('Texto')).toHaveValue('#ffffff');
+    expect(hexInput('Botones')).toHaveValue('#295294');
+    expect(screen.getByLabelText('Botones con otro color')).toBeChecked();
     expect(saveBranding).not.toHaveBeenCalled();
   });
 

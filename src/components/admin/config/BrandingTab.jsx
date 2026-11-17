@@ -19,7 +19,7 @@ const LOGO_ERROR = 'El logo debe ser PNG, JPG o WebP de hasta 200 KB.';
 const NAME_ERROR = `El nombre del negocio puede tener hasta ${MAX_NAME_LENGTH} caracteres.`;
 
 const COLOR_FIELDS = [
-  { key: 'accent', label: 'Acento', hint: 'Botones, enlaces y detalles destacados.' },
+  { key: 'accent', label: 'Acento', hint: 'Enlaces, bordes y detalles destacados.' },
   { key: 'background', label: 'Fondo', hint: 'Fondo de la web y del panel.' },
   { key: 'text', label: 'Texto', hint: 'Títulos y textos principales.' },
 ];
@@ -29,15 +29,15 @@ const toForm = ({ businessName, colors }) => ({
   accent: colors.accent,
   background: colors.background,
   text: colors.text,
-  useSecondary: Boolean(colors.accentSecondary),
-  accentSecondary: colors.accentSecondary || colors.accent,
+  useButton: Boolean(colors.button),
+  button: colors.button || colors.accent,
 });
 
 const toColors = (form) => ({
   accent: form.accent.toLowerCase(),
   background: form.background.toLowerCase(),
   text: form.text.toLowerCase(),
-  accentSecondary: form.useSecondary ? form.accentSecondary.toLowerCase() : null,
+  button: form.useButton ? form.button.toLowerCase() : null,
 });
 
 const readAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -239,24 +239,24 @@ export default function BrandingTab() {
             ))}
 
             <div>
-              <label htmlFor="branding-use-secondary" className="mb-2 flex cursor-pointer items-center gap-2 text-sm font-semibold text-text-secondary">
+              <label htmlFor="branding-use-button" className="mb-2 flex cursor-pointer items-center gap-2 text-sm font-semibold text-text-secondary">
                 <input
-                  id="branding-use-secondary"
+                  id="branding-use-button"
                   type="checkbox"
-                  checked={form.useSecondary}
-                  onChange={(event) => update({ useSecondary: event.target.checked })}
+                  checked={form.useButton}
+                  onChange={(event) => update({ useButton: event.target.checked })}
                   className="size-4 accent-[var(--color-accent)]"
                 />
-                Usar acento secundario
+                Botones con otro color
               </label>
-              {form.useSecondary && (
+              {form.useButton && (
                 <ColorField
-                  id="branding-accentSecondary"
-                  label="Acento secundario"
-                  hint="Estados al pasar el mouse y resaltados. Sin él, se calcula del acento."
-                  value={form.accentSecondary}
-                  error={colorErrors.accentSecondary}
-                  onChange={(value) => update({ accentSecondary: value })}
+                  id="branding-button"
+                  label="Botones"
+                  hint="Color de los botones principales. Sin él, los botones usan el acento."
+                  value={form.button}
+                  error={colorErrors.button}
+                  onChange={(value) => update({ button: value })}
                 />
               )}
             </div>

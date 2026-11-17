@@ -5,10 +5,10 @@ import { AdminConfigPage } from '../../pages/admin/AdminConfigPage.js';
 import { createApi } from '../../support/api.js';
 import { ADMIN_KEY, BACKEND_ORIGIN } from '../../support/env.js';
 
-const DEFAULT_COLORS = { accent: '#f62039', background: '#f9f2f2', text: '#111111', accentSecondary: '#295294' };
+const DEFAULT_COLORS = { accent: '#f62039', background: '#111111', text: '#ffffff', button: '#295294' };
 const BRAND = {
   businessName: '[TEST] Barbería Don Pepe',
-  colors: { accent: '#3366cc', background: '#ffffff', text: '#1a1a1a', accentSecondary: '#224488' },
+  colors: { accent: '#3366cc', background: '#ffffff', text: '#1a1a1a', button: '#224488' },
 };
 const HEADERS = { Authorization: `Bearer ${ADMIN_KEY}` };
 // A real PNG (magic bytes checked by the backend); no logo from any user's files.
@@ -48,13 +48,13 @@ test.describe('branding by admin, end to end', () => {
 
     const send = (data) => request.put(`${BACKEND_ORIGIN}/api/admin/branding`, { headers: HEADERS, data });
     const cases = [
-      [{ businessName: null, colors: { background: '#0d0d0d', text: '#f5f0e8', accentSecondary: null } }, 400],
+      [{ businessName: null, colors: { background: '#0d0d0d', text: '#f5f0e8', button: null } }, 400],
       [{ businessName: null, colors: { ...DEFAULT_COLORS, accent: 'gold' } }, 400],
-      [{ businessName: null, colors: { accent: '#000000', background: '#888888', text: '#777777', accentSecondary: null } }, 400],
+      [{ businessName: null, colors: { accent: '#000000', background: '#888888', text: '#777777', button: null } }, 400],
       [{ businessName: 'x'.repeat(61), colors: DEFAULT_COLORS }, 400],
       [{ businessName: '   ', colors: DEFAULT_COLORS }, 200],
-      [{ businessName: null, colors: { ...DEFAULT_COLORS, accentSecondary: null } }, 200],
-      [{ businessName: null, colors: { ...DEFAULT_COLORS, accentSecondary: DEFAULT_COLORS.background } }, 400],
+      [{ businessName: null, colors: { ...DEFAULT_COLORS, button: null } }, 200],
+      [{ businessName: null, colors: { ...DEFAULT_COLORS, button: DEFAULT_COLORS.background } }, 400],
     ];
     for (const [data, status] of cases) {
       const response = await send(data);
@@ -92,8 +92,8 @@ test.describe('branding by admin, end to end', () => {
     await hex(page, 'Fondo').fill(BRAND.colors.background);
     await hex(page, 'Texto').fill(BRAND.colors.text);
     await hex(page, 'Acento').fill(BRAND.colors.accent);
-    await page.getByLabel('Usar acento secundario').check();
-    await hex(page, 'Acento secundario').fill(BRAND.colors.accentSecondary);
+    await page.getByLabel('Botones con otro color').check();
+    await hex(page, 'Botones').fill(BRAND.colors.button);
     await page.getByLabel('Nombre del negocio').fill(BRAND.businessName);
 
     // Rejecting a bad file in the panel never sends it to the API.
@@ -129,6 +129,38 @@ test.describe('branding by admin, end to end', () => {
 
     const saved = await api.branding();
     expect(saved).toMatchObject({ businessName: BRAND.businessName, colors: DEFAULT_COLORS, logoUrl: null });
+  });
+
+  test('default palette: blue buttons (hover too) with a white label, fucsia highlighted text', async ({ page }) => {
+    await page.goto('/');
+    const reserve = page.locator('#inicio').getByRole('button', { name: 'Reservar Cita' });
+    await expect(reserve).toBeVisible();
+    const look = () => reserve.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { background: style.backgroundColor, color: style.color };
+    });
+
+    expect(await look()).toEqual({ background: 'rgb(41, 82, 148)', color: 'rgb(255, 255, 255)' });
+
+    await reserve.hover();
+    await expect.poll(async () => (await look()).background).not.toBe('rgb(41, 82, 148)');
+    // The hover transition lasts 300ms: measure the final color, not a middle frame.
+    await page.waitForTimeout(350);
+    const hovered = await look();
+    // Chrome reports mixed colors as `color(srgb ...)`: a canvas turns any CSS color into 0-255 channels.
+    const [red, green, blue] = await page.evaluate((css) => {
+      const context = document.createElement('canvas').getContext('2d');
+      context.fillStyle = css;
+      context.fillRect(0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data).slice(0, 3);
+    }, hovered.background);
+    expect(blue).toBeGreaterThan(red); // still blue, just lighter
+    expect(blue).toBeGreaterThan(green);
+    expect(red).toBeGreaterThan(41);
+    expect(hovered.color).toBe('rgb(255, 255, 255)');
+
+    const tagline = page.locator('#inicio').getByText('Reservas Online');
+    expect(await tagline.evaluate((node) => getComputedStyle(node).color)).toBe('rgb(246, 32, 57)');
   });
 });
 

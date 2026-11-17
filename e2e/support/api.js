@@ -55,7 +55,7 @@ export async function createApi() {
     async resetBranding() {
       await api.saveBranding({
         businessName: null,
-        colors: { accent: '#f62039', background: '#f9f2f2', text: '#111111', accentSecondary: '#295294' },
+        colors: { accent: '#f62039', background: '#111111', text: '#ffffff', button: '#295294' },
       });
       await api.deleteLogo();
     },

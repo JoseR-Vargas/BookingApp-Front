@@ -56,7 +56,7 @@ export const saveSchedule = (weekly) => adminRequest('PUT', '/api/admin/schedule
 
 // ----- Brand (SPEC 03): colors, business name and logo -----
 
-/** @param branding {{ businessName: string|null, colors: {accent, background, text, accentSecondary} }} */
+/** @param branding {{ businessName: string|null, colors: {accent, background, text, button} }} */
 export const saveBranding = (branding) => adminRequest('PUT', '/api/admin/branding', branding);
 /** @param dataUrl {string} 'data:image/png;base64,...' (PNG, JPEG or WebP, up to 200 KB) */
 export const uploadLogo = (dataUrl) => adminRequest('PUT', '/api/admin/branding/logo', { dataUrl });

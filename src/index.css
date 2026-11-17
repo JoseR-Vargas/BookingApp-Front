@@ -42,7 +42,7 @@
   /*
    * Every palette color derives from the four `--brand-*` variables (see the `:root` block after
    * this one). The admin "Marca" tab overrides those four at runtime, so the whole app follows.
-   * The mixes support both the light default palette and custom dark palettes from the admin.
+   * The mixes work for the black default and for any light or dark palette set from the admin.
    */
 
   /* --- Base colors --- */
@@ -53,22 +53,14 @@
 
   /* --- Accent (the only "vivid" color) --- */
   --color-accent: var(--brand-accent);
-  --color-accent-light: var(--brand-accent-secondary, color-mix(in srgb, var(--brand-accent) 70%, #ffffff));
-  --color-accent-dark: color-mix(in srgb, var(--brand-accent) 80%, #2a1a00);
+  --color-accent-light: color-mix(in srgb, var(--brand-accent) 70%, #ffffff);
+  --color-accent-dark: color-mix(in srgb, var(--brand-accent) 80%, #000000);
   --color-accent-muted: color-mix(in srgb, var(--brand-accent) 15%, transparent);
 
-  /* --- Text (secondary and muted keep a hint of the accent, like the original palette) --- */
+  /* --- Text (secondary and muted are neutral mixes of the text and the background) --- */
   --color-text-primary: var(--brand-text);
-  --color-text-secondary: color-mix(
-    in srgb,
-    color-mix(in srgb, var(--brand-text) 40%, var(--brand-accent)) 75%,
-    var(--brand-bg)
-  );
-  --color-text-muted: color-mix(
-    in srgb,
-    color-mix(in srgb, var(--brand-text) 10%, var(--brand-accent)) 40%,
-    var(--brand-bg)
-  );
+  --color-text-secondary: color-mix(in srgb, var(--brand-text) 72%, var(--brand-bg));
+  --color-text-muted: color-mix(in srgb, var(--brand-text) 45%, var(--brand-bg));
   --color-text-inverse: var(--brand-bg);
 
   /* --- Borders --- */
@@ -260,17 +252,25 @@
 }
 
 /*
- * Preline semantic tokens -> the app's gold-on-black palette. This block comes after theme.css,
+ * Preline semantic tokens -> the app's brand palette. This block comes after theme.css,
  * so it wins over both Preline's `:root` (light) and `.dark` (neutral) values. `--border` is a
  * literal because `--color-border` is both a project token and a Preline alias of `--border`.
  */
 :root {
-  /* Haas-inspired defaults: light canvas, red-pink primary actions, blue secondary accents and
-     near-black text. Runtime overrides: src/theme/brandTheme.js. */
+  /* Haas livery defaults: black canvas, white text, red-pink accents, blue buttons. `--brand-button`
+     set to `initial` (no color chosen) makes buttons follow the accent. Runtime overrides:
+     src/theme/brandTheme.js. */
   --brand-accent: #f62039;
-  --brand-bg: #f9f2f2;
-  --brand-text: #111111;
-  --brand-accent-secondary: #295294;
+  --brand-bg: #111111;
+  --brand-text: #ffffff;
+  --brand-button: #295294;
+
+  /* Buttons: their own color, or the accent when none was chosen. */
+  --button: var(--brand-button, var(--brand-accent));
+  --button-hover: color-mix(in srgb, var(--button) 90%, #ffffff);
+  --button-active: color-mix(in srgb, var(--button) 80%, #000000);
+  /* Label of the buttons: white or black, picked by JS for readability on the button color. */
+  --button-text: var(--brand-button-text, #ffffff);
 
   --background: var(--color-bg-primary);
   --background-1: var(--color-bg-secondary);
@@ -303,13 +303,13 @@
   --primary-800: color-mix(in srgb, var(--brand-accent) 65%, #000000);
   --primary-900: color-mix(in srgb, var(--brand-accent) 50%, #000000);
   --primary-950: color-mix(in srgb, var(--brand-accent) 30%, #000000);
-  --primary: var(--color-accent);
+  --primary: var(--button);
   --primary-line: transparent;
-  --primary-foreground: var(--color-text-inverse);
-  --primary-hover: var(--color-accent-light);
-  --primary-focus: var(--color-accent-light);
-  --primary-active: var(--color-accent-dark);
-  --primary-checked: var(--color-accent);
+  --primary-foreground: var(--button-text);
+  --primary-hover: var(--button-hover);
+  --primary-focus: var(--button-hover);
+  --primary-active: var(--button-active);
+  --primary-checked: var(--button);
 
   --secondary: var(--color-bg-tertiary);
   --secondary-line: var(--color-border-subtle);
