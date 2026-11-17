@@ -35,10 +35,10 @@ export function FormError({ message, testId }) {
   );
 }
 
-/** Submit button: disabled with a spinner while the request is in flight. */
-export function SaveButton({ saving, testId, children }) {
+/** Submit button: disabled with a spinner while the request is in flight, or while `disabled`. */
+export function SaveButton({ saving, disabled = false, testId, children }) {
   return (
-    <Button type="submit" size="sm" disabled={saving} data-testid={testId}>
+    <Button type="submit" size="sm" disabled={saving || disabled} data-testid={testId}>
       {saving ? (
         <>
           <Spinner className="-my-0.5" barClassName="bg-primary-foreground" />

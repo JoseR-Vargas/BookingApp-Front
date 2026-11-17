@@ -39,27 +39,41 @@
  *  - `float` keyframes: defined in legacy utilities.css but never referenced.
  */
 @theme {
+  /*
+   * Every palette color derives from the four `--brand-*` variables (see the `:root` block after
+   * this one). The admin "Marca" tab overrides those four at runtime, so the whole app follows.
+   * The mixes support both the light default palette and custom dark palettes from the admin.
+   */
+
   /* --- Base colors --- */
-  --color-bg-primary: #0d0d0d;
-  --color-bg-secondary: #141414;
-  --color-bg-tertiary: #1c1c1c;
+  --color-bg-primary: var(--brand-bg);
+  --color-bg-secondary: color-mix(in srgb, var(--brand-text) 3%, var(--brand-bg));
+  --color-bg-tertiary: color-mix(in srgb, var(--brand-text) 6.5%, var(--brand-bg));
   --color-bg-overlay: rgba(0, 0, 0, 0.75);
 
   /* --- Accent (the only "vivid" color) --- */
-  --color-accent: #c9a96e;
-  --color-accent-light: #dfc08a;
-  --color-accent-dark: #a8863e;
-  --color-accent-muted: rgba(201, 169, 110, 0.15);
+  --color-accent: var(--brand-accent);
+  --color-accent-light: var(--brand-accent-secondary, color-mix(in srgb, var(--brand-accent) 70%, #ffffff));
+  --color-accent-dark: color-mix(in srgb, var(--brand-accent) 80%, #2a1a00);
+  --color-accent-muted: color-mix(in srgb, var(--brand-accent) 15%, transparent);
 
-  /* --- Text --- */
-  --color-text-primary: #f5f0e8;
-  --color-text-secondary: #a89880;
-  --color-text-muted: #5c5040;
-  --color-text-inverse: #0d0d0d;
+  /* --- Text (secondary and muted keep a hint of the accent, like the original palette) --- */
+  --color-text-primary: var(--brand-text);
+  --color-text-secondary: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--brand-text) 40%, var(--brand-accent)) 75%,
+    var(--brand-bg)
+  );
+  --color-text-muted: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--brand-text) 10%, var(--brand-accent)) 40%,
+    var(--brand-bg)
+  );
+  --color-text-inverse: var(--brand-bg);
 
   /* --- Borders --- */
-  --color-border: rgba(201, 169, 110, 0.2);
-  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border: color-mix(in srgb, var(--brand-accent) 20%, transparent);
+  --color-border-subtle: color-mix(in srgb, var(--brand-text) 6%, transparent);
 
   /* --- States --- */
   --color-success: #4caf50;
@@ -115,7 +129,7 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
   --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.7);
-  --shadow-accent: 0 4px 20px rgba(201, 169, 110, 0.25);
+  --shadow-accent: 0 4px 20px color-mix(in srgb, var(--brand-accent) 25%, transparent);
 
   /*
    * --- Layout ---
@@ -251,6 +265,13 @@
  * literal because `--color-border` is both a project token and a Preline alias of `--border`.
  */
 :root {
+  /* Haas-inspired defaults: light canvas, red-pink primary actions, blue secondary accents and
+     near-black text. Runtime overrides: src/theme/brandTheme.js. */
+  --brand-accent: #f62039;
+  --brand-bg: #f9f2f2;
+  --brand-text: #111111;
+  --brand-accent-secondary: #295294;
+
   --background: var(--color-bg-primary);
   --background-1: var(--color-bg-secondary);
   --background-2: var(--color-bg-tertiary);
@@ -259,29 +280,29 @@
   --foreground-inverse: var(--color-text-inverse);
   --inverse: var(--color-text-primary);
 
-  --border: rgba(201, 169, 110, 0.2);
+  --border: color-mix(in srgb, var(--brand-accent) 20%, transparent);
   --border-line-inverse: var(--color-bg-primary);
   --border-line-1: var(--color-border-subtle);
-  --border-line-2: rgba(201, 169, 110, 0.2);
-  --border-line-3: rgba(201, 169, 110, 0.3);
-  --border-line-4: rgba(201, 169, 110, 0.4);
-  --border-line-5: rgba(201, 169, 110, 0.5);
+  --border-line-2: color-mix(in srgb, var(--brand-accent) 20%, transparent);
+  --border-line-3: color-mix(in srgb, var(--brand-accent) 30%, transparent);
+  --border-line-4: color-mix(in srgb, var(--brand-accent) 40%, transparent);
+  --border-line-5: color-mix(in srgb, var(--brand-accent) 50%, transparent);
   --border-line-6: var(--color-accent-dark);
   --border-line-7: var(--color-accent);
   --border-line-8: var(--color-accent-light);
 
-  /* Gold scale; 500 is the brand accent and --primary points at it. */
-  --primary-50: #fbf7ef;
-  --primary-100: #f4ecda;
-  --primary-200: #e9d9b5;
-  --primary-300: #dfc08a;
-  --primary-400: #d4b57a;
-  --primary-500: #c9a96e;
-  --primary-600: #c9a96e;
-  --primary-700: #a8863e;
-  --primary-800: #876b30;
-  --primary-900: #655024;
-  --primary-950: #3d3015;
+  /* Accent scale; 500 is the brand accent and --primary points at it. */
+  --primary-50: color-mix(in srgb, var(--brand-accent) 10%, #ffffff);
+  --primary-100: color-mix(in srgb, var(--brand-accent) 25%, #ffffff);
+  --primary-200: color-mix(in srgb, var(--brand-accent) 50%, #ffffff);
+  --primary-300: color-mix(in srgb, var(--brand-accent) 75%, #ffffff);
+  --primary-400: color-mix(in srgb, var(--brand-accent) 88%, #ffffff);
+  --primary-500: var(--brand-accent);
+  --primary-600: var(--brand-accent);
+  --primary-700: color-mix(in srgb, var(--brand-accent) 80%, #000000);
+  --primary-800: color-mix(in srgb, var(--brand-accent) 65%, #000000);
+  --primary-900: color-mix(in srgb, var(--brand-accent) 50%, #000000);
+  --primary-950: color-mix(in srgb, var(--brand-accent) 30%, #000000);
   --primary: var(--color-accent);
   --primary-line: transparent;
   --primary-foreground: var(--color-text-inverse);
@@ -306,8 +327,8 @@
   --layer-active: var(--color-bg-secondary);
 
   --surface: var(--color-bg-tertiary);
-  --surface-1: #242424;
-  --surface-2: #2c2c2c;
+  --surface-1: color-mix(in srgb, var(--brand-text) 10%, var(--brand-bg));
+  --surface-2: color-mix(in srgb, var(--brand-text) 13.5%, var(--brand-bg));
   --surface-3: var(--color-text-muted);
   --surface-4: var(--color-text-secondary);
   --surface-5: var(--color-text-secondary);

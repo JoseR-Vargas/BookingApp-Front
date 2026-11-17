@@ -25,6 +25,9 @@ export async function createApi() {
     // Public routes, no key. The cancel helpers return the raw response so a test can assert the status.
     getCancellation: (token) => ctx.get(`/api/bookings/cancel/${token}`),
     cancelByToken: (token) => ctx.post(`/api/bookings/cancel/${token}`),
+    branding: async () => json(await ctx.get(`/api/branding`)),
+    saveBranding: async (data) => json(await ctx.put(`/api/admin/branding`, { headers: AUTH, data })),
+    deleteLogo: async () => json(await ctx.delete(`/api/admin/branding/logo`, { headers: AUTH })),
 
     /** Books through the public API. Returns the created booking plus its one-time `cancelToken`. */
     createBooking: async ({ client, date, time, serviceId = 'consulta-inicial', professionalId = 'alex-garcia' }) => json(
@@ -46,6 +49,15 @@ export async function createApi() {
       if (!catalog.professionals.some((p) => p.id === 'alex-garcia')) throw new Error('Database was not seeded');
       const foreign = (await api.bookings()).filter((b) => !isFake(b));
       if (foreign.length > 0) throw new Error('Database holds non-E2E bookings: refusing to run');
+    },
+
+    /** Resets only branding; the collection is global to the throwaway database. */
+    async resetBranding() {
+      await api.saveBranding({
+        businessName: null,
+        colors: { accent: '#f62039', background: '#f9f2f2', text: '#111111', accentSecondary: '#295294' },
+      });
+      await api.deleteLogo();
     },
 
     // Removes the bookings of this suite (and of earlier aborted runs) and restores the global config.

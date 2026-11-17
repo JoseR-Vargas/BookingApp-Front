@@ -53,3 +53,11 @@ export const deleteService = (id) => adminRequest('DELETE', '/api/admin/services
 
 /** @param weekly {Record<0..6, {closed:true}|{closed:false,open:'HH:mm',close:'HH:mm'}>} all 7 days */
 export const saveSchedule = (weekly) => adminRequest('PUT', '/api/admin/schedule', { weekly });
+
+// ----- Brand (SPEC 03): colors, business name and logo -----
+
+/** @param branding {{ businessName: string|null, colors: {accent, background, text, accentSecondary} }} */
+export const saveBranding = (branding) => adminRequest('PUT', '/api/admin/branding', branding);
+/** @param dataUrl {string} 'data:image/png;base64,...' (PNG, JPEG or WebP, up to 200 KB) */
+export const uploadLogo = (dataUrl) => adminRequest('PUT', '/api/admin/branding/logo', { dataUrl });
+export const deleteLogo = () => adminRequest('DELETE', '/api/admin/branding/logo');
