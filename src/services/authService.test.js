@@ -43,6 +43,25 @@ describe('authService', () => {
     expect(init.headers.Authorization).toBe(`Bearer ${GOOD_KEY}`);
   });
 
+  it('sends the typed username in X-Admin-Username, as the backend can require it', async () => {
+    await authService.login('barberia', GOOD_KEY);
+
+    const [, init] = fetch.mock.calls[0];
+    expect(init.headers['X-Admin-Username']).toBe('barberia');
+    expect(init.headers.Authorization).toBe(`Bearer ${GOOD_KEY}`);
+  });
+
+  it('counts a username the backend rejects as a wrong login, like a wrong key', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ statusCode: 401, message: 'Invalid or missing admin key', error: 'Unauthorized' }),
+    })));
+
+    await expect(authService.login('otro', GOOD_KEY)).rejects.toThrow(/Usuario o contraseña incorrectos/);
+    expect(sessionStorage.getItem('isAdmin')).toBeNull();
+  });
+
   it('stores the session and the key on a valid key', async () => {
     const result = await authService.login('admin', GOOD_KEY);
     expect(result).toEqual({ username: 'admin' });

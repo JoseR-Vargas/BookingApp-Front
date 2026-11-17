@@ -2,14 +2,18 @@
 // Lógica del panel admin — sin referencias al DOM.
 
 import { apiClient } from '../core/apiClient.js';
-import { authService, getAdminKey } from './authService.js';
+import { authService, getAdminKey, getAdminUser } from './authService.js';
 
 // Every admin route requires the admin key (`Authorization: Bearer <ADMIN_API_KEY>`). This is the
 // single place where an expired/invalid key is handled: the session is cleared and the
 // browser goes back to /login (hard navigation, so no stale panel state survives). The error is
 // still rethrown so callers stop their own flow.
 async function adminRequest(method, path, body) {
-  const options = { headers: { Authorization: 'Bearer ' + (getAdminKey() || '') } };
+  const headers = { Authorization: 'Bearer ' + (getAdminKey() || '') };
+  // The backend requires the username too when it has ADMIN_USERNAME configured.
+  const user = getAdminUser();
+  if (user) headers['X-Admin-Username'] = user;
+  const options = { headers };
   try {
     if (method === 'GET' || method === 'DELETE') {
       return await apiClient[method.toLowerCase()](path, options);

@@ -5,7 +5,7 @@ import { AdminConfigPage } from '../../pages/admin/AdminConfigPage.js';
 import { createApi } from '../../support/api.js';
 import { ADMIN_KEY, BACKEND_ORIGIN } from '../../support/env.js';
 
-const DEFAULT_COLORS = { accent: '#f62039', background: '#111111', text: '#ffffff', button: '#295294' };
+const DEFAULT_COLORS = { accent: '#f62039', background: '#f9f2f2', text: '#111111', button: '#295294' };
 const BRAND = {
   businessName: '[TEST] Barbería Don Pepe',
   colors: { accent: '#3366cc', background: '#ffffff', text: '#1a1a1a', button: '#224488' },

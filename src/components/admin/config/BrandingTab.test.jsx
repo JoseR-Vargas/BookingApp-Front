@@ -145,8 +145,8 @@ describe('BrandingTab', () => {
     await user.click(screen.getByRole('button', { name: 'Restaurar colores originales' }));
 
     expect(hexInput('Acento')).toHaveValue('#f62039');
-    expect(hexInput('Fondo')).toHaveValue('#111111');
-    expect(hexInput('Texto')).toHaveValue('#ffffff');
+    expect(hexInput('Fondo')).toHaveValue('#f9f2f2');
+    expect(hexInput('Texto')).toHaveValue('#111111');
     expect(hexInput('Botones')).toHaveValue('#295294');
     expect(screen.getByLabelText('Botones con otro color')).toBeChecked();
     expect(saveBranding).not.toHaveBeenCalled();

@@ -34,6 +34,28 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
+describe('adminService username header', () => {
+  it('sends the logged-in username in X-Admin-Username with every admin request', async () => {
+    sessionStorage.setItem('adminKey', 'secret');
+    sessionStorage.setItem('adminUser', 'barberia');
+
+    await getBookings();
+
+    const [, init] = fetch.mock.calls[0];
+    expect(init.headers['X-Admin-Username']).toBe('barberia');
+    expect(init.headers.Authorization).toBe('Bearer secret');
+  });
+
+  it('omits the header when there is no username (never sends "null")', async () => {
+    sessionStorage.setItem('adminKey', 'secret');
+
+    await getBookings();
+
+    const [, init] = fetch.mock.calls[0];
+    expect(init.headers).not.toHaveProperty('X-Admin-Username');
+  });
+});
+
 describe('adminService HTTP contract', () => {
   it('getBookings => GET /api/bookings', async () => {
     await getBookings();

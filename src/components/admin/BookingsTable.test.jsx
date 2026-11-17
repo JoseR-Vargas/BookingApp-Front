@@ -367,6 +367,14 @@ describe('BookingsTable professional photos', () => {
     expect(professionalCell().querySelector('img')).toBeNull();
   });
 
+  it('never lets the name spill over the notes column: minimum width, clipped and truncating', () => {
+    render(<BookingsTable bookings={[alex()]} professionalPhotos={photos} onDelete={vi.fn()} />);
+
+    expect(professionalCell()).toHaveClass('min-w-44', 'max-w-56', 'overflow-hidden');
+    expect(within(professionalCell()).getByText('Alex García')).toHaveClass('truncate');
+    expect(professionalCell().firstElementChild).toHaveClass('min-w-0');
+  });
+
   it('sorts and searches by the name, not by the initials next to it', () => {
     render(<BookingsTable bookings={[alex()]} professionalPhotos={photos} onDelete={vi.fn()} />);
 

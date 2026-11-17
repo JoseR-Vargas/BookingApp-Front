@@ -1,7 +1,9 @@
 // ===== SERVICIO DE AUTENTICACIÓN =====
 // The admin "password" is the backend ADMIN_API_KEY: login validates it against GET /api/admin/session
 // and, when accepted, keeps it in sessionStorage so adminService can send it as a Bearer token.
-// The username is only a visible label. Brute-force lockout is kept on the client.
+// The username travels in X-Admin-Username: the backend only checks it when it has ADMIN_USERNAME
+// configured (then it is required on every admin request, together with the key). Brute-force lockout
+// is kept on the client.
 
 import { apiClient } from '../core/apiClient.js';
 
@@ -17,6 +19,10 @@ export function getAdminKey() {
   return sessionStorage.getItem('adminKey');
 }
 
+export function getAdminUser() {
+  return sessionStorage.getItem('adminUser');
+}
+
 export const authService = {
   async login(username, password) {
     if (!username || !password) {
@@ -29,7 +35,9 @@ export const authService = {
     }
 
     try {
-      await apiClient.get('/api/admin/session', { headers: { Authorization: 'Bearer ' + password } });
+      await apiClient.get('/api/admin/session', {
+        headers: { Authorization: 'Bearer ' + password, 'X-Admin-Username': username },
+      });
     } catch (error) {
       // Only a 401 means "wrong key". Anything else (network down, timeout, 5xx) says nothing about
       // the key, so it does not count towards the lockout.
@@ -67,6 +75,7 @@ export const authService = {
   },
 
   getAdminKey,
+  getAdminUser,
 
   // Test-only: clears the in-memory brute-force counters.
   _reset() {
