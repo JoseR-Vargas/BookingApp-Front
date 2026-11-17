@@ -525,6 +525,43 @@
   cursor: not-allowed;
 }
 
+/*
+ * Preline's dark calendar skin hardcodes neutral-* colors (a black popup), ignoring the brand
+ * palette. Same selectors, declared later, so the calendar follows the page background and text.
+ */
+.dark .vc:not([data-vc-theme="light"]) {
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-border-subtle);
+}
+
+.dark .vc:not([data-vc-theme="light"]) .vc-week__day,
+.dark .vc:not([data-vc-theme="light"]) .vc-arrow {
+  color: var(--color-text-muted);
+}
+
+/* Selected dates/months keep Preline's light label on the selection fill. */
+.dark .vc:not([data-vc-theme="light"]) .vc-date:not([data-vc-date-selected]),
+.dark .vc:not([data-vc-theme="light"]) .vc-month,
+.dark .vc:not([data-vc-theme="light"]) .vc-year,
+.dark .vc:not([data-vc-theme="light"]) .vc-months__month:not([data-vc-months-month-selected]),
+.dark .vc:not([data-vc-theme="light"]) .vc-years__year:not([data-vc-years-year-selected]) {
+  color: var(--color-text-primary);
+}
+
+.dark .vc:not([data-vc-theme="light"]) .vc-date[data-vc-date-month="prev"],
+.dark .vc:not([data-vc-theme="light"]) .vc-date[data-vc-date-month="next"] {
+  color: var(--color-text-muted);
+}
+
+.dark .vc:not([data-vc-theme="light"]) .vc-date[data-vc-date-hover]:not([data-vc-date-today]):not([data-vc-date-hover="first-and-last"]) {
+  background-color: var(--color-bg-tertiary);
+}
+
+.dark .vc:not([data-vc-theme="light"]) .vc-months__month,
+.dark .vc:not([data-vc-theme="light"]) .vc-years__year {
+  border-color: var(--color-border-subtle);
+}
+
 @layer base {
   /*
    * Preline's theme.css adds `* { border-color: var(--color-border) }`. Every existing component
