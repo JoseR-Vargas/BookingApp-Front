@@ -176,9 +176,9 @@ export default function BrandingTab() {
     <div className="grid gap-6">
       <Card title="Logo">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex size-20 items-center justify-center overflow-hidden rounded-md border border-border-subtle bg-bg-tertiary">
+          <div className="flex size-20 items-center justify-center overflow-hidden rounded-full border border-border-subtle bg-bg-tertiary">
             {logoSrc ? (
-              <img src={logoSrc} alt="Logo actual" className="size-full object-contain" />
+              <img src={logoSrc} alt="Logo actual" className="size-full rounded-full object-cover" />
             ) : (
               <span className="text-xs text-text-muted">Sin logo</span>
             )}

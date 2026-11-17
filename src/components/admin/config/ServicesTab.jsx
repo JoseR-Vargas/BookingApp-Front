@@ -1,8 +1,14 @@
 import { useState } from 'react';
-import { createService, deleteService, updateService } from '../../../services/adminService.js';
+import {
+  createService,
+  deleteService,
+  deleteServicePermanently,
+  updateService,
+} from '../../../services/adminService.js';
 import { toast } from '../../../ui/toast.js';
 import { formatMoney } from '../../../utils/format.js';
 import Button from '../../ui/Button.jsx';
+import ConfirmDialog from '../../ui/ConfirmDialog.jsx';
 import Card from '../Card.jsx';
 import {
   EMPTY_CELL, LINK_BUTTON, TABLE, TABLE_SCROLL, TABLE_WRAPPER, TBODY, TD, TD_ACTIONS, TD_FIRST, TH, TH_END, TH_START, TR,
@@ -132,6 +138,9 @@ export default function ServicesTab({ services, professionals, onChanged }) {
   // `null` = form closed, 'new' = creating, otherwise the service being edited.
   const [editing, setEditing] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  // Permanent delete asks first: it cannot be undone.
+  const [removing, setRemoving] = useState(null);
+  const [removeOpen, setRemoveOpen] = useState(false);
 
   const professionalsById = new Map(professionals.map((professional) => [professional.id, professional]));
 
@@ -147,6 +156,26 @@ export default function ServicesTab({ services, professionals, onChanged }) {
       if (service.active) await deleteService(service.id);
       else await updateService(service.id, { active: true });
       toast.success(service.active ? 'Servicio desactivado' : 'Servicio activado');
+      onChanged();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRemove = (service) => {
+    setRemoving(service);
+    setRemoveOpen(true);
+  };
+
+  // A blocked delete (future bookings) comes back as a 409 whose message already says what to do.
+  const confirmRemove = async () => {
+    setRemoveOpen(false);
+    setBusyId(removing.id);
+    try {
+      await deleteServicePermanently(removing.id);
+      toast.success('Servicio eliminado');
       onChanged();
     } catch (err) {
       toast.error(err.message);
@@ -226,6 +255,15 @@ export default function ServicesTab({ services, professionals, onChanged }) {
                           >
                             {service.active ? 'Desactivar' : 'Activar'}
                           </button>
+                          <button
+                            type="button"
+                            data-testid={`service-delete-${service.id}`}
+                            className={`${LINK_BUTTON} text-error`}
+                            disabled={busyId === service.id}
+                            onClick={() => handleRemove(service)}
+                          >
+                            Eliminar
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -236,6 +274,22 @@ export default function ServicesTab({ services, professionals, onChanged }) {
           </div>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={removeOpen}
+        variant="danger"
+        title="Eliminar servicio"
+        message={(
+          <>
+            <p>¿Eliminar el servicio {removing && removing.name} de forma permanente? No se puede deshacer.</p>
+            <p className="mt-2">Las reservas pasadas se conservan con el nombre del servicio. Si solo quieres ocultarlo del sitio, usa Desactivar.</p>
+          </>
+        )}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={confirmRemove}
+        onCancel={() => setRemoveOpen(false)}
+      />
     </div>
   );
 }

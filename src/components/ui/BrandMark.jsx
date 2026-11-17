@@ -23,7 +23,7 @@ export default function BrandMark({ textClassName = '', logoClassName = 'h-7 w-7
           src={src}
           alt={businessName || 'Logo'}
           onError={() => setFailed(true)}
-          className={`inline-block shrink-0 rounded-sm object-contain align-middle ${hideText ? '' : 'mr-2'} ${logoClassName}`}
+          className={`inline-block shrink-0 rounded-full object-cover align-middle ${hideText ? '' : 'mr-2'} ${logoClassName}`}
         />
       )}
       <span className={`${textClassName} ${hideText ? 'hidden' : ''}`.trim()}>BookingApp</span>

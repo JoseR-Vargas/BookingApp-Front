@@ -8,12 +8,13 @@ vi.mock('../../../services/adminService.js', () => ({
   createService: vi.fn(),
   updateService: vi.fn(),
   deleteService: vi.fn(),
+  deleteServicePermanently: vi.fn(),
 }));
 vi.mock('../../../ui/toast.js', () => ({
   toast: { show: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }));
 
-import { createService, deleteService, updateService } from '../../../services/adminService.js';
+import { createService, deleteService, deleteServicePermanently, updateService } from '../../../services/adminService.js';
 import { toast } from '../../../ui/toast.js';
 import ServicesTab from './ServicesTab.jsx';
 
@@ -199,5 +200,69 @@ describe('ServicesTab edit and activation', () => {
     await user.click(screen.getByTestId('service-toggle-servicio-basico'));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Service not found'));
+  });
+});
+
+
+describe('ServicesTab permanent delete', () => {
+  const clickDelete = (user, id) => user.click(screen.getByTestId(`service-delete-${id}`));
+  const dialog = () => screen.getByRole('alertdialog');
+
+  it('offers "Eliminar" for active and inactive services, next to Editar and the toggle', () => {
+    setup();
+
+    const active = screen.getByTestId('service-row-servicio-basico');
+    expect(within(active).getByRole('button', { name: 'Editar' })).toBeInTheDocument();
+    expect(within(active).getByRole('button', { name: 'Desactivar' })).toBeInTheDocument();
+    expect(within(active).getByRole('button', { name: 'Eliminar' })).toBeInTheDocument();
+    expect(within(screen.getByTestId('service-row-viejo')).getByRole('button', { name: 'Eliminar' })).toBeInTheDocument();
+  });
+
+  it('asks for confirmation naming the service, and says what is kept and what is lost', async () => {
+    const user = setup();
+    await clickDelete(user, 'servicio-basico');
+
+    expect(dialog()).toHaveTextContent('Eliminar servicio');
+    expect(dialog()).toHaveTextContent('Servicio Básico');
+    expect(dialog()).toHaveTextContent('permanente');
+    expect(dialog()).toHaveTextContent('reservas pasadas se conservan');
+    expect(dialog()).toHaveTextContent('Desactivar');
+    expect(deleteServicePermanently).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when the confirmation is cancelled', async () => {
+    const user = setup();
+    await clickDelete(user, 'servicio-basico');
+
+    await user.click(within(dialog()).getByRole('button', { name: 'Cancelar' }));
+
+    expect(deleteServicePermanently).not.toHaveBeenCalled();
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it('deletes after confirming, toasts and refreshes the list', async () => {
+    const user = setup();
+    deleteServicePermanently.mockResolvedValue({ id: 'servicio-basico', deleted: true });
+    await clickDelete(user, 'servicio-basico');
+
+    await user.click(within(dialog()).getByRole('button', { name: 'Eliminar' }));
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    expect(deleteServicePermanently).toHaveBeenCalledWith('servicio-basico');
+    expect(deleteService).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith('Servicio eliminado');
+  });
+
+  it('shows the backend reason when the delete is blocked and does not refresh', async () => {
+    const user = setup();
+    const reason = 'No se puede eliminar el servicio "Servicio Básico": tiene 2 reservas futuras confirmadas. Cancélalas o desactiva el servicio.';
+    deleteServicePermanently.mockRejectedValue(new Error(reason));
+    await clickDelete(user, 'servicio-basico');
+
+    await user.click(within(dialog()).getByRole('button', { name: 'Eliminar' }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(reason));
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });
