@@ -42,13 +42,13 @@ describe('validateBrandColors', () => {
   });
 
   it('blocks an accent below 3:1 against the background', () => {
-    const errors = validateBrandColors({ ...DEFAULT_COLORS, accent: '#1f1f1f' });
+    const errors = validateBrandColors({ ...DEFAULT_COLORS, accent: '#f0e0e0' });
     expect(errors.accent).toBe('El acento no contrasta lo suficiente con el fondo (mínimo 3:1).');
   });
 
   it('checks the button color only when present', () => {
     expect(validateBrandColors({ ...DEFAULT_COLORS, button: null })).toEqual({});
-    const errors = validateBrandColors({ ...DEFAULT_COLORS, button: '#1f1f1f' });
+    const errors = validateBrandColors({ ...DEFAULT_COLORS, button: '#f0e0e0' });
     expect(errors.button).toBe('El color de los botones no contrasta lo suficiente con el fondo (mínimo 2:1).');
   });
 

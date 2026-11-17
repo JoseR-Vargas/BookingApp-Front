@@ -42,7 +42,7 @@
   /*
    * Every palette color derives from the four `--brand-*` variables (see the `:root` block after
    * this one). The admin "Marca" tab overrides those four at runtime, so the whole app follows.
-   * The mixes work for the black default and for any light or dark palette set from the admin.
+   * The mixes work for the light default and for any light or dark palette set from the admin.
    */
 
   /* --- Base colors --- */
@@ -257,12 +257,12 @@
  * literal because `--color-border` is both a project token and a Preline alias of `--border`.
  */
 :root {
-  /* Haas livery defaults: black canvas, white text, red-pink accents, blue buttons. `--brand-button`
+  /* Haas livery defaults: light canvas, near-black text, red-pink accents, blue buttons. `--brand-button`
      set to `initial` (no color chosen) makes buttons follow the accent. Runtime overrides:
      src/theme/brandTheme.js. */
   --brand-accent: #f62039;
-  --brand-bg: #111111;
-  --brand-text: #ffffff;
+  --brand-bg: #f9f2f2;
+  --brand-text: #111111;
   --brand-button: #295294;
 
   /* Buttons: their own color, or the accent when none was chosen. */

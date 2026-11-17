@@ -78,7 +78,7 @@ Legacy URLs `/index.html`, `/login.html` and `/admin.html` redirect to `/`, `/lo
 
 ## Admin authentication (known tech debt)
 
-Login is a provisional, frontend-only check (credentials in `src/services/authService.js`, session flags `isAdmin` / `adminUser` in `sessionStorage`). It is not real security: the admin API endpoints are public. It is kept only for behavior parity (including the 5-attempt lockout); replacing it with a real `POST /api/auth/login` is pending backend support.
+Login validates the credentials against the backend (`GET /api/admin/session`): the password is the backend `ADMIN_API_KEY`, sent as `Authorization: Bearer <key>`. The username is sent as `X-Admin-Username` on login and on every admin request; the backend only checks it when it has `ADMIN_USERNAME` configured (then it is required together with the key, otherwise any username is accepted). Session flags `isAdmin` / `adminUser` / `adminKey` live in `sessionStorage`; the 5-attempt lockout is kept on the client. Deploy the backend first when enabling this: an older backend rejects the new header in its CORS preflight.
 
 ## Deploy (Vercel)
 

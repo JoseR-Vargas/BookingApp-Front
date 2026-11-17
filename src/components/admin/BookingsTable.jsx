@@ -84,11 +84,13 @@ function BookingRow({ booking, professionalPhotos, onDelete, onCancel }) {
       {/* data-order: datatables sorts by the ISO date instead of the localized text. */}
       <td className={TD} data-order={booking.date}>{formatBookingDate(booking.date)}</td>
       <td className={TD}>{booking.time}</td>
-      {/* data-order / data-search: datatables sorts and searches by the name, not by the initials of the avatar. */}
-      <td className={TD} data-order={professionalName} data-search={professionalName}>
-        <div className="flex items-center gap-2">
+      {/* data-order / data-search: datatables sorts and searches by the name, not by the initials of the avatar.
+          Minimum width + clipping: on a phone the browser can size this column for a narrower font, and the
+          name must then be cut with an ellipsis instead of painting over the notes column. */}
+      <td className={`${TD} max-w-56 min-w-44 overflow-hidden`} data-order={professionalName} data-search={professionalName}>
+        <div className="flex min-w-0 items-center gap-2">
           <ProfessionalAvatar name={professionalName} photoUrl={professionalPhotos[professionalId]} size="sm" />
-          <span>{professionalName}</span>
+          <span className="truncate">{professionalName}</span>
         </div>
       </td>
       <td className={TD}>

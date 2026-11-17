@@ -9,8 +9,8 @@ export const BRANDING_CACHE_KEY = 'branding:v2';
 
 export const DEFAULT_COLORS = Object.freeze({
   accent: '#f62039',
-  background: '#111111',
-  text: '#ffffff',
+  background: '#f9f2f2',
+  text: '#111111',
   button: '#295294',
 });
 

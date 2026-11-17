@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_COLORS } from '../theme/brandTheme.js';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../index.css');
@@ -28,9 +29,21 @@ describe('Preline tokens used by the table / toast / loading / spinner markup', 
 describe('Brand palette (SPEC 03)', () => {
   it('declares the four brand inputs with the Haas livery defaults', () => {
     expect(css).toMatch(/--brand-accent:\s*#f62039;/);
-    expect(css).toMatch(/--brand-bg:\s*#111111;/);
-    expect(css).toMatch(/--brand-text:\s*#ffffff;/);
+    expect(css).toMatch(/--brand-bg:\s*#f9f2f2;/);
+    expect(css).toMatch(/--brand-text:\s*#111111;/);
     expect(css).toMatch(/--brand-button:\s*#295294;/);
+  });
+
+  // First paint uses the stylesheet defaults, then the saved branding replaces them: if the two
+  // ever differ, a first-time visitor sees one palette flash into another.
+  it('keeps the stylesheet defaults identical to DEFAULT_COLORS, so the first paint never flashes', () => {
+    const declared = (name) => css.match(new RegExp(`--brand-${name}:\\s*(#[0-9a-fA-F]{6});`))[1].toLowerCase();
+    expect({
+      accent: declared('accent'),
+      background: declared('bg'),
+      text: declared('text'),
+      button: declared('button'),
+    }).toEqual(DEFAULT_COLORS);
   });
 
   it('gives buttons their own color, falling back to the accent when none is chosen', () => {
