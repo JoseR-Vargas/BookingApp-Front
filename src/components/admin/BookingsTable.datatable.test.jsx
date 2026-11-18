@@ -69,7 +69,7 @@ describe('BookingsTable as a Preline datatable', () => {
 
     const headers = screen.getAllByRole('columnheader');
     expect(headers.map((th) => th.textContent)).toEqual([
-      'Cliente', 'Teléfono', 'Servicio', 'Fecha', 'Hora', 'Barbero', 'Notas', 'Acciones',
+      'Cliente', 'Teléfono', 'Servicio', 'Fecha', 'Hora', 'Profesional', 'Notas', 'Acciones',
     ]);
     expect(headers.filter((th) => th.classList.contains('--exclude-from-ordering')))
       .toEqual([headers[7]]);
