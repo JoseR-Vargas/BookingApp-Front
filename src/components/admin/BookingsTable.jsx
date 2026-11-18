@@ -17,7 +17,7 @@ const TD_FIRST = compact(TD_FIRST_BASE);
 const TD_ACTIONS = compact(TD_ACTIONS_BASE);
 const EMPTY_CELL = compact(EMPTY_CELL_BASE);
 
-const COLUMNS = ['Cliente', 'Teléfono', 'Servicio', 'Fecha', 'Hora', 'Barbero', 'Notas', 'Acciones'];
+const COLUMNS = ['Cliente', 'Teléfono', 'Servicio', 'Fecha', 'Hora', 'Profesional', 'Notas', 'Acciones'];
 const ACTIONS_COLUMN = COLUMNS.length - 1;
 const PAGE_LENGTH = 10;
 

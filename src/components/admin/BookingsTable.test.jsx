@@ -38,7 +38,7 @@ describe('BookingsTable', () => {
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
-      'Cliente', 'Teléfono', 'Servicio', 'Fecha', 'Hora', 'Barbero', 'Notas', 'Acciones',
+      'Cliente', 'Teléfono', 'Servicio', 'Fecha', 'Hora', 'Profesional', 'Notas', 'Acciones',
     ]);
   });
 
