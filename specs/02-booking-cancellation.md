@@ -197,3 +197,13 @@ Cada paso deja el sistema funcional. Pasos 2 a 8 en backend, 9 a 12 en frontend.
 - Reembolsos o penalizaciones.
 
 Cada uno de estos puntos, si se hace, va en su propia spec.
+
+---
+
+## Revisión posterior: el modal ya no muestra el link (2026-11-18)
+
+Esta sección reemplaza lo que el resto de la spec dice sobre el link en el modal de confirmación (alcance, paso 10 y criterio de aceptación sobre "Copiar enlace").
+
+- El modal de confirmación **no muestra el link de cancelación ni el botón "Copiar enlace"**. En su lugar dice: `"Para cancelar la reserva puedes hacerlo desde el email."`.
+- El link sigue viajando **solo en el email de confirmación**, y la página `/cancelar/:token` no cambia.
+- El backend sigue devolviendo `cancelToken` en la respuesta de creación (el email se arma con él). El frontend ya no lo guarda en el estado ni lo muestra.

@@ -12,7 +12,7 @@ import { CancelPage } from '../../pages/booking/CancelPage.js';
 import { AdminBookingsPage } from '../../pages/admin/AdminBookingsPage.js';
 import { createApi } from '../../support/api.js';
 import { longDateEs, nextWeekday, PAST_MONDAY } from '../../support/dates.js';
-import { ADMIN_KEY, FAKE_EMAIL_DOMAIN, FRONT_URL } from '../../support/env.js';
+import { ADMIN_KEY, FAKE_EMAIL_DOMAIN } from '../../support/env.js';
 import { mongosh, throwawayDatabaseNames } from '../../support/mongo.js';
 
 const RUN = Date.now().toString(36);
@@ -35,7 +35,6 @@ const LIVE_TIME = '16:00';
 const PAST_TIME = '10:00';
 
 const WELL_FORMED_UNKNOWN_TOKEN = 'A'.repeat(43);
-const tokenOf = (cancelUrl) => cancelUrl.split('/cancelar/')[1];
 const slotsOf = async (api, date) => (await api.availability(date, SERVICE.id))
   .professionals.find((p) => p.id === PROFESSIONAL.id).slots;
 const adminHeaders = { Authorization: `Bearer ${ADMIN_KEY}` };
@@ -63,8 +62,7 @@ test.describe('booking cancellation, end to end', () => {
     await api.dispose();
   });
 
-  test('a client books through the site and gets a cancel link they can copy', async ({ context, page }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: FRONT_URL });
+  test('a client books through the site; the confirmation sends them to the email to cancel, and shows no link', async ({ page }) => {
     const booking = new BookingModal(page);
     await booking.open();
     await booking.chooseService(SERVICE.id);
@@ -75,20 +73,21 @@ test.describe('booking cancellation, end to end', () => {
     await booking.next();
     await booking.fillClient(UI_CLIENT);
 
+    // The one-time token still comes back in the creation response (the email is built from it).
+    const created = page.waitForResponse((response) => response.request().method() === 'POST' && /\/api\/bookings$/.test(response.url()));
     const confirmation = await booking.submit();
-    const link = confirmation.getByRole('link', { name: new RegExp(`/cancelar/`) });
-    const url = await link.getAttribute('href');
-    expect(url).toMatch(new RegExp(`^${FRONT_URL}/cancelar/[A-Za-z0-9_-]{43}$`));
-    await expect(link).toHaveText(url);
-    await expect(confirmation).toContainText('¿Necesitas cancelar?');
+    const { cancelToken } = await (await created).json();
+    expect(cancelToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
-    // Headless Chromium grants the clipboard once permitted, so the exact copied text is asserted.
-    await confirmation.getByRole('button', { name: 'Copiar enlace' }).click();
-    await expect(page.getByRole('alert').filter({ hasText: 'Enlace copiado' }).first()).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+    await expect(confirmation).toContainText('Para cancelar la reserva puedes hacerlo desde el email.');
+    await expect(confirmation.getByRole('link')).toHaveCount(0);
+    await expect(confirmation.getByRole('button', { name: 'Copiar enlace' })).toHaveCount(0);
+    await expect(confirmation).not.toContainText('/cancelar/');
+    await expect(confirmation).not.toContainText(cancelToken);
+    await expect(page.locator('body')).not.toContainText(cancelToken);
 
     await confirmation.getByRole('button', { name: /Entendido/ }).click();
-    state.token = tokenOf(url);
+    state.token = cancelToken;
     state.bookingId = (await api.bookings()).find((b) => b.client.email === UI_CLIENT.email)._id;
     expect((await api.booking(state.bookingId)).status).toBe('confirmed');
     expect(await slotsOf(api, DAY)).not.toContain(UI_TIME);

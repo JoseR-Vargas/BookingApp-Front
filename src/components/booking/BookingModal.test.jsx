@@ -246,7 +246,7 @@ afterEach(() => {
 });
 
 describe('BookingModal happy path', () => {
-  it('shows the cancel link of the booking it just created in the confirmation', async () => {
+  it('tells the client to cancel from the email instead of showing the cancel link', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -255,9 +255,12 @@ describe('BookingModal happy path', () => {
     await user.click(confirmButton());
 
     const confirmation = await screen.findByRole('dialog', { name: '¡Reserva Confirmada!' });
-    const expectedUrl = `${window.location.origin}/cancelar/${CANCEL_TOKEN}`;
-    expect(within(confirmation).getByRole('link', { name: expectedUrl })).toHaveAttribute('href', expectedUrl);
-    expect(within(confirmation).getByRole('button', { name: 'Copiar enlace' })).toBeInTheDocument();
+    expect(within(confirmation).getByText('Para cancelar la reserva puedes hacerlo desde el email.')).toBeInTheDocument();
+    // The backend still answers with the one-time token (the email carries it): the page never shows it.
+    expect(within(confirmation).queryByRole('link')).not.toBeInTheDocument();
+    expect(confirmation.textContent).not.toContain('/cancelar/');
+    expect(confirmation.textContent).not.toContain(CANCEL_TOKEN);
+    expect(within(confirmation).queryByRole('button', { name: 'Copiar enlace' })).not.toBeInTheDocument();
   });
 
   it('walks the 3 steps and posts the legacy-shaped payload, then shows the confirmation', async () => {

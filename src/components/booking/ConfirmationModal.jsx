@@ -1,5 +1,4 @@
 import { DialogTitle } from '@headlessui/react';
-import { toast } from '../../ui/toast.js';
 import { formatLongDateUTC, formatMoney } from '../../utils/format.js';
 import Button from '../ui/Button.jsx';
 import Modal from '../ui/Modal.jsx';
@@ -13,28 +12,13 @@ function Row({ label, children, last = false }) {
   );
 }
 
-async function copyLink(url) {
-  try {
-    await navigator.clipboard.writeText(url);
-    toast.success('Enlace copiado');
-  } catch {
-    // No clipboard API (insecure context, old browser) or the user denied it: the link is also on screen.
-    toast.error('No se pudo copiar el enlace. Cópialo manualmente.');
-  }
-}
-
 /**
  * Success dialog shown after the booking was created (legacy #confirmationModal).
- * `details`: { serviceNames (string[]), professionalName, date ('YYYY-MM-DD'), time, price (total of every service), email,
- * cancelToken (optional: the one-time secret the backend returns on creation) }.
- * With a token the dialog shows the cancel link; it is the only place the client can copy it from besides the email.
+ * `details`: { serviceNames (string[]), professionalName, date ('YYYY-MM-DD'), time, price (total of every service), email }.
+ * The cancel link is NOT shown here: it only travels in the confirmation email, and the dialog says so.
  * Legacy flags: static backdrop and `data-bs-keyboard="false"`: only the button closes it.
  */
 export default function ConfirmationModal({ open, onClose, details }) {
-  const cancelUrl = details?.cancelToken
-    ? `${window.location.origin}/cancelar/${details.cancelToken}`
-    : null;
-
   return (
     <Modal open={open} onClose={onClose} keyboard={false}>
       {details && (
@@ -69,19 +53,9 @@ export default function ConfirmationModal({ open, onClose, details }) {
             Te enviamos la confirmación a <strong>{details.email}</strong>
           </p>
 
-          {cancelUrl && (
-            <div className="mb-6 rounded-lg border border-border bg-bg-tertiary p-3 text-left cq-compact:mb-3">
-              <p className="mb-2 text-[0.875em] leading-snug text-text-secondary">
-                ¿Necesitas cancelar? Puedes hacerlo con este enlace:
-              </p>
-              <a href={cancelUrl} className="mb-3 block text-[0.8rem] break-all text-accent underline">
-                {cancelUrl}
-              </a>
-              <Button variant="outline" size="xs" onClick={() => copyLink(cancelUrl)}>
-                Copiar enlace
-              </Button>
-            </div>
-          )}
+          <p className="mb-6 text-[0.875em] leading-snug text-text-secondary cq-compact:mb-3 cq-compact:text-[0.8rem]">
+            Para cancelar la reserva puedes hacerlo desde el email.
+          </p>
 
           <Button size="cta" onClick={onClose}>
             Entendido
