@@ -1,6 +1,6 @@
 // ===== HORARIOS DE ATENCIÓN =====
-// The backend (GET /api/availability) owns the hours and the 30-minute grid: the booking UI renders
-// the free start times it returns. This module only exists for the failure case, when that answer
+// The backend (GET /api/availability) owns the hours, the 30-minute grid and the start interval the
+// admin chose: the booking UI renders the free start times it returns. This module only exists for the failure case, when that answer
 // cannot be obtained and the UI would otherwise have nothing to offer. The hours themselves come
 // from the catalog schedule (GET /api/catalog), never from hardcoded values.
 
@@ -35,12 +35,25 @@ const formatTime = (minutes) => (
 const toMinutes = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 
 /**
- * Failure-only fallback: every start time on the catalog interval, from the day's opening up to its
- * closing time. It ignores bookings and service duration, so it is NOT a source of truth: the
+ * Start times of an open day: one every `intervalMinutes`, counted from `open` and before `close`
+ * ('HH:mm' strings). The same rule the backend applies (`offeredStarts`), without bookings or service
+ * duration: used by the admin preview and by the failure-only fallback below.
+ */
+export function offeredStartTimes(open, close, intervalMinutes = DEFAULT_INTERVAL_MINUTES) {
+  const times = [];
+  for (let minutes = toMinutes(open); minutes < toMinutes(close); minutes += intervalMinutes) {
+    times.push(formatTime(minutes));
+  }
+  return times;
+}
+
+/**
+ * Failure-only fallback: every start time on the catalog's start interval (`startIntervalMinutes`,
+ * 30 when the catalog does not report one), counted from the day's opening up to its closing time. It ignores bookings and service duration, so it is NOT a source of truth: the
  * backend still validates on create. Without a schedule for the day nothing is offered.
  *
  * @param {string} dateString 'YYYY-MM-DD'
- * @param {{weekly: Record<string, {closed: boolean, open?: string, close?: string}>, slotIntervalMinutes?: number}|null} [schedule]
+ * @param {{weekly: Record<string, {closed: boolean, open?: string, close?: string}>, slotIntervalMinutes?: number, startIntervalMinutes?: number}|null} [schedule]
  *   a catalog schedule (keys follow Date.getDay(): 0 = Sunday, hours are 'HH:mm'); defaults to the one
  *   registered with `setFallbackSchedule`
  * @returns {{closed: boolean, times: string[]}}
@@ -53,10 +66,6 @@ export function getFallbackSchedule(dateString, schedule = catalogSchedule) {
   const daySchedule = schedule && schedule.weekly && schedule.weekly[dayOfWeek];
   if (!daySchedule || daySchedule.closed) return { closed: true, times: [] };
 
-  const interval = schedule.slotIntervalMinutes || DEFAULT_INTERVAL_MINUTES;
-  const times = [];
-  for (let minutes = toMinutes(daySchedule.open); minutes < toMinutes(daySchedule.close); minutes += interval) {
-    times.push(formatTime(minutes));
-  }
-  return { closed: false, times };
+  const interval = schedule.startIntervalMinutes || schedule.slotIntervalMinutes || DEFAULT_INTERVAL_MINUTES;
+  return { closed: false, times: offeredStartTimes(daySchedule.open, daySchedule.close, interval) };
 }

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { saveSchedule } from '../../../services/adminService.js';
 import { toast } from '../../../ui/toast.js';
+import { offeredStartTimes } from '../../../utils/schedule.js';
 import Card from '../Card.jsx';
-import { CONTROL, FormError, SaveButton } from './configParts.jsx';
+import { CONTROL, Field, FormError, SaveButton } from './configParts.jsx';
 
 // Display order Monday..Sunday; `id` follows Date.getDay() (0 = Sunday), like the backend keys.
 const DAYS = [
@@ -19,6 +20,18 @@ const DAYS = [
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => (
   String(Math.floor(index / 2)).padStart(2, '0') + ':' + (index % 2 ? '30' : '00')
 ));
+
+// Start interval offered to the public (SPEC 05): multiples of the 30-minute agenda grid, up to 8 hours.
+const INTERVAL_OPTIONS = Array.from({ length: 16 }, (_, index) => (index + 1) * 30);
+const DEFAULT_INTERVAL = 30;
+const PREVIEW_LIMIT = 8;
+
+const intervalLabel = (minutes) => {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
+};
 
 const DEFAULT_OPEN = '09:00';
 const DEFAULT_CLOSE = '18:00';
@@ -61,17 +74,36 @@ function TimeSelect({ id, label, testId, value, disabled, onChange }) {
   );
 }
 
-export default function ScheduleTab({ schedule, onChanged }) {
+export default function ScheduleTab({ schedule, services = [], onChanged }) {
   const [days, setDays] = useState(() => toFormState(schedule));
+  const [interval, setIntervalMinutes] = useState((schedule && schedule.startIntervalMinutes) || DEFAULT_INTERVAL);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [affected, setAffected] = useState(0);
 
   // After a save the parent reloads the catalog: the form shows what the backend now holds.
-  useEffect(() => { setDays(toFormState(schedule)); }, [schedule]);
+  useEffect(() => {
+    setDays(toFormState(schedule));
+    setIntervalMinutes((schedule && schedule.startIntervalMinutes) || DEFAULT_INTERVAL);
+  }, [schedule]);
+
+  // The longest ACTIVE service tells the admin which interval makes sense (services of 3 h need 3 h turns).
+  const longestService = services
+    .filter((service) => service.active !== false)
+    .reduce((longest, service) => Math.max(longest, service.duration || 0), 0);
+
+  // What the public will see on the first open day, from the hours currently in the form.
+  const previewDay = DAYS.find(({ id }) => !days[id].closed);
+  const previewTimes = previewDay ? offeredStartTimes(days[previewDay.id].open, days[previewDay.id].close, interval) : [];
 
   const update = (id, changes) => {
     setDays((current) => ({ ...current, [id]: { ...current[id], ...changes } }));
+    setAffected(0);
+    setError('');
+  };
+
+  const changeInterval = (event) => {
+    setIntervalMinutes(Number(event.target.value));
     setAffected(0);
     setError('');
   };
@@ -88,7 +120,7 @@ export default function ScheduleTab({ schedule, onChanged }) {
     setError('');
     setAffected(0);
     try {
-      const result = await saveSchedule(toPayload(days));
+      const result = await saveSchedule(toPayload(days), interval);
       if (result && result.affectedBookings > 0) setAffected(result.affectedBookings);
       else toast.success('Horarios guardados');
       onChanged();
@@ -102,6 +134,29 @@ export default function ScheduleTab({ schedule, onChanged }) {
   return (
     <Card>
       <form onSubmit={handleSubmit} noValidate>
+        <div className="mb-6 border-b border-table-line pb-6">
+          <Field id="schedule-interval" label="Intervalo entre turnos" className="max-w-xs">
+            <select id="schedule-interval" data-testid="schedule-interval" className={CONTROL} value={interval} onChange={changeInterval}>
+              {INTERVAL_OPTIONS.map((minutes) => <option key={minutes} value={minutes}>{intervalLabel(minutes)}</option>)}
+            </select>
+          </Field>
+          {longestService > 0 && (
+            <p className="mt-1 text-xs text-text-muted">Tu servicio más largo dura {longestService} min.</p>
+          )}
+          <p data-testid="schedule-interval-preview" className="mt-2 text-sm text-text-secondary">
+            {previewDay ? (
+              <>
+                Así lo verá el público el {previewDay.name}:{' '}
+                {previewTimes.length > 0
+                  ? `${previewTimes.slice(0, PREVIEW_LIMIT).join(', ')}${previewTimes.length > PREVIEW_LIMIT ? ' …' : ''}`
+                  : 'revisa la apertura y el cierre.'}
+              </>
+            ) : (
+              'No hay días abiertos.'
+            )}
+          </p>
+        </div>
+
         <ul className="divide-y divide-table-line">
           {DAYS.map(({ id, name }) => {
             const day = days[id];

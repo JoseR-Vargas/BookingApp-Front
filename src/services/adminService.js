@@ -73,7 +73,12 @@ export const deleteServicePermanently = (id) =>
   adminRequest('DELETE', '/api/admin/services/' + id + '/permanent');
 
 /** @param weekly {Record<0..6, {closed:true}|{closed:false,open:'HH:mm',close:'HH:mm'}>} all 7 days */
-export const saveSchedule = (weekly) => adminRequest('PUT', '/api/admin/schedule', { weekly });
+// `startIntervalMinutes` (SPEC 05) is optional: left out, the backend keeps the stored value.
+export const saveSchedule = (weekly, startIntervalMinutes) => adminRequest(
+  'PUT',
+  '/api/admin/schedule',
+  startIntervalMinutes === undefined ? { weekly } : { weekly, startIntervalMinutes },
+);
 
 // ----- Brand (SPEC 03): colors, business name and logo -----
 

@@ -125,6 +125,7 @@ describe('adminService config endpoints', () => {
     ['updateService', () => updateService('corte', { price: 10 }), 'PATCH', '/api/admin/services/corte', { price: 10 }],
     ['deleteService', () => deleteService('corte'), 'DELETE', '/api/admin/services/corte', undefined],
     ['saveSchedule', () => saveSchedule({ 0: { closed: true } }), 'PUT', '/api/admin/schedule', { weekly: { 0: { closed: true } } }],
+    ['saveSchedule with the start interval', () => saveSchedule({ 0: { closed: true } }, 180), 'PUT', '/api/admin/schedule', { weekly: { 0: { closed: true } }, startIntervalMinutes: 180 }],
     ['saveBranding', () => saveBranding({ businessName: 'Pepe', colors: { accent: '#c9a96e' } }), 'PUT', '/api/admin/branding', { businessName: 'Pepe', colors: { accent: '#c9a96e' } }],
     ['uploadLogo', () => uploadLogo('data:image/png;base64,AAAA'), 'PUT', '/api/admin/branding/logo', { dataUrl: 'data:image/png;base64,AAAA' }],
     ['deleteLogo', () => deleteLogo(), 'DELETE', '/api/admin/branding/logo', undefined],

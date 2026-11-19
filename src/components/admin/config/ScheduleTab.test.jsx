@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SCHEDULE } from '../../../test/catalogFixture.js';
+import { SCHEDULE, SERVICES } from '../../../test/catalogFixture.js';
 
 vi.mock('../../../services/adminService.js', () => ({ saveSchedule: vi.fn() }));
 vi.mock('../../../ui/toast.js', () => ({
@@ -14,9 +14,9 @@ import ScheduleTab from './ScheduleTab.jsx';
 
 let onChanged;
 
-function setup() {
+function setup(props = {}) {
   onChanged = vi.fn();
-  render(<ScheduleTab schedule={SCHEDULE} onChanged={onChanged} />);
+  render(<ScheduleTab schedule={SCHEDULE} services={SERVICES} onChanged={onChanged} {...props} />);
   return userEvent.setup();
 }
 
@@ -73,7 +73,7 @@ describe('ScheduleTab save', () => {
       4: { closed: false, open: '09:00', close: '20:00' },
       5: { closed: true },
       6: { closed: false, open: '09:00', close: '16:30' },
-    });
+    }, 30);
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     expect(screen.queryByTestId('schedule-warning')).not.toBeInTheDocument();
     expect(onChanged).toHaveBeenCalled();
@@ -166,5 +166,90 @@ describe('ScheduleTab reflects a saved schedule', () => {
     rerender(<ScheduleTab schedule={next} onChanged={() => {}} />);
 
     expect(screen.getByTestId('schedule-closed-1')).toBeChecked();
+  });
+});
+
+
+describe('ScheduleTab start interval', () => {
+  const interval = () => screen.getByTestId('schedule-interval');
+  const preview = () => screen.getByTestId('schedule-interval-preview');
+
+  it('has a labeled "Intervalo entre turnos" selector from 30 minutes to 8 hours in 30-minute steps', () => {
+    setup();
+
+    expect(screen.getByLabelText('Intervalo entre turnos')).toBe(interval());
+    const options = within(interval()).getAllByRole('option');
+    expect(options).toHaveLength(16);
+    expect(options.map((option) => option.value)).toEqual(Array.from({ length: 16 }, (_, index) => String((index + 1) * 30)));
+    expect(options.slice(0, 4).map((option) => option.textContent)).toEqual(['30 min', '1 h', '1 h 30 min', '2 h']);
+    expect(options[15].textContent).toBe('8 h');
+  });
+
+  it('defaults to 30 minutes for a schedule without the field, and shows the saved value otherwise', () => {
+    const first = render(<ScheduleTab schedule={SCHEDULE} services={SERVICES} onChanged={() => {}} />);
+    expect(interval()).toHaveValue('30');
+    first.unmount();
+
+    render(<ScheduleTab schedule={{ ...SCHEDULE, startIntervalMinutes: 180 }} services={SERVICES} onChanged={() => {}} />);
+    expect(interval()).toHaveValue('180');
+  });
+
+  it('hints the duration of the longest service', () => {
+    setup();
+
+    expect(screen.getByText('Tu servicio más largo dura 90 min.')).toBeInTheDocument();
+  });
+
+  it('shows no hint when there are no services', () => {
+    setup({ services: [] });
+
+    expect(screen.queryByText(/Tu servicio más largo/)).not.toBeInTheDocument();
+  });
+
+  it('previews the start times of the first open day and follows the chosen interval', async () => {
+    const user = setup();
+
+    expect(preview()).toHaveTextContent('Lunes');
+    expect(preview()).toHaveTextContent('09:00, 09:30, 10:00, 10:30, 11:00, 11:30, 12:00, 12:30');
+
+    await user.selectOptions(interval(), '180');
+
+    expect(preview()).toHaveTextContent('09:00, 12:00, 15:00, 18:00');
+    expect(preview()).not.toHaveTextContent('09:30');
+  });
+
+  it('follows the opening hour edited in the same form', async () => {
+    const user = setup();
+
+    await user.selectOptions(screen.getByTestId('schedule-open-1'), '10:30');
+    await user.selectOptions(interval(), '60');
+
+    expect(preview()).toHaveTextContent('10:30, 11:30, 12:30');
+  });
+
+  it('says so when every day is closed', async () => {
+    const closed = { ...SCHEDULE, weekly: Object.fromEntries(Object.keys(SCHEDULE.weekly).map((day) => [day, { closed: true }])) };
+    setup({ schedule: closed });
+
+    expect(preview()).toHaveTextContent('No hay días abiertos');
+  });
+
+  it('saves the chosen interval together with the hours', async () => {
+    const user = setup();
+    saveSchedule.mockResolvedValue({ schedule: SCHEDULE, affectedBookings: 0 });
+
+    await user.selectOptions(interval(), '180');
+    await user.click(screen.getByTestId('schedule-save'));
+
+    await waitFor(() => expect(saveSchedule).toHaveBeenCalledTimes(1));
+    expect(saveSchedule).toHaveBeenCalledWith(expect.objectContaining({ 1: { closed: false, open: '09:00', close: '20:00' } }), 180);
+  });
+
+  it('re-syncs the selector when the parent hands over a new schedule', () => {
+    const { rerender } = render(<ScheduleTab schedule={SCHEDULE} services={SERVICES} onChanged={() => {}} />);
+
+    rerender(<ScheduleTab schedule={{ ...SCHEDULE, startIntervalMinutes: 120 }} services={SERVICES} onChanged={() => {}} />);
+
+    expect(interval()).toHaveValue('120');
   });
 });

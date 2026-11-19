@@ -86,7 +86,7 @@ export default function ConfigSection() {
         {tab === 'services' && (
           <ServicesTab services={catalog.services} professionals={catalog.professionals} onChanged={refresh} />
         )}
-        {tab === 'schedule' && <ScheduleTab schedule={catalog.schedule} onChanged={refresh} />}
+        {tab === 'schedule' && <ScheduleTab schedule={catalog.schedule} services={catalog.services} onChanged={refresh} />}
       </div>
     );
   }
