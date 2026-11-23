@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { saveSchedule } from '../../../services/adminService.js';
 import { toast } from '../../../ui/toast.js';
-import { offeredStartTimes } from '../../../utils/schedule.js';
+import { dayStartTimes, offeredStartTimes } from '../../../utils/schedule.js';
 import Card from '../Card.jsx';
 import { CONTROL, Field, FormError, SaveButton } from './configParts.jsx';
 
@@ -45,19 +45,28 @@ function toFormState(schedule) {
       closed: Boolean(day.closed),
       open: day.open || DEFAULT_OPEN,
       close: day.close || DEFAULT_CLOSE,
+      // null = the day follows the general interval; a list = its own start times (SPEC 06).
+      starts: Array.isArray(day.starts) && day.starts.length > 0 ? day.starts : null,
     }];
   }));
 }
 
 const toPayload = (days) => Object.fromEntries(DAYS.map(({ id }) => {
-  const { closed, open, close } = days[id];
-  return [id, closed ? { closed: true } : { closed: false, open, close }];
+  const { closed, open, close, starts } = days[id];
+  if (closed) return [id, { closed: true }];
+  return [id, starts ? { closed: false, open, close, starts: [...starts].sort() } : { closed: false, open, close }];
 }));
+
+// Every 30-minute block of a day that can be a start: from opening up to (not including) closing.
+const gridTimes = (open, close) => TIME_OPTIONS.filter((time) => time >= open && time < close);
+const keepInside = (starts, open, close) => starts.filter((time) => time >= open && time < close);
 
 // 'HH:mm' strings compare correctly as text.
 function findInvalidDay(days) {
   return DAYS.find(({ id }) => !days[id].closed && days[id].open >= days[id].close);
 }
+
+const findEmptyStarts = (days) => DAYS.find(({ id }) => !days[id].closed && days[id].starts && days[id].starts.length === 0);
 
 const affectedMessage = (count) => (count === 1
   ? '1 reserva futura queda fuera del nuevo horario. No se modificó.'
@@ -94,10 +103,38 @@ export default function ScheduleTab({ schedule, services = [], onChanged }) {
 
   // What the public will see on the first open day, from the hours currently in the form.
   const previewDay = DAYS.find(({ id }) => !days[id].closed);
-  const previewTimes = previewDay ? offeredStartTimes(days[previewDay.id].open, days[previewDay.id].close, interval) : [];
+  const previewTimes = previewDay ? dayStartTimes({ ...days[previewDay.id], starts: days[previewDay.id].starts || undefined }, interval) : [];
 
   const update = (id, changes) => {
-    setDays((current) => ({ ...current, [id]: { ...current[id], ...changes } }));
+    setDays((current) => {
+      const next = { ...current[id], ...changes };
+      // Hours changed: a custom list never keeps a start that is no longer inside the day.
+      if (next.starts && ('open' in changes || 'close' in changes)) next.starts = keepInside(next.starts, next.open, next.close);
+      return { ...current, [id]: next };
+    });
+    setAffected(0);
+    setError('');
+  };
+
+  // Turning customization on starts from what the public sees today; off goes back to the interval.
+  const toggleCustom = (id, enabled) => update(id, {
+    starts: enabled ? offeredStartTimes(days[id].open, days[id].close, interval) : null,
+  });
+
+  const toggleStart = (id, time) => {
+    const current = days[id].starts;
+    update(id, { starts: current.includes(time) ? current.filter((item) => item !== time) : [...current, time].sort() });
+  };
+
+  // The other open days take this day's list, limited to what fits each day's hours.
+  const copyStarts = (sourceId) => {
+    const { starts } = days[sourceId];
+    setDays((current) => Object.fromEntries(DAYS.map(({ id }) => {
+      const day = current[id];
+      if (id === sourceId || day.closed) return [id, day];
+      const fitting = keepInside(starts, day.open, day.close);
+      return [id, fitting.length > 0 ? { ...day, starts: fitting } : day];
+    })));
     setAffected(0);
     setError('');
   };
@@ -113,6 +150,12 @@ export default function ScheduleTab({ schedule, services = [], onChanged }) {
     const invalid = findInvalidDay(days);
     if (invalid) {
       setError(`${invalid.name}: la apertura debe ser anterior al cierre`);
+      return;
+    }
+
+    const empty = findEmptyStarts(days);
+    if (empty) {
+      setError(`${empty.name}: marca al menos una hora o usa el intervalo general`);
       return;
     }
 
@@ -194,6 +237,44 @@ export default function ScheduleTab({ schedule, services = [], onChanged }) {
                     onChange={(event) => update(id, { close: event.target.value })}
                   />
                 </div>
+                {!day.closed && (
+                  <div className="md:col-span-4">
+                    <label htmlFor={`schedule-custom-${id}`} className="flex cursor-pointer items-center gap-2 text-sm text-text-secondary">
+                      <input
+                        id={`schedule-custom-${id}`}
+                        data-testid={`schedule-custom-${id}`}
+                        type="checkbox"
+                        checked={Boolean(day.starts)}
+                        onChange={(event) => toggleCustom(id, event.target.checked)}
+                        className="size-4 accent-[var(--color-accent)]"
+                      />
+                      <span>Elegir las horas de este día<span className="sr-only"> {name}</span></span>
+                    </label>
+                    {day.starts && (
+                      <div className="mt-2">
+                        <ul className="flex flex-wrap gap-2" aria-label={`Horas de inicio ${name}`}>
+                          {gridTimes(day.open, day.close).map((time) => (
+                            <li key={time}>
+                              <label className={`cursor-pointer rounded-md border px-2 py-1 text-sm ${day.starts.includes(time) ? 'border-accent bg-accent/10 text-text-primary' : 'border-table-line text-text-muted'}`}>
+                                <input
+                                  type="checkbox"
+                                  data-testid={`schedule-start-${id}-${time}`}
+                                  checked={day.starts.includes(time)}
+                                  onChange={() => toggleStart(id, time)}
+                                  className="sr-only"
+                                />
+                                {time}
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                        <button type="button" data-testid={`schedule-copy-${id}`} onClick={() => copyStarts(id)} className="mt-2 text-sm font-semibold text-accent hover:underline">
+                          Copiar a los otros días
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </li>
             );
           })}

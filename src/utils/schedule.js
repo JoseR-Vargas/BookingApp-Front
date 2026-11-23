@@ -48,6 +48,16 @@ export function offeredStartTimes(open, close, intervalMinutes = DEFAULT_INTERVA
 }
 
 /**
+ * Start times of one weekly entry: the day's own `starts` list when the admin set one (SPEC 06),
+ * otherwise one every `intervalMinutes` from opening. Closed day -> [].
+ */
+export function dayStartTimes(day, intervalMinutes = DEFAULT_INTERVAL_MINUTES) {
+  if (!day || day.closed) return [];
+  if (Array.isArray(day.starts) && day.starts.length > 0) return day.starts;
+  return offeredStartTimes(day.open, day.close, intervalMinutes);
+}
+
+/**
  * Failure-only fallback: every start time on the catalog's start interval (`startIntervalMinutes`,
  * 30 when the catalog does not report one), counted from the day's opening up to its closing time. It ignores bookings and service duration, so it is NOT a source of truth: the
  * backend still validates on create. Without a schedule for the day nothing is offered.
@@ -67,5 +77,5 @@ export function getFallbackSchedule(dateString, schedule = catalogSchedule) {
   if (!daySchedule || daySchedule.closed) return { closed: true, times: [] };
 
   const interval = schedule.startIntervalMinutes || schedule.slotIntervalMinutes || DEFAULT_INTERVAL_MINUTES;
-  return { closed: false, times: offeredStartTimes(daySchedule.open, daySchedule.close, interval) };
+  return { closed: false, times: dayStartTimes(daySchedule, interval) };
 }

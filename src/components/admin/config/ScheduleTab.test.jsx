@@ -253,3 +253,113 @@ describe('ScheduleTab start interval', () => {
     expect(interval()).toHaveValue('120');
   });
 });
+
+describe('ScheduleTab starts per day', () => {
+  const custom = (id) => screen.getByTestId(`schedule-custom-${id}`);
+  const chip = (id, time) => screen.getByTestId(`schedule-start-${id}-${time}`);
+  const withMonday = (starts) => ({
+    ...SCHEDULE,
+    weekly: { ...SCHEDULE.weekly, 1: { closed: false, open: '09:00', close: '20:00', starts } },
+  });
+
+  it('shows no chips until a day is customized, and none for a closed day', () => {
+    setup();
+
+    expect(custom(1)).not.toBeChecked();
+    expect(screen.queryByTestId('schedule-start-1-09:00')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('schedule-custom-0')).not.toBeInTheDocument();
+  });
+
+  it('customizing starts from the times the interval offers, one chip per 30 minutes of the day', async () => {
+    const user = setup();
+
+    await user.selectOptions(screen.getByTestId('schedule-interval'), '180');
+    await user.click(custom(1));
+
+    expect(chip(1, '09:00')).toBeChecked();
+    expect(chip(1, '12:00')).toBeChecked();
+    expect(chip(1, '09:30')).not.toBeChecked();
+    expect(chip(1, '19:30')).not.toBeChecked();
+    expect(screen.queryByTestId('schedule-start-1-20:00')).not.toBeInTheDocument();
+  });
+
+  it('loads the saved list of a day', () => {
+    setup({ schedule: withMonday(['09:00', '14:00']) });
+
+    expect(custom(1)).toBeChecked();
+    expect(chip(1, '14:00')).toBeChecked();
+    expect(chip(1, '09:30')).not.toBeChecked();
+    expect(custom(2)).not.toBeChecked();
+  });
+
+  it('saves the marked starts of that day only, sorted; other days send none', async () => {
+    const user = setup();
+    saveSchedule.mockResolvedValue({ schedule: SCHEDULE, affectedBookings: 0 });
+
+    await user.selectOptions(screen.getByTestId('schedule-interval'), '180');
+    await user.click(custom(1));
+    await user.click(chip(1, '16:00'));
+    await user.click(chip(1, '12:00'));
+    await user.click(screen.getByTestId('schedule-save'));
+
+    await waitFor(() => expect(saveSchedule).toHaveBeenCalledTimes(1));
+    const [weekly] = saveSchedule.mock.calls[0];
+    expect(weekly[1].starts).toEqual(['09:00', '15:00', '16:00', '18:00']);
+    expect(weekly[2]).toEqual({ closed: false, open: '09:00', close: '20:00' });
+  });
+
+  it('"Usar el intervalo general" (unchecking) sends the day without a list', async () => {
+    const user = setup({ schedule: withMonday(['10:00']) });
+    saveSchedule.mockResolvedValue({ schedule: SCHEDULE, affectedBookings: 0 });
+
+    await user.click(custom(1));
+    await user.click(screen.getByTestId('schedule-save'));
+
+    await waitFor(() => expect(saveSchedule).toHaveBeenCalledTimes(1));
+    expect(saveSchedule.mock.calls[0][0][1]).toEqual({ closed: false, open: '09:00', close: '20:00' });
+  });
+
+  it('blocks saving a customized day with no starts marked', async () => {
+    const user = setup({ schedule: withMonday(['10:00']) });
+
+    await user.click(chip(1, '10:00'));
+    await user.click(screen.getByTestId('schedule-save'));
+
+    expect(saveSchedule).not.toHaveBeenCalled();
+    expect(screen.getByTestId('schedule-error')).toHaveTextContent('Lunes: marca al menos una hora o usa el intervalo general');
+  });
+
+  it('drops the starts left outside when the hours of the day change', async () => {
+    const user = setup({ schedule: withMonday(['09:00', '12:00', '18:00']) });
+    saveSchedule.mockResolvedValue({ schedule: SCHEDULE, affectedBookings: 0 });
+
+    await user.selectOptions(screen.getByTestId('schedule-close-1'), '15:00');
+    expect(screen.queryByTestId('schedule-start-1-18:00')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('schedule-save'));
+
+    await waitFor(() => expect(saveSchedule).toHaveBeenCalledTimes(1));
+    expect(saveSchedule.mock.calls[0][0][1].starts).toEqual(['09:00', '12:00']);
+  });
+
+  it('copies the starts of a day to the other open days, keeping only what fits their hours', async () => {
+    const user = setup({ schedule: withMonday(['09:00', '12:00', '19:00']) });
+    saveSchedule.mockResolvedValue({ schedule: SCHEDULE, affectedBookings: 0 });
+
+    await user.click(screen.getByTestId('schedule-copy-1'));
+    await user.click(screen.getByTestId('schedule-save'));
+
+    await waitFor(() => expect(saveSchedule).toHaveBeenCalledTimes(1));
+    const [weekly] = saveSchedule.mock.calls[0];
+    expect(weekly[2].starts).toEqual(['09:00', '12:00', '19:00']);
+    expect(weekly[4].starts).toEqual(['09:00', '12:00', '19:00']);
+    expect(weekly[6].starts).toEqual(['09:00', '12:00']); // Saturday closes at 17:30
+    expect(weekly[0]).toEqual({ closed: true });
+  });
+
+  it('previews the first open day with its own list', () => {
+    setup({ schedule: withMonday(['09:00', '12:00', '16:00']) });
+
+    expect(screen.getByTestId('schedule-interval-preview')).toHaveTextContent('09:00, 12:00, 16:00');
+    expect(screen.getByTestId('schedule-interval-preview')).not.toHaveTextContent('09:30');
+  });
+});

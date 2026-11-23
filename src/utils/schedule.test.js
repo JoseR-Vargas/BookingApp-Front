@@ -80,6 +80,23 @@ describe('getFallbackSchedule start interval', () => {
   });
 });
 
+describe('getFallbackSchedule starts per day', () => {
+  const withMonday = (starts, startIntervalMinutes = 30) => ({
+    ...SCHEDULE,
+    startIntervalMinutes,
+    weekly: { ...SCHEDULE.weekly, 1: { closed: false, open: '09:00', close: '20:00', starts } },
+  });
+
+  it('offers exactly the listed starts of a day, whatever the interval', () => {
+    expect(getFallbackSchedule(MONDAY, withMonday(['09:00', '12:00', '16:30'], 180)).times).toEqual(['09:00', '12:00', '16:30']);
+  });
+
+  it('keeps the interval rule for the days without a list', () => {
+    expect(getFallbackSchedule(SATURDAY, withMonday(['10:00'], 180)).times).toEqual(['09:00', '12:00', '15:00']);
+    expect(getFallbackSchedule(MONDAY, withMonday(undefined, 180)).times).toEqual(['09:00', '12:00', '15:00', '18:00']);
+  });
+});
+
 describe('setFallbackSchedule', () => {
   afterEach(() => setFallbackSchedule(null));
 
