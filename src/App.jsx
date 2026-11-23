@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Home from './pages/Home.jsx';
+import Availability from './pages/Availability.jsx';
 import CancelBooking from './pages/CancelBooking.jsx';
 import Login from './pages/Login.jsx';
 import RequireAuth from './components/auth/RequireAuth.jsx';
@@ -12,6 +13,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/disponibilidad" element={<Availability />} />
       <Route path="/login" element={<Login />} />
       <Route path="/cancelar/:token" element={<CancelBooking />} />
       <Route

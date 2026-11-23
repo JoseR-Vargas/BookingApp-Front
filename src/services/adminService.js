@@ -87,3 +87,9 @@ export const saveBranding = (branding) => adminRequest('PUT', '/api/admin/brandi
 /** @param dataUrl {string} 'data:image/png;base64,...' (PNG, JPEG or WebP, up to 200 KB) */
 export const uploadLogo = (dataUrl) => adminRequest('PUT', '/api/admin/branding/logo', { dataUrl });
 export const deleteLogo = () => adminRequest('DELETE', '/api/admin/branding/logo');
+
+/**
+ * Settings of the public availability page (SPEC 07).
+ * @param settings {{enabled: boolean, days: number, serviceIds: string[]|null}} `null` = every active service
+ */
+export const savePublicAvailability = (settings) => adminRequest('PUT', '/api/admin/public-availability', settings);

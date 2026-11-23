@@ -44,8 +44,8 @@ describe('ConfigSection', () => {
 
     const tablist = screen.getByRole('tablist');
     const tabs = within(tablist).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Horarios', 'Marca']);
-    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Horarios', 'Marca', 'Compartir']);
+    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false']);
 
     const panel = screen.getByRole('tabpanel');
     expect(panel).toHaveAttribute('aria-labelledby', tabs[0].id);
@@ -71,6 +71,18 @@ describe('ConfigSection', () => {
 
     expect(screen.getByTestId('config-tab-services')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('config-tab-services')).toHaveFocus();
+  });
+
+  it('opens the "Compartir" tab, reachable with ArrowLeft from the first tab (wraps around)', async () => {
+    const user = userEvent.setup();
+    render(<ConfigSection />);
+    await screen.findByText('Alex García');
+
+    screen.getByTestId('config-tab-professionals').focus();
+    await user.keyboard('{ArrowLeft}');
+
+    expect(screen.getByTestId('config-tab-share')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('Publicar la página de turnos')).toBeInTheDocument();
   });
 
   it('shows an error with a retry button when the catalog cannot be loaded', async () => {

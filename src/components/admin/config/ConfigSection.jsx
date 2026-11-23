@@ -12,12 +12,14 @@ import BrandingTab from './BrandingTab.jsx';
 import ProfessionalsTab from './ProfessionalsTab.jsx';
 import ScheduleTab from './ScheduleTab.jsx';
 import ServicesTab from './ServicesTab.jsx';
+import ShareTab from './ShareTab.jsx';
 
 const TABS = [
   { key: 'professionals', label: 'Profesionales' },
   { key: 'services', label: 'Servicios' },
   { key: 'schedule', label: 'Horarios' },
   { key: 'branding', label: 'Marca' },
+  { key: 'share', label: 'Compartir' },
 ];
 
 const TAB_CLASSES = 'cursor-pointer border-b-2 px-4 py-2 text-sm font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent touch:min-h-11';
@@ -86,6 +88,7 @@ export default function ConfigSection() {
         {tab === 'services' && (
           <ServicesTab services={catalog.services} professionals={catalog.professionals} onChanged={refresh} />
         )}
+        {tab === 'share' && <ShareTab publicAvailability={catalog.publicAvailability} services={catalog.services} onChanged={refresh} />}
         {tab === 'schedule' && <ScheduleTab schedule={catalog.schedule} services={catalog.services} onChanged={refresh} />}
       </div>
     );

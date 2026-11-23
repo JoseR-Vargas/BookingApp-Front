@@ -44,10 +44,14 @@ function CloseIcon() {
   );
 }
 
-export default function BookingModal({ open, onClose }) {
+/**
+ * @param prefill {{serviceId: string, date: string, time: string, professionalId: string}} [prefill] a turn picked
+ *   elsewhere (the public availability page, SPEC 07): every opening starts with it chosen, on the client form step.
+ */
+export default function BookingModal({ open, onClose, prefill }) {
   const booking = useBooking();
   const catalog = useCatalog();
-  const { state, setStep, setSubmitting, reset } = booking;
+  const { state, setStep, setSubmitting, reset, toggleService, setDate, setTime, setProfessional } = booking;
   const { currentStep, selectedDate, selectedTime, selectedProfessional, isSubmitting } = state;
 
   const [validated, setValidated] = useState(false);
@@ -68,6 +72,26 @@ export default function BookingModal({ open, onClose }) {
     setValidated(false);
     if (formRef.current) formRef.current.reset();
   }, [open, reset]);
+
+  // A prefilled turn is applied once per opening, as soon as the catalog can resolve its service and
+  // professional (anything it cannot resolve is ignored and the flow starts at step 1 as usual).
+  const prefillApplied = useRef(false);
+  useLayoutEffect(() => {
+    if (!open) {
+      prefillApplied.current = false;
+      return;
+    }
+    if (!prefill || prefillApplied.current || catalog.status !== 'ready') return;
+    const service = catalog.services.find((candidate) => candidate.id === prefill.serviceId);
+    const professional = catalog.professionals.find((candidate) => candidate.id === prefill.professionalId);
+    if (!service || !professional) return;
+    prefillApplied.current = true;
+    toggleService(service);
+    setDate(prefill.date);
+    setProfessional(professional);
+    setTime(prefill.time);
+    setStep(LAST_STEP);
+  }, [open, prefill, catalog.status, catalog.services, catalog.professionals, toggleService, setDate, setProfessional, setTime, setStep]);
 
   // Legacy validateCurrentStep(): `false` means a toast was shown and the flow must stop.
   const validateStep = useCallback((step, current) => {
@@ -134,7 +158,7 @@ export default function BookingModal({ open, onClose }) {
 
       setLoadingOpen(true);
       try {
-        const created = await createBooking(buildBookingPayload({ formData, services, professional, date, time }));
+        await createBooking(buildBookingPayload({ formData, services, professional, date, time }));
         setLoadingOpen(false);
 
         await wait(CONFIRMATION_DELAY);
@@ -148,8 +172,6 @@ export default function BookingModal({ open, onClose }) {
           time,
           price: getTotalPrice(services),
           email: formData.email,
-          // One-time secret for the cancel link; the backend only returns it on creation.
-          cancelToken: created?.cancelToken,
         });
         setConfirmationOpen(true);
         onClose();
