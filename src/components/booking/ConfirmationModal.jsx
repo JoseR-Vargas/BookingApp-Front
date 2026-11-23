@@ -14,7 +14,7 @@ function Row({ label, children, last = false }) {
 
 /**
  * Success dialog shown after the booking was created (legacy #confirmationModal).
- * `details`: { serviceNames (string[]), professionalName, date ('YYYY-MM-DD'), time, price (total of every service), email }.
+ * `details`: { serviceNames (string[]), professionalName, locationName (optional, only when the business has several locations), date ('YYYY-MM-DD'), time, price (total of every service), email }.
  * It does not show the cancel link: that reaches the client in the confirmation email.
  * Legacy flags: static backdrop and `data-bs-keyboard="false"`: only the button closes it.
  */
@@ -35,6 +35,11 @@ export default function ConfirmationModal({ open, onClose, details }) {
             <Row label="Servicios:">
               {details.serviceNames.join(', ')}
             </Row>
+            {details.locationName && (
+              <Row label="Local:">
+                {details.locationName}
+              </Row>
+            )}
             <Row label="Profesional:">
               {details.professionalName}
             </Row>

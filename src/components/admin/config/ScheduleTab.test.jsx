@@ -3,12 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SCHEDULE, SERVICES } from '../../../test/catalogFixture.js';
 
-vi.mock('../../../services/adminService.js', () => ({ saveSchedule: vi.fn() }));
+vi.mock('../../../services/adminService.js', () => ({ saveSchedule: vi.fn(), saveLocationSchedule: vi.fn() }));
 vi.mock('../../../ui/toast.js', () => ({
   toast: { show: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }));
 
-import { saveSchedule } from '../../../services/adminService.js';
+import { saveLocationSchedule, saveSchedule } from '../../../services/adminService.js';
 import { toast } from '../../../ui/toast.js';
 import ScheduleTab from './ScheduleTab.jsx';
 
@@ -361,5 +361,71 @@ describe('ScheduleTab starts per day', () => {
 
     expect(screen.getByTestId('schedule-interval-preview')).toHaveTextContent('09:00, 12:00, 16:00');
     expect(screen.getByTestId('schedule-interval-preview')).not.toHaveTextContent('09:30');
+  });
+});
+
+describe('ScheduleTab with several locations (SPEC 08)', () => {
+  const centro = {
+    ...SCHEDULE,
+    startIntervalMinutes: 60,
+    weekly: { ...SCHEDULE.weekly, 1: { closed: false, open: '10:00', close: '14:00' } },
+  };
+  const LOCATIONS = [
+    { id: 'principal', name: 'Principal', address: 'Calle 1', active: true, schedule: SCHEDULE },
+    { id: 'centro', name: 'Centro', address: '', active: true, schedule: centro },
+    { id: 'viejo', name: 'Viejo', address: '', active: false, schedule: SCHEDULE },
+  ];
+
+  it('has no selector with a single location, and saves through the default schedule route', async () => {
+    const user = setup({ locations: [LOCATIONS[0]] });
+    saveSchedule.mockResolvedValue({ schedule: SCHEDULE, affectedBookings: 0 });
+
+    expect(screen.queryByLabelText('Local')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('schedule-save'));
+
+    await waitFor(() => expect(saveSchedule).toHaveBeenCalledTimes(1));
+    expect(saveLocationSchedule).not.toHaveBeenCalled();
+  });
+
+  it('offers the active locations and shows the hours of the chosen one', async () => {
+    const user = setup({ locations: LOCATIONS });
+
+    const selector = screen.getByLabelText('Local');
+    expect(within(selector).getAllByRole('option').map((o) => o.textContent)).toEqual(['Principal — Calle 1', 'Centro']);
+    expect(screen.getByTestId('schedule-open-1')).toHaveValue('09:00');
+
+    await user.selectOptions(selector, 'centro');
+
+    expect(screen.getByTestId('schedule-open-1')).toHaveValue('10:00');
+    expect(screen.getByTestId('schedule-close-1')).toHaveValue('14:00');
+    expect(screen.getByTestId('schedule-interval')).toHaveValue('60');
+  });
+
+  it('saves the schedule of the chosen location only', async () => {
+    const user = setup({ locations: LOCATIONS });
+    saveLocationSchedule.mockResolvedValue({ schedule: centro, affectedBookings: 0 });
+
+    await user.selectOptions(screen.getByLabelText('Local'), 'centro');
+    await user.selectOptions(screen.getByTestId('schedule-close-1'), '15:00');
+    await user.click(screen.getByTestId('schedule-save'));
+
+    await waitFor(() => expect(saveLocationSchedule).toHaveBeenCalledTimes(1));
+    const [id, weekly, interval] = saveLocationSchedule.mock.calls[0];
+    expect(id).toBe('centro');
+    expect(weekly[1]).toEqual({ closed: false, open: '10:00', close: '15:00' });
+    expect(interval).toBe(60);
+    expect(saveSchedule).not.toHaveBeenCalled();
+  });
+
+  it('keeps the chosen location after the parent reloads the catalog', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<ScheduleTab schedule={SCHEDULE} locations={LOCATIONS} services={SERVICES} onChanged={() => {}} />);
+    await user.selectOptions(screen.getByLabelText('Local'), 'centro');
+
+    // A refresh hands over fresh objects for the same data.
+    rerender(<ScheduleTab schedule={SCHEDULE} locations={LOCATIONS.map((location) => ({ ...location }))} services={SERVICES} onChanged={() => {}} />);
+
+    expect(screen.getByLabelText('Local')).toHaveValue('centro');
+    expect(screen.getByTestId('schedule-open-1')).toHaveValue('10:00');
   });
 });

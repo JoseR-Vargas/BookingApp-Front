@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { saveSchedule } from '../../../services/adminService.js';
+import { saveLocationSchedule, saveSchedule } from '../../../services/adminService.js';
 import { toast } from '../../../ui/toast.js';
+import { activeLocations, locationLabel } from '../../../utils/locations.js';
 import { dayStartTimes, offeredStartTimes } from '../../../utils/schedule.js';
 import Card from '../Card.jsx';
 import { CONTROL, Field, FormError, SaveButton } from './configParts.jsx';
@@ -83,7 +84,18 @@ function TimeSelect({ id, label, testId, value, disabled, onChange }) {
   );
 }
 
-export default function ScheduleTab({ schedule, services = [], onChanged }) {
+/**
+ * SPEC 08: with more than one active location the tab edits ONE location at a time (a selector picks it
+ * and the save goes to that location's route); with a single one it is the original schedule form and
+ * saves through the default schedule route.
+ */
+export default function ScheduleTab({ schedule: defaultSchedule, locations, services = [], onChanged }) {
+  const choices = locations ? activeLocations({ locations }) : [];
+  const several = choices.length > 1;
+  const [locationId, setLocationId] = useState(() => (choices[0] ? choices[0].id : null));
+  const location = several ? (choices.find((candidate) => candidate.id === locationId) || choices[0]) : null;
+  const schedule = location ? location.schedule : defaultSchedule;
+
   const [days, setDays] = useState(() => toFormState(schedule));
   const [interval, setIntervalMinutes] = useState((schedule && schedule.startIntervalMinutes) || DEFAULT_INTERVAL);
   const [saving, setSaving] = useState(false);
@@ -163,7 +175,9 @@ export default function ScheduleTab({ schedule, services = [], onChanged }) {
     setError('');
     setAffected(0);
     try {
-      const result = await saveSchedule(toPayload(days), interval);
+      const result = location
+        ? await saveLocationSchedule(location.id, toPayload(days), interval)
+        : await saveSchedule(toPayload(days), interval);
       if (result && result.affectedBookings > 0) setAffected(result.affectedBookings);
       else toast.success('Horarios guardados');
       onChanged();
@@ -177,6 +191,16 @@ export default function ScheduleTab({ schedule, services = [], onChanged }) {
   return (
     <Card>
       <form onSubmit={handleSubmit} noValidate>
+        {several && (
+          <div className="mb-6 border-b border-table-line pb-6">
+            <Field id="schedule-location" label="Local" className="max-w-md">
+              <select id="schedule-location" data-testid="schedule-location" className={CONTROL} value={location.id} onChange={(event) => { setLocationId(event.target.value); setAffected(0); setError(''); }}>
+                {choices.map((choice) => <option key={choice.id} value={choice.id}>{locationLabel(choice)}</option>)}
+              </select>
+            </Field>
+            <p className="mt-1 text-xs text-text-muted">Cada local tiene su propio horario e intervalo.</p>
+          </div>
+        )}
         <div className="mb-6 border-b border-table-line pb-6">
           <Field id="schedule-interval" label="Intervalo entre turnos" className="max-w-xs">
             <select id="schedule-interval" data-testid="schedule-interval" className={CONTROL} value={interval} onChange={changeInterval}>

@@ -26,6 +26,14 @@ describe('publicAvailabilityService', () => {
     expect(fetch.mock.calls[0][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/public-availability?serviceId=corte%20%26%20barba`);
   });
 
+  it('sends the chosen location too (SPEC 08), with or without a service', async () => {
+    await getPublicAvailability('corte', 'centro');
+    await getPublicAvailability(undefined, 'centro');
+
+    expect(fetch.mock.calls[0][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/public-availability?serviceId=corte&locationId=centro`);
+    expect(fetch.mock.calls[1][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/public-availability?locationId=centro`);
+  });
+
   it('rejects when the backend fails (404 for a service that is not published)', async () => {
     fetch.mockResolvedValue({ ok: false, status: 404, text: async () => '' });
 

@@ -1,6 +1,6 @@
 # SPEC 07 — Página pública de disponibilidad (link en vivo)
 
-> **Status:** Aprobado (el usuario pidió "implementa la propuesta" con la opción 2 en la pregunta de la reserva)
+> **Status:** Implementado
 > **Depends on:** SPEC 05 y SPEC 06 (horas ofrecidas), SPEC 03 (marca)
 > **Date:** 2026-11-21
 > **Reemplaza:** el borrador anterior "imagen descargable" (descartado por el usuario).

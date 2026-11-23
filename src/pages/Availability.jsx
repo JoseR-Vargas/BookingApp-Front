@@ -26,17 +26,19 @@ function AvailabilityPage() {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [data, setData] = useState(null);
   const [serviceId, setServiceId] = useState(undefined);
+  const [locationId, setLocationId] = useState(undefined);
   const [picker, setPicker] = useState(null); // {date, time, professionals}
   const [prefill, setPrefill] = useState(null);
   const [bookingOpen, setBookingOpen] = useState(false);
   // Only the latest request may write state.
   const latestRequest = useRef(0);
 
-  const load = useCallback(async (id, { quiet = false } = {}) => {
+  const load = useCallback(async (id, place, { quiet = false } = {}) => {
     const request = ++latestRequest.current;
     if (!quiet) setStatus('loading');
     try {
-      const result = await getPublicAvailability(id);
+      // A location is only sent once the visitor chose one: until then the backend uses the default.
+      const result = place ? await getPublicAvailability(id, place) : await getPublicAvailability(id);
       if (request !== latestRequest.current) return;
       setData(result);
       setStatus('ready');
@@ -47,13 +49,13 @@ function AvailabilityPage() {
   }, []);
 
   useEffect(() => {
-    load(serviceId);
+    load(serviceId, locationId);
     return () => { latestRequest.current += 1; };
-  }, [load, serviceId]);
+  }, [load, serviceId, locationId]);
 
   const book = (date, time, professional) => {
     setPicker(null);
-    setPrefill({ serviceId: data.serviceId, date, time, professionalId: professional.id });
+    setPrefill({ serviceId: data.serviceId, date, time, professionalId: professional.id, locationId: data.locationId });
     setBookingOpen(true);
   };
 
@@ -65,7 +67,7 @@ function AvailabilityPage() {
   // The booking modal closes after a booking too: refresh quietly so a taken time disappears.
   const closeBooking = () => {
     setBookingOpen(false);
-    load(data?.serviceId ?? serviceId, { quiet: true });
+    load(data?.serviceId ?? serviceId, data?.locationId ?? locationId, { quiet: true });
   };
 
   const today = data?.days?.[0]?.date;
@@ -82,7 +84,7 @@ function AvailabilityPage() {
     body = (
       <div role="alert" className="flex flex-col items-center gap-4 py-12 text-center text-text-secondary">
         <p>No pudimos cargar los turnos. Revisa tu conexión e intenta nuevamente.</p>
-        <Button size="sm" onClick={() => load(serviceId)}>Reintentar</Button>
+        <Button size="sm" onClick={() => load(serviceId, locationId)}>Reintentar</Button>
       </div>
     );
   } else if (!data?.enabled) {
@@ -92,6 +94,22 @@ function AvailabilityPage() {
   } else {
     body = (
       <>
+        {data.locations && data.locations.length > 1 && (
+          <div role="radiogroup" aria-label="Local" className="-mx-3 mb-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+            {data.locations.map((location) => (
+              <button
+                key={location.id}
+                type="button"
+                role="radio"
+                aria-checked={location.id === data.locationId}
+                onClick={() => { setServiceId(data.serviceId); setLocationId(location.id); }}
+                className={`shrink-0 cursor-pointer rounded-full border px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent touch:min-h-11 ${location.id === data.locationId ? 'border-primary-line bg-primary text-primary-foreground' : 'border-border bg-layer text-layer-foreground hover:bg-layer-hover'}`}
+              >
+                {location.name}
+              </button>
+            ))}
+          </div>
+        )}
         {data.services.length > 1 && (
           <div role="radiogroup" aria-label="Servicio" className="-mx-3 mb-5 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:mb-6 sm:flex-wrap sm:overflow-visible sm:px-0">
             {data.services.map((service) => (

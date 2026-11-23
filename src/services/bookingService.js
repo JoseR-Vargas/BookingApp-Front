@@ -10,21 +10,26 @@ export function createBooking(bookingData) {
 }
 
 // Free start times per professional (offering ALL the services) for the back-to-back block of the services.
+// `options.locationId` (SPEC 08) picks the location; left out, the backend uses the default one.
 export function getAvailability(date, serviceIds, options) {
-  const query = `date=${encodeURIComponent(date)}&serviceIds=${serviceIds.map(encodeURIComponent).join(',')}`;
-  return apiClient.get(`/api/availability?${query}`, options || {});
+  const { locationId, ...requestOptions } = options || {};
+  let query = `date=${encodeURIComponent(date)}&serviceIds=${serviceIds.map(encodeURIComponent).join(',')}`;
+  if (locationId) query += `&locationId=${encodeURIComponent(locationId)}`;
+  return apiClient.get(`/api/availability?${query}`, requestOptions);
 }
 
 // Last-second check that the WHOLE window (sum of the service durations) is still free.
-export async function checkAvailability(date, time, professionalId, serviceIds) {
-  const { available } = await apiClient.post('/api/bookings/availability', { date, time, professionalId, serviceIds });
+export async function checkAvailability(date, time, professionalId, serviceIds, locationId) {
+  const body = { date, time, professionalId, serviceIds };
+  if (locationId) body.locationId = locationId;
+  const { available } = await apiClient.post('/api/bookings/availability', body);
   return available;
 }
 
 // Builds the wire shape of POST /api/bookings.
 // User-provided text is escaped here (same escaping as legacy getFormData) for data compatibility.
-export function buildBookingPayload({ formData, services, professional, date, time }) {
-  return {
+export function buildBookingPayload({ formData, services, professional, date, time, location }) {
+  const payload = {
     client: {
       name: sanitizeInput(formData.name),
       id: sanitizeInput(formData.id || ''),
@@ -42,4 +47,7 @@ export function buildBookingPayload({ formData, services, professional, date, ti
     notes: sanitizeInput(formData.notes),
     status: 'confirmed',
   };
+  // SPEC 08: only a business with several locations picks one; the backend uses the default otherwise.
+  if (location) payload.location = { id: location.id };
+  return payload;
 }

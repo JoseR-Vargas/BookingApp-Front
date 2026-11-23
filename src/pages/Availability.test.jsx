@@ -151,3 +151,44 @@ describe('Availability page', () => {
     expect(await screen.findByText('Todavía no hay turnos para mostrar.')).toBeInTheDocument();
   });
 });
+
+describe('Availability page with several locations (SPEC 08)', () => {
+  const LOCATIONS = [{ id: 'principal', name: 'Principal' }, { id: 'centro', name: 'Centro' }];
+
+  it('shows no location chooser when the business has one', async () => {
+    getPublicAvailability.mockResolvedValue(answer({ locations: [LOCATIONS[0]], locationId: 'principal' }));
+    setup();
+
+    await screen.findByRole('button', { name: '09:00' });
+    expect(screen.queryByRole('radiogroup', { name: 'Local' })).not.toBeInTheDocument();
+  });
+
+  it('offers the locations and reloads the times for the one chosen, keeping the service', async () => {
+    getPublicAvailability.mockResolvedValue(answer({ locations: LOCATIONS, locationId: 'principal' }));
+    const user = setup();
+    await screen.findByRole('radiogroup', { name: 'Local' });
+    expect(screen.getByRole('radio', { name: 'Principal' })).toBeChecked();
+
+    getPublicAvailability.mockResolvedValue(answer({ locations: LOCATIONS, locationId: 'centro' }));
+    await user.click(screen.getByRole('radio', { name: 'Centro' }));
+
+    await waitFor(() => expect(getPublicAvailability).toHaveBeenLastCalledWith('consulta-inicial', 'centro'));
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Centro' })).toBeChecked());
+  });
+
+  it('books with the location of the page', async () => {
+    getPublicAvailability.mockResolvedValue(answer({ locations: LOCATIONS, locationId: 'centro' }));
+    const user = setup();
+
+    await user.click(await screen.findByRole('button', { name: '09:00' }));
+
+    expect(JSON.parse(screen.getByTestId('prefill').textContent)).toMatchObject({ locationId: 'centro', time: '09:00' });
+  });
+
+  it('does not send a location the visitor did not choose', async () => {
+    setup();
+    await screen.findByRole('button', { name: '09:00' });
+
+    expect(getPublicAvailability).toHaveBeenCalledWith(undefined);
+  });
+});

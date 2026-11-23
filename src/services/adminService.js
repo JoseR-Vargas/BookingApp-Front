@@ -93,3 +93,16 @@ export const deleteLogo = () => adminRequest('DELETE', '/api/admin/branding/logo
  * @param settings {{enabled: boolean, days: number, serviceIds: string[]|null}} `null` = every active service
  */
 export const savePublicAvailability = (settings) => adminRequest('PUT', '/api/admin/public-availability', settings);
+
+// ----- Locations (SPEC 08) -----
+
+/** @param data {{name: string, address: string}} */
+export const createLocation = (data) => adminRequest('POST', '/api/admin/locations', data);
+/** @param data {{name: string, address: string, active: boolean}} */
+export const updateLocation = (id, data) => adminRequest('PUT', '/api/admin/locations/' + id, data);
+/** Same body as `saveSchedule`, for one location. `startIntervalMinutes` left out keeps the stored value. */
+export const saveLocationSchedule = (id, weekly, startIntervalMinutes) => adminRequest(
+  'PUT',
+  '/api/admin/locations/' + id + '/schedule',
+  startIntervalMinutes === undefined ? { weekly } : { weekly, startIntervalMinutes },
+);

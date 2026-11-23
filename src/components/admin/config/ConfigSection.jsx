@@ -4,11 +4,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAdminCatalog } from '../../../services/adminService.js';
+import { catalogLocations } from '../../../utils/locations.js';
 import { toast } from '../../../ui/toast.js';
 import Button from '../../ui/Button.jsx';
 import Spinner from '../../ui/Spinner.jsx';
 import SectionHeader from '../SectionHeader.jsx';
 import BrandingTab from './BrandingTab.jsx';
+import LocationsTab from './LocationsTab.jsx';
 import ProfessionalsTab from './ProfessionalsTab.jsx';
 import ScheduleTab from './ScheduleTab.jsx';
 import ServicesTab from './ServicesTab.jsx';
@@ -17,6 +19,7 @@ import ShareTab from './ShareTab.jsx';
 const TABS = [
   { key: 'professionals', label: 'Profesionales' },
   { key: 'services', label: 'Servicios' },
+  { key: 'locations', label: 'Locales' },
   { key: 'schedule', label: 'Horarios' },
   { key: 'branding', label: 'Marca' },
   { key: 'share', label: 'Compartir' },
@@ -83,13 +86,14 @@ export default function ConfigSection() {
     body = (
       <div role="tabpanel" id={`config-panel-${tab}`} aria-labelledby={`config-tab-${tab}`} tabIndex={0}>
         {tab === 'professionals' && (
-          <ProfessionalsTab professionals={catalog.professionals} onChanged={refresh} />
+          <ProfessionalsTab professionals={catalog.professionals} locations={catalog.locations} onChanged={refresh} />
         )}
         {tab === 'services' && (
           <ServicesTab services={catalog.services} professionals={catalog.professionals} onChanged={refresh} />
         )}
         {tab === 'share' && <ShareTab publicAvailability={catalog.publicAvailability} services={catalog.services} onChanged={refresh} />}
-        {tab === 'schedule' && <ScheduleTab schedule={catalog.schedule} services={catalog.services} onChanged={refresh} />}
+        {tab === 'locations' && <LocationsTab locations={catalogLocations(catalog)} onChanged={refresh} />}
+        {tab === 'schedule' && <ScheduleTab schedule={catalog.schedule} locations={catalog.locations} services={catalog.services} onChanged={refresh} />}
       </div>
     );
   }

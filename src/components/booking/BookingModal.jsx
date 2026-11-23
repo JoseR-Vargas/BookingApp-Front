@@ -45,14 +45,15 @@ function CloseIcon() {
 }
 
 /**
- * @param prefill {{serviceId: string, date: string, time: string, professionalId: string}} [prefill] a turn picked
+ * @param prefill {{serviceId: string, date: string, time: string, professionalId: string, locationId?: string}} [prefill] a turn picked
  *   elsewhere (the public availability page, SPEC 07): every opening starts with it chosen, on the client form step.
  */
 export default function BookingModal({ open, onClose, prefill }) {
   const booking = useBooking();
   const catalog = useCatalog();
-  const { state, setStep, setSubmitting, reset, toggleService, setDate, setTime, setProfessional } = booking;
+  const { state, setStep, setSubmitting, reset, toggleService, setDate, setTime, setProfessional, setLocation } = booking;
   const { currentStep, selectedDate, selectedTime, selectedProfessional, isSubmitting } = state;
+  const askLocation = (catalog.locations || []).length > 1;
 
   const [validated, setValidated] = useState(false);
   const [loadingOpen, setLoadingOpen] = useState(false);
@@ -85,13 +86,17 @@ export default function BookingModal({ open, onClose, prefill }) {
     const service = catalog.services.find((candidate) => candidate.id === prefill.serviceId);
     const professional = catalog.professionals.find((candidate) => candidate.id === prefill.professionalId);
     if (!service || !professional) return;
+    // With several locations the turn belongs to one of them; a prefill without a valid one is ignored.
+    const location = (catalog.locations || []).find((candidate) => candidate.id === prefill.locationId);
+    if (askLocation && !location) return;
     prefillApplied.current = true;
     toggleService(service);
+    if (askLocation) setLocation(location);
     setDate(prefill.date);
     setProfessional(professional);
     setTime(prefill.time);
     setStep(LAST_STEP);
-  }, [open, prefill, catalog.status, catalog.services, catalog.professionals, toggleService, setDate, setProfessional, setTime, setStep]);
+  }, [open, prefill, catalog.status, catalog.services, catalog.professionals, catalog.locations, askLocation, toggleService, setLocation, setDate, setProfessional, setTime, setStep]);
 
   // Legacy validateCurrentStep(): `false` means a toast was shown and the flow must stop.
   const validateStep = useCallback((step, current) => {
@@ -103,6 +108,11 @@ export default function BookingModal({ open, onClose, prefill }) {
         }
         break;
       case 2:
+        // SPEC 08: with several locations the hours and professionals belong to one of them.
+        if (askLocation && !current.selectedLocation) {
+          toast.error('Por favor selecciona un local');
+          return false;
+        }
         if (!current.selectedDate) {
           toast.error('Por favor selecciona una fecha');
           return false;
@@ -128,7 +138,7 @@ export default function BookingModal({ open, onClose, prefill }) {
         break;
     }
     return true;
-  }, []);
+  }, [askLocation]);
 
   // Legacy submitBooking(). `isSubmitting` is raised as soon as the button is pressed, so the
   // button already shows "Procesando..." while the availability pre-check runs (legacy did the same
@@ -138,13 +148,17 @@ export default function BookingModal({ open, onClose, prefill }) {
     setSubmitting(true);
 
     try {
-      const { selectedServices: services, selectedDate: date, selectedTime: time, selectedProfessional: professional } = latest.current;
+      const { selectedServices: services, selectedDate: date, selectedTime: time, selectedProfessional: professional, selectedLocation } = latest.current;
+      const location = askLocation ? selectedLocation : null;
       const formData = readClientForm(formRef.current);
 
       // Last-second check. A failing check must not block the booking (legacy behavior).
       let available = true;
       try {
-        available = await checkAvailability(date, time, professional.id, getServiceIds(services));
+        const ids = getServiceIds(services);
+        available = location
+          ? await checkAvailability(date, time, professional.id, ids, location.id)
+          : await checkAvailability(date, time, professional.id, ids);
       } catch {
         available = true;
       }
@@ -158,7 +172,7 @@ export default function BookingModal({ open, onClose, prefill }) {
 
       setLoadingOpen(true);
       try {
-        await createBooking(buildBookingPayload({ formData, services, professional, date, time }));
+        await createBooking(buildBookingPayload({ formData, services, professional, date, time, location }));
         setLoadingOpen(false);
 
         await wait(CONFIRMATION_DELAY);
@@ -168,6 +182,7 @@ export default function BookingModal({ open, onClose, prefill }) {
         setConfirmation({
           serviceNames: services.map((service) => service.name),
           professionalName: professional.name,
+          locationName: location ? location.name : null,
           date,
           time,
           price: getTotalPrice(services),

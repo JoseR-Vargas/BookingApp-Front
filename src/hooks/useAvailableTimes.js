@@ -67,17 +67,18 @@ function describeTimes(result, professionalId) {
  * @param {string|null} date  'YYYY-MM-DD' or null
  * @param {string|null} professionalId  whose free times to show; null shows none (and asks for no data)
  * @param {string[]} serviceIds  ids of the selected services (the booking window is their total duration)
+ * @param {string} [locationId]  SPEC 08: the location whose hours and professionals apply (default location when left out)
  * @returns {{
  *   placeholder: string,  // text of the empty first <option>
  *   slots: string[],      // the selectable free start times, 'HH:MM'
  *   settled: boolean,     // true when `slots` is final (not loading / retrying)
  * }}
  */
-export function useAvailableTimes(date, professionalId, serviceIds) {
+export function useAvailableTimes(date, professionalId, serviceIds, locationId) {
   const [remote, setRemote] = useState(null);
   // A string key keeps the effect stable while callers pass a fresh array on every render.
   const servicesKey = serviceIds.join(',');
-  const key = date && servicesKey ? [date, servicesKey].join('|') : null;
+  const key = date && servicesKey ? [date, servicesKey, locationId || ''].join('|') : null;
   // The request starts once a professional is selected; the key itself ignores which one.
   const requestKey = professionalId ? key : null;
 
@@ -93,7 +94,11 @@ export function useAvailableTimes(date, professionalId, serviceIds) {
       setRemote({ key, phase: 'loading', mobile, attempt, result: null });
 
       try {
-        const availability = await getAvailability(date, servicesKey.split(','), { timeout });
+        const availability = await getAvailability(
+          date,
+          servicesKey.split(','),
+          locationId ? { timeout, locationId } : { timeout },
+        );
         if (cancelled) return;
         setRemote({
           key,
@@ -132,7 +137,7 @@ export function useAvailableTimes(date, professionalId, serviceIds) {
       cancelled = true;
       clearTimeout(retryTimer);
     };
-  }, [requestKey, key, date, servicesKey]);
+  }, [requestKey, key, date, servicesKey, locationId]);
 
   if (!date) {
     return { placeholder: NO_DATE_TEXT, slots: [], settled: true };

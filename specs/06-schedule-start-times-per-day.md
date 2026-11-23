@@ -1,6 +1,6 @@
 # SPEC 06 — Horas de inicio por día en Horarios
 
-> **Status:** aprobado (pendiente de aprobación)
+> **Status:** Implementado
 > **Depends on:** SPEC 05 (`05-schedule-start-interval`)
 > **Date:** 2026-11-19
 > **Objective:** Permitir que el admin elija, día por día, las horas exactas que se ofrecen al público (lunes 09:00, 12:00, 16:00; martes 10:00, 15:00), con pausas y turnos irregulares.

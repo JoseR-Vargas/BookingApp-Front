@@ -75,6 +75,16 @@ describe('bookingService HTTP contract', () => {
     expect(init.body).toBeUndefined();
   });
 
+  it('getAvailability sends the location when one is chosen, and no locationId otherwise', async () => {
+    fetch.mockResolvedValue(okJson({ date: '2030-01-07', closed: false, professionals: [] }));
+
+    await getAvailability('2030-01-07', ['servicio-basico'], { timeout: 1000, locationId: 'centro' });
+    await getAvailability('2030-01-07', ['servicio-basico'], { timeout: 1000 });
+
+    expect(fetch.mock.calls[0][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/availability?date=2030-01-07&serviceIds=servicio-basico&locationId=centro`);
+    expect(fetch.mock.calls[1][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/availability?date=2030-01-07&serviceIds=servicio-basico`);
+  });
+
   it('getAvailability forwards the timeout option', async () => {
     vi.useFakeTimers();
     let signal;
@@ -123,6 +133,20 @@ describe('bookingService.checkAvailability', () => {
       time: '10:00',
       professionalId: 'alex-garcia',
       serviceIds: ['servicio-basico', 'servicio-premium'],
+    });
+  });
+
+  it('sends the location of the check when one is chosen', async () => {
+    fetch.mockResolvedValue(okJson({ available: true }));
+
+    await checkAvailability('2030-01-07', '10:00', 'alex-garcia', ['servicio-basico'], 'centro');
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      date: '2030-01-07',
+      time: '10:00',
+      professionalId: 'alex-garcia',
+      serviceIds: ['servicio-basico'],
+      locationId: 'centro',
     });
   });
 
@@ -177,6 +201,19 @@ describe('buildBookingPayload', () => {
     });
     expect(Object.keys(payload)).toEqual(['client', 'services', 'professional', 'date', 'time', 'notes', 'status']);
     expect(Object.keys(payload.client)).toEqual(['name', 'id', 'email', 'phone']);
+  });
+
+  it('adds the chosen location (id only) after the other fields, and nothing without one', () => {
+    const args = {
+      formData: { name: 'Ana', email: 'a@b.com', phone: '1' },
+      services,
+      professional,
+      date: '2030-01-07',
+      time: '10:00',
+    };
+
+    expect(buildBookingPayload({ ...args, location: { id: 'centro', name: 'Centro' } }).location).toEqual({ id: 'centro' });
+    expect(buildBookingPayload(args)).not.toHaveProperty('location');
   });
 
   it('defaults an empty client id and notes to empty strings', () => {

@@ -5,6 +5,8 @@ import { BookingProvider, bookingReducer, initialBookingState, useBooking } from
 const SERVICE = { id: 'servicio-basico', name: 'Servicio Básico', price: 1200, duration: 60, professionals: ['alex-garcia'] };
 const OTHER_SERVICE = { id: 'servicio-premium', name: 'Servicio Premium', price: 2500, duration: 90, professionals: ['alex-garcia', 'maria-lopez'] };
 const PROFESSIONAL = { id: 'alex-garcia', name: 'Alex García' };
+const CENTRO = { id: 'centro', name: 'Centro' };
+const PRINCIPAL = { id: 'principal', name: 'Principal' };
 
 const setup = () => renderHook(() => useBooking(), { wrapper: BookingProvider });
 
@@ -16,6 +18,7 @@ describe('bookingReducer', () => {
       selectedDate: null,
       selectedTime: null,
       selectedProfessional: null,
+      selectedLocation: null,
       isSubmitting: false,
     });
   });
@@ -51,6 +54,7 @@ describe('useBooking', () => {
       selectedDate: '2030-03-04',
       selectedTime: '11:00',
       selectedProfessional: PROFESSIONAL,
+      selectedLocation: null,
       isSubmitting: true,
     });
   });
@@ -141,5 +145,49 @@ describe('useBooking', () => {
 
   it('throws a helpful error outside the provider', () => {
     expect(() => renderHook(() => useBooking())).toThrow('useBooking must be used inside <BookingProvider>');
+  });
+});
+
+describe('selected location (SPEC 08)', () => {
+  it('sets the location through its action and reset clears it', () => {
+    const { result } = setup();
+
+    act(() => result.current.setLocation(CENTRO));
+    expect(result.current.state.selectedLocation).toEqual(CENTRO);
+
+    act(() => result.current.reset());
+    expect(result.current.state.selectedLocation).toBeNull();
+  });
+
+  it('keeps a professional who works at the new location, and clears the time either way', () => {
+    const { result } = setup();
+    act(() => {
+      result.current.setProfessional({ ...PROFESSIONAL, locations: ['principal', 'centro'] });
+      result.current.setTime('10:00');
+      result.current.setLocation(CENTRO);
+    });
+
+    expect(result.current.state.selectedProfessional.id).toBe('alex-garcia');
+    expect(result.current.state.selectedTime).toBeNull();
+  });
+
+  it('drops a professional who does not work at the new location', () => {
+    const { result } = setup();
+    act(() => {
+      result.current.setProfessional({ ...PROFESSIONAL, locations: ['principal'] });
+      result.current.setLocation(CENTRO);
+    });
+
+    expect(result.current.state.selectedProfessional).toBeNull();
+  });
+
+  it('keeps a professional that carries no locations (older catalog)', () => {
+    const { result } = setup();
+    act(() => {
+      result.current.setProfessional(PROFESSIONAL);
+      result.current.setLocation(PRINCIPAL);
+    });
+
+    expect(result.current.state.selectedProfessional).toEqual(PROFESSIONAL);
   });
 });

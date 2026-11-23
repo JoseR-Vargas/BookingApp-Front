@@ -12,6 +12,7 @@ export const initialBookingState = {
   selectedDate: null,
   selectedTime: null,
   selectedProfessional: null,
+  selectedLocation: null,
   isSubmitting: false,
 };
 
@@ -37,6 +38,14 @@ export function bookingReducer(state, action) {
       return { ...state, selectedTime: action.time };
     case 'SET_PROFESSIONAL':
       return { ...state, selectedProfessional: action.professional };
+    case 'SET_LOCATION': {
+      // A professional works at some locations only (a catalog without that data keeps them), and the
+      // booked time belonged to the other location's hours.
+      const { selectedProfessional } = state;
+      const works = selectedProfessional
+        && (!Array.isArray(selectedProfessional.locations) || selectedProfessional.locations.includes(action.location.id));
+      return { ...state, selectedLocation: action.location, selectedTime: null, selectedProfessional: works ? selectedProfessional : null };
+    }
     case 'SET_SUBMITTING':
       return { ...state, isSubmitting: action.isSubmitting };
     case 'RESET':
@@ -58,6 +67,7 @@ export function BookingProvider({ children }) {
     setDate: (date) => dispatch({ type: 'SET_DATE', date }),
     setTime: (time) => dispatch({ type: 'SET_TIME', time }),
     setProfessional: (professional) => dispatch({ type: 'SET_PROFESSIONAL', professional }),
+    setLocation: (location) => dispatch({ type: 'SET_LOCATION', location }),
     setSubmitting: (isSubmitting) => dispatch({ type: 'SET_SUBMITTING', isSubmitting }),
     reset: () => dispatch({ type: 'RESET' }),
   }), []);

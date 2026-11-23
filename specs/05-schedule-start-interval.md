@@ -1,6 +1,6 @@
 # SPEC 05 — Intervalo entre turnos configurable en Horarios
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** SPEC 01 (`01-dashboard-config-admin`)
 > **Date:** 2026-11-19
 > **Objective:** Permitir que el admin elija cada cuántos minutos se ofrecen turnos al público (30 min, 1 h, 3 h…) desde la pestaña "Horarios", sin cambiar cómo se ocupa la agenda.

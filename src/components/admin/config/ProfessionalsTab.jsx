@@ -8,6 +8,7 @@ import {
   uploadProfessionalPhoto,
 } from '../../../services/adminService.js';
 import { toast } from '../../../ui/toast.js';
+import { activeLocations, catalogLocations } from '../../../utils/locations.js';
 import { PHOTO_TYPES, resizeToSquareJpeg } from '../../../utils/resizeImage.js';
 import Button from '../../ui/Button.jsx';
 import ConfirmDialog from '../../ui/ConfirmDialog.jsx';
@@ -20,8 +21,19 @@ import { ActiveBadge, CONTROL, Field, FormError, SaveButton } from './configPart
 
 const EMPTY_FORM = { name: '', specialty: '', experience: '' };
 
-function ProfessionalForm({ professional, onSaved, onCancel }) {
+function ProfessionalForm({ professional, locations, onSaved, onCancel }) {
   const editing = Boolean(professional);
+  // SPEC 08: only a business with several active locations is asked where the professional works.
+  const choices = activeLocations({ locations });
+  const askLocations = choices.length > 1;
+  const [locationIds, setLocationIds] = useState(() => {
+    const own = editing && Array.isArray(professional.locations) ? professional.locations : null;
+    return own || [choices[0].id];
+  });
+  const toggleLocation = (id) => {
+    setLocationIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+    setError('');
+  };
   const [form, setForm] = useState(
     editing
       ? { name: professional.name, specialty: professional.specialty || '', experience: professional.experience || '' }
@@ -77,6 +89,14 @@ function ProfessionalForm({ professional, onSaved, onCancel }) {
     if (!data.name) {
       setError('El nombre es obligatorio');
       return;
+    }
+    if (askLocations) {
+      // Catalog order, so the request does not depend on the click order.
+      data.locations = choices.map((choice) => choice.id).filter((id) => locationIds.includes(id));
+      if (data.locations.length === 0) {
+        setError('Elige al menos un local');
+        return;
+      }
     }
 
     setSaving(true);
@@ -147,6 +167,28 @@ function ProfessionalForm({ professional, onSaved, onCancel }) {
               <input id="professional-experience" data-testid="professional-experience-input" type="text" className={CONTROL} {...bind('experience')} />
             </Field>
           </div>
+          {askLocations && (
+            <fieldset className="mt-4">
+              <legend className="mb-2 text-sm font-semibold text-text-secondary">Locales donde trabaja</legend>
+              <ul className="flex flex-wrap gap-x-6 gap-y-2">
+                {choices.map((choice) => (
+                  <li key={choice.id}>
+                    <label htmlFor={`professional-location-${choice.id}`} className="flex cursor-pointer items-center gap-2 text-text-secondary">
+                      <input
+                        id={`professional-location-${choice.id}`}
+                        data-testid={`professional-location-${choice.id}`}
+                        type="checkbox"
+                        checked={locationIds.includes(choice.id)}
+                        onChange={() => toggleLocation(choice.id)}
+                        className="size-4 accent-[var(--color-accent)]"
+                      />
+                      <span>{choice.name}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </fieldset>
+          )}
           <FormError message={error} testId="professional-error" />
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <Button variant="secondary" size="sm" disabled={saving} onClick={onCancel}>Cancelar</Button>
@@ -158,7 +200,10 @@ function ProfessionalForm({ professional, onSaved, onCancel }) {
   );
 }
 
-export default function ProfessionalsTab({ professionals, onChanged }) {
+export default function ProfessionalsTab({ professionals, locations, onChanged }) {
+  const allLocations = catalogLocations({ locations });
+  const showLocations = activeLocations({ locations }).length > 1;
+  const locationNames = (ids) => allLocations.filter((location) => (ids || []).includes(location.id)).map((location) => location.name).join(', ');
   // `null` = form closed, 'new' = creating, otherwise the professional being edited.
   const [editing, setEditing] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -220,6 +265,7 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
         <ProfessionalForm
           key={editing === 'new' ? 'new' : editing.id}
           professional={editing === 'new' ? null : editing}
+          locations={allLocations}
           onSaved={handleSaved}
           onCancel={closeForm}
         />
@@ -240,13 +286,14 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
                   <th scope="col" className={`${TH} ${TH_START}`}>Nombre</th>
                   <th scope="col" className={`${TH} ${TH_START}`}>Especialidad</th>
                   <th scope="col" className={`${TH} ${TH_START}`}>Experiencia</th>
+                  {showLocations && <th scope="col" className={`${TH} ${TH_START}`}>Locales</th>}
                   <th scope="col" className={`${TH} ${TH_START}`}>Estado</th>
                   <th scope="col" className={`${TH} ${TH_END}`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className={TBODY}>
                 {professionals.length === 0 && (
-                  <tr><td colSpan={5} className={EMPTY_CELL}>Todavía no hay profesionales</td></tr>
+                  <tr><td colSpan={showLocations ? 6 : 5} className={EMPTY_CELL}>Todavía no hay profesionales</td></tr>
                 )}
                 {professionals.map((professional) => (
                   <tr key={professional.id} data-testid={`professional-row-${professional.id}`} className={TR}>
@@ -258,6 +305,7 @@ export default function ProfessionalsTab({ professionals, onChanged }) {
                     </td>
                     <td className={TD}>{professional.specialty}</td>
                     <td className={TD}>{professional.experience}</td>
+                    {showLocations && <td className={TD}>{locationNames(professional.locations)}</td>}
                     <td className={TD}><ActiveBadge active={professional.active} /></td>
                     <td className={TD_ACTIONS}>
                       <div className="flex justify-end gap-4">
