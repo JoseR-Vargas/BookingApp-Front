@@ -2,6 +2,9 @@
 // Lógica del panel admin — sin referencias al DOM.
 
 import { apiClient } from '../core/apiClient.js';
+import { adminCatalogSchema } from '../schemas/api/catalog.schema.js';
+import { bookingListSchema, statisticsSchema } from '../schemas/api/booking.schema.js';
+import { parseResponse } from '../schemas/parse-response.js';
 import { authService, getAdminKey, getAdminUser } from './authService.js';
 
 // Every admin route requires the admin key (`Authorization: Bearer <ADMIN_API_KEY>`). This is the
@@ -32,9 +35,9 @@ async function adminRequest(method, path, body) {
 // The public booking calls (create, availability, cancel by link) live in bookingService and
 // cancellationService and never carry the key.
 
-export const getBookings = () => adminRequest('GET', '/api/bookings');
+export const getBookings = async () => parseResponse(bookingListSchema, await adminRequest('GET', '/api/bookings'));
 
-export const getStatistics = () => adminRequest('GET', '/api/bookings/statistics');
+export const getStatistics = async () => parseResponse(statisticsSchema, await adminRequest('GET', '/api/bookings/statistics'));
 
 // Erases the booking and its history. Use cancelBooking to just free the slot.
 export const deleteBooking = (id) => adminRequest('DELETE', '/api/bookings/' + id);
@@ -45,7 +48,7 @@ export const cancelBooking = (id) => adminRequest('PATCH', '/api/bookings/' + id
 
 // ----- Business configuration -----
 
-export const getAdminCatalog = () => adminRequest('GET', '/api/admin/catalog');
+export const getAdminCatalog = async () => parseResponse(adminCatalogSchema, await adminRequest('GET', '/api/admin/catalog'));
 
 export const createProfessional = (data) => adminRequest('POST', '/api/admin/professionals', data);
 export const updateProfessional = (id, data) => adminRequest('PATCH', '/api/admin/professionals/' + id, data);

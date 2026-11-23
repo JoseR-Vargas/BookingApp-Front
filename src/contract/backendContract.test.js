@@ -17,7 +17,7 @@ vi.mock('socket.io-client', () => ({ io: vi.fn() }));
 
 import { io } from 'socket.io-client';
 import { APP_CONFIG } from '../config/appConfig.js';
-import { PROFESSIONALS, SERVICES } from '../test/catalogFixture.js';
+import { ADMIN_CATALOG, CATALOG, PROFESSIONALS, SERVICES } from '../test/catalogFixture.js';
 import { buildBookingPayload } from '../services/bookingService.js';
 import * as bookingService from '../services/bookingService.js';
 import * as adminService from '../services/adminService.js';
@@ -25,6 +25,7 @@ import * as cancellationService from '../services/cancellationService.js';
 import { authService } from '../services/authService.js';
 import * as catalogService from '../services/catalogService.js';
 import { connectBookingSocket } from '../services/realtimeService.js';
+import { installMockHttp, restoreHttp } from '../test/mockHttp.js';
 
 // --- Encoded backend constraints (src/bookings/schemas/booking.schema.ts + bookings.service.ts) ---
 
@@ -196,24 +197,40 @@ const isAdminBookingRoute = (method, url) => ADMIN_BOOKING_ROUTES.some(([m, temp
   m === method && new RegExp(`^${template.replace(/:\w+/g, '[^/]+')}$`).test(url.split('?')[0])
 ));
 
+// The services validate what they read (SPEC 16), so the fake backend answers each route with the
+// shape the real one has; every other call only needs some JSON.
+function bodyFor(method, url) {
+  const path = url.split('?')[0];
+  if (method === 'GET' && path === '/api/bookings') return [];
+  if (method === 'GET' && path === '/api/bookings/statistics') return { totalBookings: 0, totalRevenue: 0, todayBookings: 0 };
+  if (method === 'GET' && path === '/api/availability') return { date: '2030-01-15', closed: false, professionals: [] };
+  if (method === 'POST' && path === '/api/bookings/availability') return { available: true };
+  if (method === 'POST' && path === '/api/bookings') return { _id: '665f1c2e9b1d4a0012345678' };
+  if (method === 'GET' && path === '/api/catalog') return CATALOG;
+  if (method === 'GET' && path === '/api/admin/catalog') return ADMIN_CATALOG;
+  if (method === 'GET' && path === '/api/admin/session') return { ok: true };
+  return {};
+}
+
 describe('endpoints used by the services exist in the backend controller', () => {
   let calls;
 
   beforeEach(() => {
     sessionStorage.setItem('adminKey', 'k');
     calls = [];
-    vi.stubGlobal('fetch', vi.fn(async (url, options) => {
+    installMockHttp(async (url, options) => {
       calls.push({
         method: options.method,
         url: String(url).replace(APP_CONFIG.BACKEND_URL, ''),
         auth: options.headers.Authorization,
       });
-      return { ok: true, json: async () => [] };
-    }));
+      return { ok: true, json: async () => bodyFor(options.method, url.replace(APP_CONFIG.BACKEND_URL, '')) };
+    });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    restoreHttp();
     sessionStorage.clear();
   });
 
@@ -268,18 +285,19 @@ describe('catalog and admin config endpoints exist in the backend contract', () 
   beforeEach(() => {
     sessionStorage.setItem('adminKey', 'k');
     calls = [];
-    vi.stubGlobal('fetch', vi.fn(async (url, options) => {
+    installMockHttp(async (url, options) => {
       calls.push({
         method: options.method,
         url: String(url).replace(APP_CONFIG.BACKEND_URL, ''),
         auth: options.headers.Authorization,
       });
-      return { ok: true, json: async () => ({}) };
-    }));
+      return { ok: true, json: async () => bodyFor(options.method, url.replace(APP_CONFIG.BACKEND_URL, '')) };
+    });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    restoreHttp();
     sessionStorage.clear();
   });
 

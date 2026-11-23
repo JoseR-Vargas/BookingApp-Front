@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { savePublicAvailability } from '../../../services/adminService.js';
+import { publicAvailabilitySettingsSchema } from '../../../schemas/forms/public-availability-settings.schema.js';
+import { validate } from '../../../schemas/validate.js';
 import { toast } from '../../../ui/toast.js';
 import Button from '../../ui/Button.jsx';
 import Card from '../Card.jsx';
@@ -53,8 +55,9 @@ export default function ShareTab({ publicAvailability, services, onChanged }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!allServices && form.serviceIds.length === 0) {
-      setError('Elige al menos un servicio o publica todos');
+    const problem = validate(publicAvailabilitySettingsSchema, form);
+    if (problem) {
+      setError(problem);
       return;
     }
     setSaving(true);

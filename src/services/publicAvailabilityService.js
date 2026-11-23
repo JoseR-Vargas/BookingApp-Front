@@ -3,6 +3,8 @@
 // days with the professionals free at each one. Public (no admin key). The backend owns the rules.
 
 import { apiClient } from '../core/apiClient.js';
+import { publicAvailabilitySchema } from '../schemas/api/public-availability.schema.js';
+import { parseResponse } from '../schemas/parse-response.js';
 
 /**
  * @param serviceId {string} [serviceId] left out: the backend uses the first published service
@@ -11,9 +13,10 @@ import { apiClient } from '../core/apiClient.js';
  * @returns {Promise<{enabled: false}|{enabled: true, services: {id: string, name: string, duration: number}[],
  *   serviceId: string|null, days: {date: string, closed: boolean, times: {time: string, professionals: {id: string, name: string}[]}[]}[]}>}
  */
-export function getPublicAvailability(serviceId, locationId, options) {
+export async function getPublicAvailability(serviceId, locationId, options) {
   const params = [];
   if (serviceId) params.push(`serviceId=${encodeURIComponent(serviceId)}`);
   if (locationId) params.push(`locationId=${encodeURIComponent(locationId)}`);
-  return apiClient.get(`/api/public-availability${params.length > 0 ? `?${params.join('&')}` : ''}`, options || {});
+  const path = `/api/public-availability${params.length > 0 ? `?${params.join('&')}` : ''}`;
+  return parseResponse(publicAvailabilitySchema, await apiClient.get(path, options || {}));
 }

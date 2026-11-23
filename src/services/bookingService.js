@@ -2,27 +2,30 @@
 // Lógica de negocio pura — sin referencias al DOM.
 
 import { apiClient } from '../core/apiClient.js';
+import { availabilityCheckSchema, availabilitySchema } from '../schemas/api/availability.schema.js';
+import { createdBookingSchema } from '../schemas/api/booking.schema.js';
+import { parseResponse } from '../schemas/parse-response.js';
 import { sanitizeInput } from '../utils/sanitize.js';
 import { getServiceIds } from '../utils/serviceSelection.js';
 
-export function createBooking(bookingData) {
-  return apiClient.post('/api/bookings', bookingData, { timeout: 30000 });
+export async function createBooking(bookingData) {
+  return parseResponse(createdBookingSchema, await apiClient.post('/api/bookings', bookingData, { timeout: 30000 }));
 }
 
 // Free start times per professional (offering ALL the services) for the back-to-back block of the services.
 // `options.locationId` (SPEC 08) picks the location; left out, the backend uses the default one.
-export function getAvailability(date, serviceIds, options) {
+export async function getAvailability(date, serviceIds, options) {
   const { locationId, ...requestOptions } = options || {};
   let query = `date=${encodeURIComponent(date)}&serviceIds=${serviceIds.map(encodeURIComponent).join(',')}`;
   if (locationId) query += `&locationId=${encodeURIComponent(locationId)}`;
-  return apiClient.get(`/api/availability?${query}`, requestOptions);
+  return parseResponse(availabilitySchema, await apiClient.get(`/api/availability?${query}`, requestOptions));
 }
 
 // Last-second check that the WHOLE window (sum of the service durations) is still free.
 export async function checkAvailability(date, time, professionalId, serviceIds, locationId) {
   const body = { date, time, professionalId, serviceIds };
   if (locationId) body.locationId = locationId;
-  const { available } = await apiClient.post('/api/bookings/availability', body);
+  const { available } = parseResponse(availabilityCheckSchema, await apiClient.post('/api/bookings/availability', body));
   return available;
 }
 

@@ -1,28 +1,34 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createBooking, getAvailability, checkAvailability, buildBookingPayload } from './bookingService.js';
 import { APP_CONFIG } from '../config/appConfig.js';
+import { AxiosError } from 'axios';
+import { installMockHttp, restoreHttp } from '../test/mockHttp.js';
+import { ContractError } from '../schemas/contract-error.js';
+
+let httpMock;
 
 const okJson = (data) => ({ ok: true, status: 200, json: async () => data });
 
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn());
+  httpMock = installMockHttp(vi.fn());
 });
 
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  restoreHttp();
 });
 
 describe('bookingService HTTP contract', () => {
   it('createBooking POSTs JSON to /api/bookings', async () => {
-    fetch.mockResolvedValue(okJson({ _id: '1' }));
+    httpMock.mockResolvedValue(okJson({ _id: '1' }));
     const payload = { client: { name: 'Ana' }, status: 'confirmed' };
 
     const result = await createBooking(payload);
 
     expect(result).toEqual({ _id: '1' });
-    expect(fetch).toHaveBeenCalledTimes(1);
-    const [url, init] = fetch.mock.calls[0];
+    expect(httpMock).toHaveBeenCalledTimes(1);
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/bookings`);
     expect(init.method).toBe('POST');
     expect(init.headers['Content-Type']).toBe('application/json');
@@ -30,88 +36,74 @@ describe('bookingService HTTP contract', () => {
   });
 
   it('createBooking keeps the one-time cancelToken of the response, untouched', async () => {
-    fetch.mockResolvedValue(okJson({ _id: '1', cancelToken: 'secret-token' }));
+    httpMock.mockResolvedValue(okJson({ _id: '1', cancelToken: 'secret-token' }));
 
     const result = await createBooking({ client: { name: 'Ana' } });
 
     expect(result.cancelToken).toBe('secret-token');
   });
 
-  it('createBooking aborts at 30000ms and not before', async () => {
-    vi.useFakeTimers();
-    let signal;
-    fetch.mockImplementation((_url, init) => {
-      signal = init.signal;
-      return new Promise((_resolve, reject) => {
-        init.signal.addEventListener('abort', () => {
-          const err = new Error('aborted');
-          err.name = 'AbortError';
-          reject(err);
-        });
-      });
-    });
+  it('createBooking waits at most 30000ms', async () => {
+    httpMock.mockResolvedValue(okJson({ _id: '1' }));
 
-    const pending = createBooking({ a: 1 });
-    const assertion = expect(pending).rejects.toThrow(/Timeout/);
+    await createBooking({ a: 1 });
 
-    await vi.advanceTimersByTimeAsync(29999);
-    expect(signal.aborted).toBe(false);
+    expect(httpMock.mock.calls[0][1].timeout).toBe(30000);
+  });
 
-    await vi.advanceTimersByTimeAsync(1);
-    expect(signal.aborted).toBe(true);
-    await assertion;
+  it('createBooking reports a timed-out request with the Spanish Timeout message', async () => {
+    httpMock.mockRejectedValue(new AxiosError('timeout of 30000ms exceeded', AxiosError.ECONNABORTED));
+
+    await expect(createBooking({ a: 1 })).rejects.toThrow(/Timeout/);
   });
 
   it('getAvailability GETs /api/availability with the date and the comma-separated service ids', async () => {
     const availability = { date: '2030-01-07', closed: false, professionals: [] };
-    fetch.mockResolvedValue(okJson(availability));
+    httpMock.mockResolvedValue(okJson(availability));
 
     const result = await getAvailability('2030-01-07', ['consulta-inicial', 'servicio-basico']);
 
     expect(result).toEqual(availability);
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/availability?date=2030-01-07&serviceIds=consulta-inicial,servicio-basico`);
     expect(init.method).toBe('GET');
     expect(init.body).toBeUndefined();
   });
 
   it('getAvailability sends the location when one is chosen, and no locationId otherwise', async () => {
-    fetch.mockResolvedValue(okJson({ date: '2030-01-07', closed: false, professionals: [] }));
+    httpMock.mockResolvedValue(okJson({ date: '2030-01-07', closed: false, professionals: [] }));
 
     await getAvailability('2030-01-07', ['servicio-basico'], { timeout: 1000, locationId: 'centro' });
     await getAvailability('2030-01-07', ['servicio-basico'], { timeout: 1000 });
 
-    expect(fetch.mock.calls[0][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/availability?date=2030-01-07&serviceIds=servicio-basico&locationId=centro`);
-    expect(fetch.mock.calls[1][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/availability?date=2030-01-07&serviceIds=servicio-basico`);
+    expect(httpMock.mock.calls[0][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/availability?date=2030-01-07&serviceIds=servicio-basico&locationId=centro`);
+    expect(httpMock.mock.calls[1][0]).toBe(`${APP_CONFIG.BACKEND_URL}/api/availability?date=2030-01-07&serviceIds=servicio-basico`);
   });
 
   it('getAvailability forwards the timeout option', async () => {
-    vi.useFakeTimers();
-    let signal;
-    fetch.mockImplementation((_url, init) => {
-      signal = init.signal;
-      return new Promise(() => {});
-    });
+    httpMock.mockResolvedValue(okJson({ date: '2030-01-07', closed: false, professionals: [] }));
 
-    getAvailability('2030-01-07', ['servicio-basico'], { timeout: 15000 });
-    await vi.advanceTimersByTimeAsync(14999);
-    expect(signal.aborted).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(signal.aborted).toBe(true);
+    await getAvailability('2030-01-07', ['servicio-basico'], { timeout: 15000 });
+
+    expect(httpMock.mock.calls[0][1].timeout).toBe(15000);
   });
 });
 
 describe('public booking calls never carry the admin key', () => {
   it('createBooking, getAvailability and checkAvailability send no Authorization even with an admin session open', async () => {
     sessionStorage.setItem('adminKey', 'secret');
-    fetch.mockResolvedValue(okJson({ available: true }));
+    httpMock.mockImplementation(async (url) => {
+      if (url.includes('/api/availability?')) return okJson({ date: '2030-01-15', closed: false, professionals: [] });
+      if (url.endsWith('/availability')) return okJson({ available: true });
+      return okJson({ _id: '1' });
+    });
 
     await createBooking({ client: { name: 'Ana' } });
     await getAvailability('2030-01-15', ['consulta-inicial']);
     await checkAvailability('2030-01-15', '10:00', 'alex-garcia', ['consulta-inicial']);
 
-    expect(fetch).toHaveBeenCalledTimes(3);
-    for (const [, init] of fetch.mock.calls) {
+    expect(httpMock).toHaveBeenCalledTimes(3);
+    for (const [, init] of httpMock.mock.calls) {
       expect(init.headers.Authorization).toBeUndefined();
     }
     sessionStorage.clear();
@@ -120,12 +112,12 @@ describe('public booking calls never carry the admin key', () => {
 
 describe('bookingService.checkAvailability', () => {
   it('POSTs the whole window to /api/bookings/availability and returns the verdict', async () => {
-    fetch.mockResolvedValue(okJson({ available: false }));
+    httpMock.mockResolvedValue(okJson({ available: false }));
 
     const available = await checkAvailability('2030-01-07', '10:00', 'alex-garcia', ['servicio-basico', 'servicio-premium']);
 
     expect(available).toBe(false);
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/bookings/availability`);
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({
@@ -137,11 +129,11 @@ describe('bookingService.checkAvailability', () => {
   });
 
   it('sends the location of the check when one is chosen', async () => {
-    fetch.mockResolvedValue(okJson({ available: true }));
+    httpMock.mockResolvedValue(okJson({ available: true }));
 
     await checkAvailability('2030-01-07', '10:00', 'alex-garcia', ['servicio-basico'], 'centro');
 
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+    expect(JSON.parse(httpMock.mock.calls[0][1].body)).toEqual({
       date: '2030-01-07',
       time: '10:00',
       professionalId: 'alex-garcia',
@@ -151,13 +143,13 @@ describe('bookingService.checkAvailability', () => {
   });
 
   it('is true when the backend says the window is free', async () => {
-    fetch.mockResolvedValue(okJson({ available: true }));
+    httpMock.mockResolvedValue(okJson({ available: true }));
 
     expect(await checkAvailability('2030-01-07', '09:00', 'maria-lopez', ['servicio-basico'])).toBe(true);
   });
 
   it('propagates request failures (the caller decides to fail open)', async () => {
-    fetch.mockRejectedValue(new Error('boom'));
+    httpMock.mockRejectedValue(new Error('boom'));
 
     await expect(checkAvailability('2030-01-07', '09:00', 'maria-lopez', ['servicio-basico'])).rejects.toThrow('boom');
   });
@@ -226,5 +218,33 @@ describe('buildBookingPayload', () => {
     });
     expect(payload.client.id).toBe('');
     expect(payload.notes).toBe('');
+  });
+});
+
+describe('bookingService response contract', () => {
+  it('getAvailability rejects with a ContractError when professionals is missing', async () => {
+    httpMock.mockResolvedValue(okJson({ date: '2030-01-07', closed: false }));
+
+    await expect(getAvailability('2030-01-07', ['servicio-basico'])).rejects.toBeInstanceOf(ContractError);
+  });
+
+  it('getAvailability accepts a field the backend added later', async () => {
+    const answer = { date: '2030-01-07', closed: false, professionals: [], brandNew: 1 };
+    httpMock.mockResolvedValue(okJson(answer));
+
+    expect(await getAvailability('2030-01-07', ['servicio-basico'])).toEqual(answer);
+  });
+
+  it('createBooking rejects with a ContractError when the answer has no _id', async () => {
+    httpMock.mockResolvedValue(okJson({ ok: true }));
+
+    await expect(createBooking({ a: 1 })).rejects.toBeInstanceOf(ContractError);
+  });
+
+  it('checkAvailability rejects with a ContractError when "available" is not a boolean', async () => {
+    httpMock.mockResolvedValue(okJson({ available: 'yes' }));
+
+    await expect(checkAvailability('2030-01-15', '10:00', 'alex-garcia', ['consulta-inicial']))
+      .rejects.toBeInstanceOf(ContractError);
   });
 });

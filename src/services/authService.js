@@ -6,6 +6,8 @@
 // is kept on the client.
 
 import { apiClient } from '../core/apiClient.js';
+import { sessionSchema } from '../schemas/api/session.schema.js';
+import { parseResponse } from '../schemas/parse-response.js';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 60000; // 1 minuto en ms
@@ -35,9 +37,9 @@ export const authService = {
     }
 
     try {
-      await apiClient.get('/api/admin/session', {
+      parseResponse(sessionSchema, await apiClient.get('/api/admin/session', {
         headers: { Authorization: 'Bearer ' + password, 'X-Admin-Username': username },
-      });
+      }));
     } catch (error) {
       // Only a 401 means "wrong key". Anything else (network down, timeout, 5xx) says nothing about
       // the key, so it does not count towards the lockout.

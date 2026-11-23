@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { APP_CONFIG } from '../config/appConfig.js';
 import { authService, getAdminKey } from './authService.js';
+import { installMockHttp, restoreHttp } from '../test/mockHttp.js';
+import { ContractError } from '../schemas/contract-error.js';
+
+let httpMock;
 
 const GOOD_KEY = 'good-admin-key';
 
 // Fake backend: GET /api/admin/session answers 200 only for the right Bearer key.
 function installBackend() {
-  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+  httpMock = installMockHttp(vi.fn(async (_url, init) => {
     if (init.headers.Authorization === `Bearer ${GOOD_KEY}`) {
       return { ok: true, status: 200, json: async () => ({ ok: true }) };
     }
@@ -31,13 +35,14 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  restoreHttp();
 });
 
 describe('authService', () => {
   it('validates the key against GET /api/admin/session sending it as Bearer', async () => {
     await authService.login('admin', GOOD_KEY);
 
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/admin/session`);
     expect(init.method).toBe('GET');
     expect(init.headers.Authorization).toBe(`Bearer ${GOOD_KEY}`);
@@ -46,13 +51,13 @@ describe('authService', () => {
   it('sends the typed username in X-Admin-Username, as the backend can require it', async () => {
     await authService.login('barberia', GOOD_KEY);
 
-    const [, init] = fetch.mock.calls[0];
+    const [, init] = httpMock.mock.calls[0];
     expect(init.headers['X-Admin-Username']).toBe('barberia');
     expect(init.headers.Authorization).toBe(`Bearer ${GOOD_KEY}`);
   });
 
   it('counts a username the backend rejects as a wrong login, like a wrong key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
+    httpMock = installMockHttp(vi.fn(async () => ({
       ok: false,
       status: 401,
       text: async () => JSON.stringify({ statusCode: 401, message: 'Invalid or missing admin key', error: 'Unauthorized' }),
@@ -82,7 +87,7 @@ describe('authService', () => {
   it('rejects empty fields without calling the backend', async () => {
     await expect(authService.login('', 'x')).rejects.toThrow('Por favor completa todos los campos');
     await expect(authService.login('admin', '')).rejects.toThrow('Por favor completa todos los campos');
-    expect(fetch).not.toHaveBeenCalled();
+    expect(httpMock).not.toHaveBeenCalled();
   });
 
   it('reports the remaining attempts on a rejected key (4, 3, 2, 1)', async () => {
@@ -107,10 +112,10 @@ describe('authService', () => {
 
   it('does not even call the backend while locked out', async () => {
     for (let i = 0; i < 5; i++) await expect(bad()).rejects.toThrow();
-    fetch.mockClear();
+    httpMock.mockClear();
 
     await expect(authService.login('admin', GOOD_KEY)).rejects.toThrow(/Demasiados intentos fallidos/);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(httpMock).not.toHaveBeenCalled();
   });
 
   it('works again once the 60s lockout expires', async () => {
@@ -131,17 +136,17 @@ describe('authService', () => {
   });
 
   it('reports a network failure with a distinct message and does not count it as a failed attempt', async () => {
-    fetch.mockRejectedValue(new TypeError('Failed to fetch'));
+    httpMock.mockRejectedValue(new TypeError('Failed to fetch'));
 
     await expect(bad()).rejects.toThrow('No se pudo conectar con el servidor. Intenta de nuevo en unos minutos.');
 
-    fetch.mockImplementation(async () => ({ ok: false, status: 401, text: async () => '' }));
+    httpMock.mockImplementation(async () => ({ ok: false, status: 401, text: async () => '' }));
     await expect(bad()).rejects.toThrow('Intentos restantes: 4');
     expect(sessionStorage.getItem('isAdmin')).toBeNull();
   });
 
   it('reports a server error (5xx) like a connectivity problem, not as a wrong key', async () => {
-    fetch.mockResolvedValue({ ok: false, status: 500, text: async () => '' });
+    httpMock.mockResolvedValue({ ok: false, status: 500, text: async () => '' });
 
     await expect(bad()).rejects.toThrow('No se pudo conectar con el servidor');
   });
@@ -154,6 +159,18 @@ describe('authService', () => {
     expect(sessionStorage.getItem('adminKey')).toBeNull();
     expect(authService.isAuthenticated()).toBe(false);
     expect(authService.getUser()).toBeNull();
+    expect(getAdminKey()).toBeNull();
+  });
+});
+
+describe('authService response contract', () => {
+  it('a session answer without { ok: true } is not a login and does not count as a wrong key', async () => {
+    httpMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ nope: 1 }) });
+
+    await expect(authService.login('admin', GOOD_KEY)).rejects.toThrow(
+      'No se pudo conectar con el servidor. Intenta de nuevo en unos minutos.',
+    );
+    expect(authService.isAuthenticated()).toBe(false);
     expect(getAdminKey()).toBeNull();
   });
 });

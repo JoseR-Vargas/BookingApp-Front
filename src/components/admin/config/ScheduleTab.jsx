@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { saveLocationSchedule, saveSchedule } from '../../../services/adminService.js';
+import { scheduleFormSchema } from '../../../schemas/forms/schedule.schema.js';
+import { validate } from '../../../schemas/validate.js';
 import { toast } from '../../../ui/toast.js';
 import { activeLocations, locationLabel } from '../../../utils/locations.js';
 import { dayStartTimes, offeredStartTimes } from '../../../utils/schedule.js';
@@ -61,13 +63,6 @@ const toPayload = (days) => Object.fromEntries(DAYS.map(({ id }) => {
 // Every 30-minute block of a day that can be a start: from opening up to (not including) closing.
 const gridTimes = (open, close) => TIME_OPTIONS.filter((time) => time >= open && time < close);
 const keepInside = (starts, open, close) => starts.filter((time) => time >= open && time < close);
-
-// 'HH:mm' strings compare correctly as text.
-function findInvalidDay(days) {
-  return DAYS.find(({ id }) => !days[id].closed && days[id].open >= days[id].close);
-}
-
-const findEmptyStarts = (days) => DAYS.find(({ id }) => !days[id].closed && days[id].starts && days[id].starts.length === 0);
 
 const affectedMessage = (count) => (count === 1
   ? '1 reserva futura queda fuera del nuevo horario. No se modificó.'
@@ -159,15 +154,9 @@ export default function ScheduleTab({ schedule: defaultSchedule, locations, serv
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const invalid = findInvalidDay(days);
-    if (invalid) {
-      setError(`${invalid.name}: la apertura debe ser anterior al cierre`);
-      return;
-    }
-
-    const empty = findEmptyStarts(days);
-    if (empty) {
-      setError(`${empty.name}: marca al menos una hora o usa el intervalo general`);
+    const problem = validate(scheduleFormSchema, DAYS.map(({ id, name }) => ({ name, ...days[id] })));
+    if (problem) {
+      setError(problem);
       return;
     }
 

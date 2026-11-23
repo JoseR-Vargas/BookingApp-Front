@@ -23,6 +23,7 @@ import { audioService } from '../services/audioService.js';
 import { ADMIN_CATALOG } from '../test/catalogFixture.js';
 import { toast } from '../ui/toast.js';
 import Admin from './Admin.jsx';
+import { installMockHttp, restoreHttp } from '../test/mockHttp.js';
 
 const BASE = 'http://localhost:3000';
 const YEAR = new Date().getFullYear();
@@ -92,7 +93,7 @@ function installFetch() {
     }
     throw new Error(`Unexpected request ${key}`);
   });
-  vi.stubGlobal('fetch', fetchMock);
+  installMockHttp(fetchMock);
 }
 
 const callsTo = (method, path) => fetchMock.mock.calls.filter(
@@ -176,6 +177,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  restoreHttp();
 });
 
 describe('Admin dashboard', () => {

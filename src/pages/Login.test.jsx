@@ -10,16 +10,19 @@ vi.mock('../ui/toast.js', () => ({
 import { authService } from '../services/authService.js';
 import { toast } from '../ui/toast.js';
 import Login from './Login.jsx';
+import { installMockHttp, restoreHttp } from '../test/mockHttp.js';
 
 // The "password" is the backend ADMIN_API_KEY: the fake backend only accepts this Bearer key.
 const GOOD_KEY = 'good-admin-key';
 
+let httpMock;
+
 function installBackend() {
-  vi.stubGlobal('fetch', vi.fn(async (_url, init) => (
+  httpMock = installMockHttp(async (_url, init) => (
     init.headers.Authorization === `Bearer ${GOOD_KEY}`
       ? { ok: true, status: 200, json: async () => ({ ok: true }) }
       : { ok: false, status: 401, text: async () => JSON.stringify({ message: 'Invalid or missing admin key' }) }
-  )));
+  ));
 }
 
 function renderLogin() {
@@ -65,6 +68,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  restoreHttp();
   delete globalThis.jest;
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -200,7 +204,7 @@ describe('Login failure flow', () => {
   });
 
   it('shows a distinct message when the backend cannot be reached and keeps the form usable', async () => {
-    fetch.mockRejectedValue(new TypeError('Failed to fetch'));
+    httpMock.mockRejectedValue(new TypeError('Failed to fetch'));
     const user = setup();
 
     await submit(user, 'admin', GOOD_KEY);

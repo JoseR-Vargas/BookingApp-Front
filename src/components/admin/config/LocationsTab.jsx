@@ -3,6 +3,8 @@ import { createLocation, updateLocation } from '../../../services/adminService.j
 import { toast } from '../../../ui/toast.js';
 import Button from '../../ui/Button.jsx';
 import ConfirmDialog from '../../ui/ConfirmDialog.jsx';
+import { locationSchema } from '../../../schemas/forms/location.schema.js';
+import { validate } from '../../../schemas/validate.js';
 import Card from '../Card.jsx';
 import {
   EMPTY_CELL, LINK_BUTTON, TABLE, TABLE_SCROLL, TABLE_WRAPPER, TBODY, TD, TD_ACTIONS, TD_FIRST, TH, TH_END, TH_START, TR,
@@ -23,8 +25,9 @@ function LocationForm({ location, onSaved, onCancel }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     const data = { name: form.name.trim(), address: form.address.trim() };
-    if (!data.name) {
-      setError('El nombre es obligatorio');
+    const problem = validate(locationSchema, data);
+    if (problem) {
+      setError(problem);
       return;
     }
     setSaving(true);

@@ -9,6 +9,8 @@ import { toast } from '../../../ui/toast.js';
 import { formatMoney } from '../../../utils/format.js';
 import Button from '../../ui/Button.jsx';
 import ConfirmDialog from '../../ui/ConfirmDialog.jsx';
+import { serviceSchema } from '../../../schemas/forms/service.schema.js';
+import { validate } from '../../../schemas/validate.js';
 import Card from '../Card.jsx';
 import {
   EMPTY_CELL, LINK_BUTTON, TABLE, TABLE_SCROLL, TABLE_WRAPPER, TBODY, TD, TD_ACTIONS, TD_FIRST, TH, TH_END, TH_START, TR,
@@ -16,16 +18,6 @@ import {
 import { ActiveBadge, CONTROL, Field, FormError, SaveButton } from './configParts.jsx';
 
 const EMPTY_FORM = { name: '', description: '', price: '', duration: '', professionals: [] };
-
-// Required-ness is checked here; the numeric limits (price >= 0, duration 5-480, lengths) belong to the
-// backend, whose message is shown as is, so the two never disagree.
-function validate(form) {
-  if (!form.name.trim()) return 'El nombre es obligatorio';
-  if (form.price === '') return 'Ingresa el precio';
-  if (form.duration === '') return 'Ingresa la duración';
-  if (form.professionals.length === 0) return 'Selecciona al menos un profesional';
-  return '';
-}
 
 function ServiceForm({ service, professionals, onSaved, onCancel }) {
   const editing = Boolean(service);
@@ -57,7 +49,7 @@ function ServiceForm({ service, professionals, onSaved, onCancel }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const problem = validate(form);
+    const problem = validate(serviceSchema, form);
     if (problem) {
       setError(problem);
       return;

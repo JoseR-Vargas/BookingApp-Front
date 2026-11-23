@@ -26,15 +26,28 @@ import {
 } from './adminService.js';
 import { authService } from './authService.js';
 import { APP_CONFIG } from '../config/appConfig.js';
+import { ADMIN_CATALOG } from '../test/catalogFixture.js';
+import { installMockHttp, restoreHttp } from '../test/mockHttp.js';
+import { ContractError } from '../schemas/contract-error.js';
+
+let httpMock;
 
 const okJson = (data) => ({ ok: true, status: 200, json: async () => data });
 
+// Every read the service validates gets a well-formed body; the other calls only need some JSON.
+const bodyFor = (url) => {
+  if (url.endsWith('/api/bookings')) return [];
+  if (url.endsWith('/api/admin/catalog')) return ADMIN_CATALOG;
+  return {};
+};
+
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okJson({})));
+  httpMock = installMockHttp(vi.fn(async (url) => okJson(bodyFor(url))));
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  restoreHttp();
   sessionStorage.clear();
 });
 
@@ -45,7 +58,7 @@ describe('adminService username header', () => {
 
     await getBookings();
 
-    const [, init] = fetch.mock.calls[0];
+    const [, init] = httpMock.mock.calls[0];
     expect(init.headers['X-Admin-Username']).toBe('barberia');
     expect(init.headers.Authorization).toBe('Bearer secret');
   });
@@ -55,7 +68,7 @@ describe('adminService username header', () => {
 
     await getBookings();
 
-    const [, init] = fetch.mock.calls[0];
+    const [, init] = httpMock.mock.calls[0];
     expect(init.headers).not.toHaveProperty('X-Admin-Username');
   });
 });
@@ -63,7 +76,7 @@ describe('adminService username header', () => {
 describe('adminService HTTP contract', () => {
   it('getBookings => GET /api/bookings', async () => {
     await getBookings();
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/bookings`);
     expect(init.method).toBe('GET');
     expect(init.body).toBeUndefined();
@@ -71,14 +84,14 @@ describe('adminService HTTP contract', () => {
 
   it('getStatistics => GET /api/bookings/statistics', async () => {
     await getStatistics();
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/bookings/statistics`);
     expect(init.method).toBe('GET');
   });
 
   it('deleteBooking(id) => DELETE /api/bookings/<id> with no body', async () => {
     await deleteBooking('abc123');
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}/api/bookings/abc123`);
     expect(init.method).toBe('DELETE');
     expect(init.body).toBeUndefined();
@@ -94,7 +107,7 @@ describe('adminService HTTP contract', () => {
 
     await call();
 
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}${path}`);
     expect(init.method).toBe(method);
     expect(init.headers.Authorization).toBe('Bearer secret');
@@ -107,12 +120,12 @@ describe('adminService HTTP contract', () => {
 
     await cancelBooking('abc123');
 
-    expect(fetch.mock.calls[0][1].method).toBe('PATCH');
-    expect(fetch.mock.calls[0][1].method).not.toBe('DELETE');
+    expect(httpMock.mock.calls[0][1].method).toBe('PATCH');
+    expect(httpMock.mock.calls[0][1].method).not.toBe('DELETE');
   });
 
   it('returns the parsed response body', async () => {
-    fetch.mockResolvedValue(okJson({ totalBookings: 3 }));
+    httpMock.mockResolvedValue(okJson({ totalBookings: 3 }));
     expect(await getStatistics()).toEqual({ totalBookings: 3 });
   });
 });
@@ -148,7 +161,7 @@ describe('adminService config endpoints', () => {
 
     await call();
 
-    const [url, init] = fetch.mock.calls[0];
+    const [url, init] = httpMock.mock.calls[0];
     expect(url).toBe(`${APP_CONFIG.BACKEND_URL}${path}`);
     expect(init.method).toBe(method);
     expect(init.headers.Authorization).toBe('Bearer secret');
@@ -158,7 +171,7 @@ describe('adminService config endpoints', () => {
 
   it('surfaces the backend 400 message', async () => {
     sessionStorage.setItem('adminKey', 'secret');
-    fetch.mockResolvedValue({
+    httpMock.mockResolvedValue({
       ok: false,
       status: 400,
       text: async () => JSON.stringify({ statusCode: 400, message: 'duration must be an integer between 5 and 480' }),
@@ -176,7 +189,7 @@ describe('adminService config endpoints', () => {
       sessionStorage.setItem('isAdmin', 'true');
       sessionStorage.setItem('adminUser', 'admin');
       sessionStorage.setItem('adminKey', 'stale');
-      fetch.mockResolvedValue({
+      httpMock.mockResolvedValue({
         ok: false,
         status: 401,
         text: async () => JSON.stringify({ statusCode: 401, message: 'Invalid or missing admin key' }),
@@ -196,5 +209,35 @@ describe('adminService config endpoints', () => {
       expect(sessionStorage.getItem('adminKey')).toBeNull();
       expect(assign).toHaveBeenCalledWith('/login');
     });
+  });
+});
+
+describe('adminService response contract', () => {
+  beforeEach(() => {
+    sessionStorage.setItem('adminKey', 'secret');
+  });
+
+  it('getAdminCatalog rejects with a ContractError when the schedule is missing', async () => {
+    httpMock.mockResolvedValue(okJson({ professionals: [], services: [] }));
+
+    await expect(getAdminCatalog()).rejects.toBeInstanceOf(ContractError);
+  });
+
+  it('getAdminCatalog returns a valid catalog untouched', async () => {
+    httpMock.mockResolvedValue(okJson(ADMIN_CATALOG));
+
+    expect(await getAdminCatalog()).toEqual(ADMIN_CATALOG);
+  });
+
+  it('getBookings rejects with a ContractError when the answer is not a list', async () => {
+    httpMock.mockResolvedValue(okJson({ bookings: [] }));
+
+    await expect(getBookings()).rejects.toBeInstanceOf(ContractError);
+  });
+
+  it('getStatistics rejects with a ContractError when a counter is not a number', async () => {
+    httpMock.mockResolvedValue(okJson({ totalBookings: 'many' }));
+
+    await expect(getStatistics()).rejects.toBeInstanceOf(ContractError);
   });
 });

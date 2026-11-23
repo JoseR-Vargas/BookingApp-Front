@@ -13,6 +13,8 @@ import { PHOTO_TYPES, resizeToSquareJpeg } from '../../../utils/resizeImage.js';
 import Button from '../../ui/Button.jsx';
 import ConfirmDialog from '../../ui/ConfirmDialog.jsx';
 import ProfessionalAvatar from '../../ui/ProfessionalAvatar.jsx';
+import { professionalSchema } from '../../../schemas/forms/professional.schema.js';
+import { validate } from '../../../schemas/validate.js';
 import Card from '../Card.jsx';
 import {
   EMPTY_CELL, LINK_BUTTON, TABLE, TABLE_SCROLL, TABLE_WRAPPER, TBODY, TD, TD_ACTIONS, TD_FIRST, TH, TH_END, TH_START, TR,
@@ -86,17 +88,12 @@ function ProfessionalForm({ professional, locations, onSaved, onCancel }) {
       specialty: form.specialty.trim(),
       experience: form.experience.trim(),
     };
-    if (!data.name) {
-      setError('El nombre es obligatorio');
+    // Catalog order, so the request does not depend on the click order.
+    if (askLocations) data.locations = choices.map((choice) => choice.id).filter((id) => locationIds.includes(id));
+    const problem = validate(professionalSchema({ requireLocations: askLocations }), data);
+    if (problem) {
+      setError(problem);
       return;
-    }
-    if (askLocations) {
-      // Catalog order, so the request does not depend on the click order.
-      data.locations = choices.map((choice) => choice.id).filter((id) => locationIds.includes(id));
-      if (data.locations.length === 0) {
-        setError('Elige al menos un local');
-        return;
-      }
     }
 
     setSaving(true);

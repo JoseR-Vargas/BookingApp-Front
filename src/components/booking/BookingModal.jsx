@@ -4,6 +4,8 @@
 
 import { DialogTitle } from '@headlessui/react';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { clientSchema } from '../../schemas/forms/client.schema.js';
+import { validate } from '../../schemas/validate.js';
 import { buildBookingPayload, checkAvailability, createBooking } from '../../services/bookingService.js';
 import { useBooking } from '../../state/bookingState.jsx';
 import { useCatalog } from '../../state/catalogState.jsx';
@@ -128,10 +130,13 @@ export default function BookingModal({ open, onClose, prefill }) {
         }
         break;
       case 3:
-        if (formRef.current && !formRef.current.checkValidity()) {
-          setValidated(true);
-          toast.error('Por favor completa todos los campos requeridos');
-          return false;
+        if (formRef.current) {
+          const problem = validate(clientSchema, readClientForm(formRef.current));
+          if (problem) {
+            setValidated(true);
+            toast.error(problem);
+            return false;
+          }
         }
         break;
       default:
