@@ -12,7 +12,7 @@ import { CancelPage } from '../../pages/booking/CancelPage.js';
 import { AdminBookingsPage } from '../../pages/admin/AdminBookingsPage.js';
 import { createApi } from '../../support/api.js';
 import { longDateEs, nextWeekday, PAST_MONDAY } from '../../support/dates.js';
-import { ADMIN_KEY, FAKE_EMAIL_DOMAIN, FRONT_URL } from '../../support/env.js';
+import { ADMIN_KEY, FAKE_EMAIL_DOMAIN } from '../../support/env.js';
 import { mongosh, throwawayDatabaseNames } from '../../support/mongo.js';
 
 const RUN = Date.now().toString(36);
@@ -24,18 +24,19 @@ const fakeClient = (label) => ({
 const UI_CLIENT = fakeClient('ui');
 const PAST_CLIENT = fakeClient('past');
 const API_CLIENT = fakeClient('api');
+const CANCEL_CLIENT = fakeClient('cancel');
 const LIVE_CLIENT = fakeClient('live');
 
 const SERVICE = { id: 'consulta-inicial', name: 'Consulta Inicial' };
 const PROFESSIONAL = { id: 'alex-garcia', name: 'Alex García' };
 const DAY = nextWeekday(2); // Tuesday, a week or more ahead: always before the cutoff
 const UI_TIME = '11:00';
+const CANCEL_TIME = '12:00';
 const API_TIME = '15:00';
 const LIVE_TIME = '16:00';
 const PAST_TIME = '10:00';
 
 const WELL_FORMED_UNKNOWN_TOKEN = 'A'.repeat(43);
-const tokenOf = (cancelUrl) => cancelUrl.split('/cancelar/')[1];
 const slotsOf = async (api, date) => (await api.availability(date, SERVICE.id))
   .professionals.find((p) => p.id === PROFESSIONAL.id).slots;
 const adminHeaders = { Authorization: `Bearer ${ADMIN_KEY}` };
@@ -63,8 +64,7 @@ test.describe('booking cancellation, end to end', () => {
     await api.dispose();
   });
 
-  test('a client books through the site and gets a cancel link they can copy', async ({ context, page }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: FRONT_URL });
+  test('a client books through the site; the confirmation shows no cancel link (it travels by email)', async ({ page }) => {
     const booking = new BookingModal(page);
     await booking.open();
     await booking.chooseService(SERVICE.id);
@@ -76,22 +76,24 @@ test.describe('booking cancellation, end to end', () => {
     await booking.fillClient(UI_CLIENT);
 
     const confirmation = await booking.submit();
-    const link = confirmation.getByRole('link', { name: new RegExp(`/cancelar/`) });
-    const url = await link.getAttribute('href');
-    expect(url).toMatch(new RegExp(`^${FRONT_URL}/cancelar/[A-Za-z0-9_-]{43}$`));
-    await expect(link).toHaveText(url);
-    await expect(confirmation).toContainText('¿Necesitas cancelar?');
-
-    // Headless Chromium grants the clipboard once permitted, so the exact copied text is asserted.
-    await confirmation.getByRole('button', { name: 'Copiar enlace' }).click();
-    await expect(page.getByRole('alert').filter({ hasText: 'Enlace copiado' }).first()).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+    await expect(confirmation).toContainText(`Te enviamos la confirmación a ${UI_CLIENT.email}`);
+    await expect(confirmation).not.toContainText('cancelar');
+    await expect(confirmation.getByRole('link')).toHaveCount(0);
+    await expect(confirmation.getByRole('button', { name: 'Copiar enlace' })).toHaveCount(0);
 
     await confirmation.getByRole('button', { name: /Entendido/ }).click();
-    state.token = tokenOf(url);
-    state.bookingId = (await api.bookings()).find((b) => b.client.email === UI_CLIENT.email)._id;
-    expect((await api.booking(state.bookingId)).status).toBe('confirmed');
+    const stored = (await api.bookings()).find((b) => b.client.email === UI_CLIENT.email);
+    expect((await api.booking(stored._id)).status).toBe('confirmed');
     expect(await slotsOf(api, DAY)).not.toContain(UI_TIME);
+  });
+
+  test('a booking made through the API returns the token the cancel page tests use', async () => {
+    // The site no longer shows the cancel link; the token reaches the client by email. The API answers it once.
+    const created = await api.createBooking({ client: CANCEL_CLIENT, date: DAY, time: CANCEL_TIME });
+    state.token = created.cancelToken;
+    state.bookingId = created._id;
+    expect(state.token).toHaveLength(43);
+    expect((await api.booking(state.bookingId)).status).toBe('confirmed');
   });
 
   test('the cancel page shows the booking, and no client data, and "Volver" keeps it', async ({ page }) => {
@@ -100,9 +102,9 @@ test.describe('booking cancellation, end to end', () => {
     await expect(cancel.row('Servicios:')).toContainText(SERVICE.name);
     await expect(cancel.row('Profesional:')).toContainText(PROFESSIONAL.name);
     await expect(cancel.row('Fecha:')).toContainText(longDateEs(DAY));
-    await expect(cancel.row('Hora:')).toContainText(UI_TIME);
+    await expect(cancel.row('Hora:')).toContainText(CANCEL_TIME);
     await expect(page.getByText('hasta 1 minuto antes de la hora de inicio')).toBeVisible();
-    for (const secret of [UI_CLIENT.name, UI_CLIENT.email, UI_CLIENT.phone]) {
+    for (const secret of [CANCEL_CLIENT.name, CANCEL_CLIENT.email, CANCEL_CLIENT.phone]) {
       await expect(page.locator('body')).not.toContainText(secret);
     }
 
@@ -113,7 +115,7 @@ test.describe('booking cancellation, end to end', () => {
       services: [{ name: SERVICE.name }],
       professional: { name: PROFESSIONAL.name },
       date: DAY,
-      time: UI_TIME,
+      time: CANCEL_TIME,
     });
 
     await cancel.askToCancel();
@@ -131,8 +133,8 @@ test.describe('booking cancellation, end to end', () => {
     await expect(page.getByRole('link', { name: 'Reservar de nuevo' })).toHaveAttribute('href', '/');
 
     const kept = await api.booking(state.bookingId); // still there: the history is kept
-    expect(kept).toMatchObject({ status: 'cancelled', date: DAY, time: UI_TIME });
-    expect(await slotsOf(api, DAY)).toContain(UI_TIME);
+    expect(kept).toMatchObject({ status: 'cancelled', date: DAY, time: CANCEL_TIME });
+    expect(await slotsOf(api, DAY)).toContain(CANCEL_TIME);
 
     await cancel.open(state.token);
     await expect(cancel.title('Esta reserva ya fue cancelada')).toBeVisible();
@@ -221,7 +223,7 @@ test.describe('booking cancellation, end to end', () => {
 
     // Public: no key at all.
     const availability = await api.ctx.post('/api/bookings/availability', {
-      data: { date: DAY, time: UI_TIME, professionalId: PROFESSIONAL.id, serviceIds: [SERVICE.id] },
+      data: { date: DAY, time: CANCEL_TIME, professionalId: PROFESSIONAL.id, serviceIds: [SERVICE.id] }, // freed by the cancellation above
     });
     expect(availability.status()).toBe(201);
     expect(await availability.json()).toEqual({ available: true });

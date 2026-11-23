@@ -246,7 +246,7 @@ afterEach(() => {
 });
 
 describe('BookingModal happy path', () => {
-  it('shows the cancel link of the booking it just created in the confirmation', async () => {
+  it('confirms with the email it was sent to, and no cancel link (that travels by email)', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -255,9 +255,10 @@ describe('BookingModal happy path', () => {
     await user.click(confirmButton());
 
     const confirmation = await screen.findByRole('dialog', { name: '¡Reserva Confirmada!' });
-    const expectedUrl = `${window.location.origin}/cancelar/${CANCEL_TOKEN}`;
-    expect(within(confirmation).getByRole('link', { name: expectedUrl })).toHaveAttribute('href', expectedUrl);
-    expect(within(confirmation).getByRole('button', { name: 'Copiar enlace' })).toBeInTheDocument();
+    expect(within(confirmation).getByText(/Te enviamos la confirmación a/)).toHaveTextContent('juan@example.com');
+    expect(within(confirmation).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(confirmation).queryByRole('button', { name: 'Copiar enlace' })).not.toBeInTheDocument();
+    expect(within(confirmation).queryByText(/cancelar/i)).not.toBeInTheDocument();
   });
 
   it('walks the 3 steps and posts the legacy-shaped payload, then shows the confirmation', async () => {
