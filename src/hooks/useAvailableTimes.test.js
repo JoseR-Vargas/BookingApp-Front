@@ -211,3 +211,26 @@ describe('useAvailableTimes', () => {
     });
   });
 });
+
+describe('useAvailableTimes with a location (SPEC 08)', () => {
+  it('asks the backend for that location, and again when the location changes', async () => {
+    getAvailability.mockResolvedValue(availability(['09:00']));
+    const { result, rerender } = renderHook(({ locationId }) => useAvailableTimes(MONDAY, 'alex-garcia', ['servicio-basico'], locationId), {
+      initialProps: { locationId: 'centro' },
+    });
+    await waitFor(() => expect(result.current.settled).toBe(true));
+    expect(getAvailability).toHaveBeenLastCalledWith(MONDAY, ['servicio-basico'], expect.objectContaining({ locationId: 'centro' }));
+
+    rerender({ locationId: 'principal' });
+    await waitFor(() => expect(getAvailability).toHaveBeenCalledTimes(2));
+    expect(getAvailability).toHaveBeenLastCalledWith(MONDAY, ['servicio-basico'], expect.objectContaining({ locationId: 'principal' }));
+  });
+
+  it('sends no locationId when none is chosen', async () => {
+    getAvailability.mockResolvedValue(availability(['09:00']));
+    const { result } = renderHook(() => useAvailableTimes(MONDAY, 'alex-garcia', ['servicio-basico']));
+    await waitFor(() => expect(result.current.settled).toBe(true));
+
+    expect(getAvailability.mock.calls[0][2]).not.toHaveProperty('locationId');
+  });
+});

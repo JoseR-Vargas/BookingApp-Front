@@ -1,72 +1,33 @@
 // ===== CLIENTE HTTP CENTRALIZADO =====
-// Elimina el boilerplate de AbortController/fetch duplicado en los servicios.
-// Beneficio: cambios globales (headers de auth, timeout, logging) en un solo lugar.
+// Thin facade over the axios instance in ./http: services keep calling apiClient.get/post/... and
+// never see axios. Global concerns (auth headers, timeout, logging) hook onto that instance.
 // Ported from the legacy js/core/api-client.js; behavior must stay identical.
 
-import { APP_CONFIG } from '../config/appConfig.js';
-
-const BACKEND_URL = APP_CONFIG?.BACKEND_URL || 'http://localhost:3000';
+import { http, DEFAULT_TIMEOUT } from './http/http-client.js';
+import { toHttpError } from './http/to-http-error.js';
 
 export const apiClient = {
   async request(method, path, body, options) {
     const opts = options || {};
-    const url = BACKEND_URL + path;
-    const timeout = opts.timeout || 10000;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-    let errorMessage = 'HTTP error! status: 0';
-
-    try {
-      const fetchOptions = {
-        method: method,
-        headers: Object.assign({}, opts.headers || {}),
-        signal: controller.signal,
-      };
-      if (body !== null && body !== undefined) {
-        fetchOptions.headers['Content-Type'] = 'application/json';
-        fetchOptions.body = JSON.stringify(body);
-      }
-
-      const response = await fetch(url, fetchOptions);
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        errorMessage = 'HTTP error! status: ' + response.status;
-        try {
-          const errorText = await response.text();
-          if (errorText) {
-            try {
-              const errorData = JSON.parse(errorText);
-              if (errorData.message) {
-                errorMessage = typeof errorData.message === 'string'
-                  ? errorData.message
-                  : JSON.stringify(errorData.message);
-              } else if (errorData.error) {
-                errorMessage = errorData.error;
-              }
-            } catch (jsonErr) {
-              errorMessage = errorText;
-            }
-          }
-        } catch (textErr) {
-          // response.text() no disponible (ej: en mocks de test), usar mensaje por defecto
-        }
-        // The status travels with the error so callers can tell e.g. a 401 from a network failure.
-        // Non-enumerable so the error still compares equal to a plain `new Error(message)`.
-        const httpError = new Error(errorMessage);
-        Object.defineProperty(httpError, 'status', { value: response.status });
-        throw httpError;
-      }
-
-      return response.json();
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('Timeout: La solicitud tardó demasiado tiempo. Por favor verifica tu conexión e intenta nuevamente.');
-      }
-      throw error;
+    const config = {
+      method,
+      url: path,
+      headers: Object.assign({}, opts.headers || {}),
+      timeout: opts.timeout || DEFAULT_TIMEOUT,
+    };
+    if (body !== null && body !== undefined) {
+      config.headers['Content-Type'] = 'application/json';
+      config.data = JSON.stringify(body);
     }
+
+    let response;
+    try {
+      response = await http.request(config);
+    } catch (error) {
+      throw toHttpError(error);
+    }
+    // The body travels as raw text; parsing here matches fetch's response.json() (throws on bad JSON).
+    return JSON.parse(response.data);
   },
 
   get(path, options) {

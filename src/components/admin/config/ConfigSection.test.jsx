@@ -44,8 +44,8 @@ describe('ConfigSection', () => {
 
     const tablist = screen.getByRole('tablist');
     const tabs = within(tablist).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Horarios', 'Marca']);
-    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Locales', 'Horarios', 'Marca', 'Compartir']);
+    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
 
     const panel = screen.getByRole('tabpanel');
     expect(panel).toHaveAttribute('aria-labelledby', tabs[0].id);
@@ -71,6 +71,48 @@ describe('ConfigSection', () => {
 
     expect(screen.getByTestId('config-tab-services')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('config-tab-services')).toHaveFocus();
+  });
+
+  it('opens the "Compartir" tab, reachable with ArrowLeft from the first tab (wraps around)', async () => {
+    const user = userEvent.setup();
+    render(<ConfigSection />);
+    await screen.findByText('Alex García');
+
+    screen.getByTestId('config-tab-professionals').focus();
+    await user.keyboard('{ArrowLeft}');
+
+    expect(screen.getByTestId('config-tab-share')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('Publicar la página de turnos')).toBeInTheDocument();
+  });
+
+  it('opens "Locales" with the default location when the catalog has none (single-location business)', async () => {
+    const user = userEvent.setup();
+    render(<ConfigSection />);
+    await screen.findByText('Alex García');
+
+    await user.click(screen.getByTestId('config-tab-locations'));
+
+    expect(screen.getByTestId('location-row-principal')).toHaveTextContent('Principal');
+  });
+
+  it('shows the locations the admin catalog carries, and a selector in Horarios', async () => {
+    const user = userEvent.setup();
+    const { SCHEDULE } = await import('../../../test/catalogFixture.js');
+    getAdminCatalog.mockResolvedValue({
+      ...ADMIN_CATALOG,
+      locations: [
+        { id: 'principal', name: 'Principal', address: '', active: true, schedule: SCHEDULE },
+        { id: 'centro', name: 'Centro', address: 'Av. 1', active: true, schedule: SCHEDULE },
+      ],
+    });
+    render(<ConfigSection />);
+    await screen.findByText('Alex García');
+
+    await user.click(screen.getByTestId('config-tab-locations'));
+    expect(screen.getByTestId('location-row-centro')).toHaveTextContent('Av. 1');
+
+    await user.click(screen.getByTestId('config-tab-schedule'));
+    expect(screen.getByLabelText('Local')).toBeInTheDocument();
   });
 
   it('shows an error with a retry button when the catalog cannot be loaded', async () => {

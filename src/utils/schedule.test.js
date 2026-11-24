@@ -53,6 +53,50 @@ describe('getFallbackSchedule', () => {
   });
 });
 
+describe('getFallbackSchedule start interval', () => {
+  const withInterval = (startIntervalMinutes) => ({ ...SCHEDULE, startIntervalMinutes });
+
+  it('offers a start every `startIntervalMinutes` counted from the opening time', () => {
+    expect(getFallbackSchedule(MONDAY, withInterval(180)).times).toEqual(['09:00', '12:00', '15:00', '18:00']);
+    expect(getFallbackSchedule(SATURDAY, withInterval(180)).times).toEqual(['09:00', '12:00', '15:00']);
+  });
+
+  it('counts from an opening that is not on the hour', () => {
+    const schedule = {
+      weekly: { ...SCHEDULE.weekly, 1: { closed: false, open: '09:30', close: '12:30' } },
+      slotIntervalMinutes: 30,
+      startIntervalMinutes: 60,
+    };
+    expect(getFallbackSchedule(MONDAY, schedule).times).toEqual(['09:30', '10:30', '11:30']);
+  });
+
+  it('keeps the 30-minute grid when the catalog has no start interval (older catalog)', () => {
+    expect(getFallbackSchedule(MONDAY, SCHEDULE).times).toHaveLength(22);
+    expect(getFallbackSchedule(MONDAY, { ...SCHEDULE, startIntervalMinutes: undefined }).times).toHaveLength(22);
+  });
+
+  it('stays closed on a closed day whatever the interval', () => {
+    expect(getFallbackSchedule(SUNDAY, withInterval(180))).toEqual({ closed: true, times: [] });
+  });
+});
+
+describe('getFallbackSchedule starts per day', () => {
+  const withMonday = (starts, startIntervalMinutes = 30) => ({
+    ...SCHEDULE,
+    startIntervalMinutes,
+    weekly: { ...SCHEDULE.weekly, 1: { closed: false, open: '09:00', close: '20:00', starts } },
+  });
+
+  it('offers exactly the listed starts of a day, whatever the interval', () => {
+    expect(getFallbackSchedule(MONDAY, withMonday(['09:00', '12:00', '16:30'], 180)).times).toEqual(['09:00', '12:00', '16:30']);
+  });
+
+  it('keeps the interval rule for the days without a list', () => {
+    expect(getFallbackSchedule(SATURDAY, withMonday(['10:00'], 180)).times).toEqual(['09:00', '12:00', '15:00']);
+    expect(getFallbackSchedule(MONDAY, withMonday(undefined, 180)).times).toEqual(['09:00', '12:00', '15:00', '18:00']);
+  });
+});
+
 describe('setFallbackSchedule', () => {
   afterEach(() => setFallbackSchedule(null));
 

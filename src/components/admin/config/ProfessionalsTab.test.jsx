@@ -428,3 +428,74 @@ describe('ProfessionalsTab permanent delete', () => {
     expect(deleteProfessionalPermanently).not.toHaveBeenCalled();
   });
 });
+
+describe('ProfessionalsTab locations (SPEC 08)', () => {
+  const LOCATIONS = [
+    { id: 'principal', name: 'Principal', address: 'Calle 1', active: true },
+    { id: 'centro', name: 'Centro', address: '', active: true },
+    { id: 'viejo', name: 'Viejo', address: '', active: false },
+  ];
+  const withLocations = (extra = {}) => professionals.map((p) => ({ ...p, locations: ['principal'], ...extra }));
+  const renderTab = (props = {}) => {
+    onChanged = vi.fn();
+    render(<ProfessionalsTab professionals={withLocations()} locations={LOCATIONS} onChanged={onChanged} {...props} />);
+    return userEvent.setup();
+  };
+
+  it('does not ask for locations (and sends none) when the business has one location', async () => {
+    const user = renderTab({ locations: [LOCATIONS[0]] });
+    createProfessional.mockResolvedValue({});
+
+    await user.click(screen.getByRole('button', { name: 'Nuevo profesional' }));
+    expect(screen.queryByTestId('professional-location-principal')).not.toBeInTheDocument();
+    await user.type(screen.getByTestId('professional-name-input'), 'Ana');
+    await user.click(screen.getByTestId('professional-save'));
+
+    await waitFor(() => expect(createProfessional).toHaveBeenCalledWith({ name: 'Ana', specialty: '', experience: '' }));
+  });
+
+  it('lets a new professional work in several active locations, starting on the first', async () => {
+    const user = renderTab();
+    createProfessional.mockResolvedValue({});
+
+    await user.click(screen.getByRole('button', { name: 'Nuevo profesional' }));
+    expect(screen.getByTestId('professional-location-principal')).toBeChecked();
+    expect(screen.getByTestId('professional-location-centro')).not.toBeChecked();
+    expect(screen.queryByTestId('professional-location-viejo')).not.toBeInTheDocument();
+    await user.type(screen.getByTestId('professional-name-input'), 'Ana');
+    await user.click(screen.getByTestId('professional-location-centro'));
+    await user.click(screen.getByTestId('professional-save'));
+
+    await waitFor(() => expect(createProfessional).toHaveBeenCalledWith({ name: 'Ana', specialty: '', experience: '', locations: ['principal', 'centro'] }));
+  });
+
+  it('loads and edits the locations of an existing professional', async () => {
+    const user = renderTab({ professionals: withLocations({ locations: ['centro'] }) });
+    updateProfessional.mockResolvedValue({});
+
+    await user.click(screen.getByTestId('professional-edit-alex-garcia'));
+    expect(screen.getByTestId('professional-location-centro')).toBeChecked();
+    expect(screen.getByTestId('professional-location-principal')).not.toBeChecked();
+    await user.click(screen.getByTestId('professional-location-principal'));
+    await user.click(screen.getByTestId('professional-save'));
+
+    await waitFor(() => expect(updateProfessional).toHaveBeenCalledWith('alex-garcia', expect.objectContaining({ locations: ['principal', 'centro'] })));
+  });
+
+  it('refuses to save a professional with no location, without calling the backend', async () => {
+    const user = renderTab();
+
+    await user.click(screen.getByTestId('professional-edit-alex-garcia'));
+    await user.click(screen.getByTestId('professional-location-principal'));
+    await user.click(screen.getByTestId('professional-save'));
+
+    expect(screen.getByTestId('professional-error')).toHaveTextContent('Elige al menos un local');
+    expect(updateProfessional).not.toHaveBeenCalled();
+  });
+
+  it('lists where each professional works', () => {
+    renderTab({ professionals: withLocations({ locations: ['principal', 'centro'] }) });
+
+    expect(within(screen.getByTestId('professional-row-alex-garcia')).getByText('Principal, Centro')).toBeInTheDocument();
+  });
+});

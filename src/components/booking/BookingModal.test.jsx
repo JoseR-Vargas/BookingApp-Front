@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROFESSIONALS, SERVICES } from '../../test/catalogFixture.js';
 import { BookingProvider } from '../../state/bookingState.jsx';
 import { CatalogTestProvider } from '../../test/CatalogTestProvider.jsx';
+import { installMockHttp, restoreHttp } from '../../test/mockHttp.js';
 import { toast } from '../../ui/toast.js';
 import { formatLongDateUTC, formatMoney } from '../../utils/format.js';
 import BookingModal from './BookingModal.jsx';
@@ -73,7 +74,9 @@ function gridTimes(from, to) {
   return times;
 }
 
-// Fake backend installed at the `fetch` boundary, so the REAL apiClient + bookingService run
+let httpMock;
+
+// Fake backend installed at the HTTP boundary (mockHttp), so the REAL apiClient + bookingService run
 // and the tests can assert the exact URL / method / body that reaches the network.
 // It mirrors the real availability rules on the 30-minute grid: a window of
 // ceil(totalDuration / 30) back-to-back blocks must be open and free of the professional's
@@ -146,7 +149,7 @@ function installBackend({ bookings = [] } = {}) {
     // Like the real backend: the one-time cancel token travels in the creation response.
     return jsonResponse(201, { _id: 'new-id', ...body, cancelToken: CANCEL_TOKEN });
   });
-  vi.stubGlobal('fetch', fetchMock);
+  httpMock = installMockHttp(fetchMock);
   return backend;
 }
 
@@ -241,12 +244,13 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  restoreHttp();
   vi.clearAllMocks();
   globalThis.innerWidth = originalInnerWidth;
 });
 
 describe('BookingModal happy path', () => {
-  it('shows the cancel link of the booking it just created in the confirmation', async () => {
+  it('confirms with the email it was sent to, and no cancel link (that travels by email)', async () => {
     installBackend();
     const user = userEvent.setup({ delay: null });
     render(<Harness />);
@@ -255,9 +259,10 @@ describe('BookingModal happy path', () => {
     await user.click(confirmButton());
 
     const confirmation = await screen.findByRole('dialog', { name: '¡Reserva Confirmada!' });
-    const expectedUrl = `${window.location.origin}/cancelar/${CANCEL_TOKEN}`;
-    expect(within(confirmation).getByRole('link', { name: expectedUrl })).toHaveAttribute('href', expectedUrl);
-    expect(within(confirmation).getByRole('button', { name: 'Copiar enlace' })).toBeInTheDocument();
+    expect(within(confirmation).getByText(/Te enviamos la confirmación a/)).toHaveTextContent('juan@example.com');
+    expect(within(confirmation).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(confirmation).queryByRole('button', { name: 'Copiar enlace' })).not.toBeInTheDocument();
+    expect(within(confirmation).queryByText(/cancelar/i)).not.toBeInTheDocument();
   });
 
   it('walks the 3 steps and posts the legacy-shaped payload, then shows the confirmation', async () => {
@@ -681,10 +686,10 @@ describe('time slots', () => {
     const gate = new Promise((resolve) => {
       release = resolve;
     });
-    const originalFetch = globalThis.fetch;
-    vi.stubGlobal('fetch', async (...args) => {
+    const baseImplementation = httpMock.getMockImplementation();
+    httpMock.mockImplementation(async (...args) => {
       await gate;
-      return originalFetch(...args);
+      return baseImplementation(...args);
     });
     const user = userEvent.setup({ delay: null });
     render(<Harness />);

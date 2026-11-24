@@ -16,7 +16,11 @@ export async function createApi() {
     ctx,
     auth: AUTH,
     adminCatalog: async () => json(await ctx.get('/api/admin/catalog', { headers: AUTH })),
-    saveSchedule: async (weekly) => json(await ctx.put('/api/admin/schedule', { headers: AUTH, data: { weekly } })),
+    // `startIntervalMinutes` left out: the backend keeps the stored one (SPEC 05).
+    saveSchedule: async (weekly, startIntervalMinutes) => json(await ctx.put('/api/admin/schedule', {
+      headers: AUTH,
+      data: startIntervalMinutes === undefined ? { weekly } : { weekly, startIntervalMinutes },
+    })),
     availability: async (date, serviceId) => json(await ctx.get('/api/availability', {
       params: { date, serviceIds: serviceId },
     })),
@@ -65,7 +69,7 @@ export async function createApi() {
       for (const booking of (await api.bookings()).filter(isFake)) {
         await ctx.delete(`/api/bookings/${booking._id}`, { headers: AUTH });
       }
-      await api.saveSchedule(SEED_WEEKLY);
+      await api.saveSchedule(SEED_WEEKLY, 30); // seed hours AND the 30-minute start interval
       if (serviceId) await ctx.delete(`/api/admin/services/${serviceId}`, { headers: AUTH });
       if (professionalId) await ctx.delete(`/api/admin/professionals/${professionalId}`, { headers: AUTH });
     },

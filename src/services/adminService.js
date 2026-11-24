@@ -2,6 +2,9 @@
 // Lógica del panel admin — sin referencias al DOM.
 
 import { apiClient } from '../core/apiClient.js';
+import { adminCatalogSchema } from '../schemas/api/catalog.schema.js';
+import { bookingListSchema, statisticsSchema } from '../schemas/api/booking.schema.js';
+import { parseResponse } from '../schemas/parse-response.js';
 import { authService, getAdminKey, getAdminUser } from './authService.js';
 
 // Every admin route requires the admin key (`Authorization: Bearer <ADMIN_API_KEY>`). This is the
@@ -32,9 +35,9 @@ async function adminRequest(method, path, body) {
 // The public booking calls (create, availability, cancel by link) live in bookingService and
 // cancellationService and never carry the key.
 
-export const getBookings = () => adminRequest('GET', '/api/bookings');
+export const getBookings = async () => parseResponse(bookingListSchema, await adminRequest('GET', '/api/bookings'));
 
-export const getStatistics = () => adminRequest('GET', '/api/bookings/statistics');
+export const getStatistics = async () => parseResponse(statisticsSchema, await adminRequest('GET', '/api/bookings/statistics'));
 
 // Erases the booking and its history. Use cancelBooking to just free the slot.
 export const deleteBooking = (id) => adminRequest('DELETE', '/api/bookings/' + id);
@@ -45,7 +48,7 @@ export const cancelBooking = (id) => adminRequest('PATCH', '/api/bookings/' + id
 
 // ----- Business configuration -----
 
-export const getAdminCatalog = () => adminRequest('GET', '/api/admin/catalog');
+export const getAdminCatalog = async () => parseResponse(adminCatalogSchema, await adminRequest('GET', '/api/admin/catalog'));
 
 export const createProfessional = (data) => adminRequest('POST', '/api/admin/professionals', data);
 export const updateProfessional = (id, data) => adminRequest('PATCH', '/api/admin/professionals/' + id, data);
@@ -73,7 +76,12 @@ export const deleteServicePermanently = (id) =>
   adminRequest('DELETE', '/api/admin/services/' + id + '/permanent');
 
 /** @param weekly {Record<0..6, {closed:true}|{closed:false,open:'HH:mm',close:'HH:mm'}>} all 7 days */
-export const saveSchedule = (weekly) => adminRequest('PUT', '/api/admin/schedule', { weekly });
+// `startIntervalMinutes` (SPEC 05) is optional: left out, the backend keeps the stored value.
+export const saveSchedule = (weekly, startIntervalMinutes) => adminRequest(
+  'PUT',
+  '/api/admin/schedule',
+  startIntervalMinutes === undefined ? { weekly } : { weekly, startIntervalMinutes },
+);
 
 // ----- Brand (SPEC 03): colors, business name and logo -----
 
@@ -82,3 +90,22 @@ export const saveBranding = (branding) => adminRequest('PUT', '/api/admin/brandi
 /** @param dataUrl {string} 'data:image/png;base64,...' (PNG, JPEG or WebP, up to 200 KB) */
 export const uploadLogo = (dataUrl) => adminRequest('PUT', '/api/admin/branding/logo', { dataUrl });
 export const deleteLogo = () => adminRequest('DELETE', '/api/admin/branding/logo');
+
+/**
+ * Settings of the public availability page (SPEC 07).
+ * @param settings {{enabled: boolean, days: number, serviceIds: string[]|null}} `null` = every active service
+ */
+export const savePublicAvailability = (settings) => adminRequest('PUT', '/api/admin/public-availability', settings);
+
+// ----- Locations (SPEC 08) -----
+
+/** @param data {{name: string, address: string}} */
+export const createLocation = (data) => adminRequest('POST', '/api/admin/locations', data);
+/** @param data {{name: string, address: string, active: boolean}} */
+export const updateLocation = (id, data) => adminRequest('PUT', '/api/admin/locations/' + id, data);
+/** Same body as `saveSchedule`, for one location. `startIntervalMinutes` left out keeps the stored value. */
+export const saveLocationSchedule = (id, weekly, startIntervalMinutes) => adminRequest(
+  'PUT',
+  '/api/admin/locations/' + id + '/schedule',
+  startIntervalMinutes === undefined ? { weekly } : { weekly, startIntervalMinutes },
+);

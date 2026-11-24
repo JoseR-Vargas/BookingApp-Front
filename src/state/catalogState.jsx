@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getCatalog } from '../services/catalogService.js';
 import { setFallbackSchedule } from '../utils/schedule.js';
 
-const EMPTY = { professionals: [], services: [], schedule: null };
+const EMPTY = { professionals: [], services: [], schedule: null, locations: [] };
 
 export const CatalogContext = createContext(null);
 
@@ -27,6 +27,8 @@ export function CatalogProvider({ children }) {
         professionals: data.professionals || [],
         services: data.services || [],
         schedule: data.schedule || null,
+        // SPEC 08: empty for a backend (or a business) with no locations of its own.
+        locations: data.locations || [],
         status: 'ready',
       });
     } catch {
