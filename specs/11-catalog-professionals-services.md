@@ -1,6 +1,6 @@
 # SPEC 11 — Catálogo hexagonal (1/2): profesionales, servicios, selección y fotos
 
-> **Status:** aprobado
+> **Status:** implementado
 > **Depends on:** SPEC 10
 > **Date:** 2026-11-23
 > **Objective:** Migrar a arquitectura hexagonal con `Result` los profesionales, los servicios, la selección de servicios y las fotos del catálogo, dejando una fachada temporal para los módulos que todavía no migran.

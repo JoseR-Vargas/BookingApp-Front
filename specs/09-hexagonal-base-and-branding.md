@@ -1,6 +1,6 @@
 # SPEC 09 — Arquitectura hexagonal ligera: base y piloto con `branding`
 
-> **Status:** aprobado
+> **Status:** implementado
 > **Depends on:** SPEC 08
 > **Date:** 2026-11-23
 > **Objective:** Dejar establecida la arquitectura hexagonal ligera del backend (capas, puertos, adaptadores, test de arquitectura y pruebas de contrato) y migrar el módulo `branding` como piloto, sin cambiar su comportamiento.

@@ -1,6 +1,6 @@
 # SPEC 16 — Validación con zod en el front
 
-> **Status:** aprobado
+> **Status:** implementado
 > **Depends on:** SPEC 15
 > **Date:** 2026-11-23
 > **Objective:** Validar con esquemas de zod los formularios y las respuestas de la API del front, con un único lugar para cada contrato.

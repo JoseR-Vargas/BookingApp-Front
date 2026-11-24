@@ -1,6 +1,6 @@
 # SPEC 10 — Patrón Result en el backend
 
-> **Status:** aprobado
+> **Status:** implementado
 > **Depends on:** SPEC 09
 > **Date:** 2026-11-23
 > **Objective:** Que las reglas de negocio y los casos de uso del backend informen sus fallas como un valor `Result` en lugar de lanzar excepciones, empezando por el módulo `branding`.

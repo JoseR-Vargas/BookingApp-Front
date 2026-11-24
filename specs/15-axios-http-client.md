@@ -1,6 +1,6 @@
 # SPEC 15 — Axios como cliente HTTP del front
 
-> **Status:** aprobado
+> **Status:** implementado
 > **Depends on:** SPEC 01
 > **Date:** 2026-11-23
 > **Objective:** Reemplazar el `fetch` artesanal de `apiClient` por una instancia de axios que conserve exactamente los mismos mensajes, tiempos de espera y firmas para los servicios.
