@@ -1,4 +1,4 @@
-# SPEC 14 — Aislamiento de datos por negocio (backend)
+# SPEC 17 — Aislamiento de datos por negocio (backend)
 
 > **Status:** aprobado (a rehacer sobre la arquitectura hexagonal)
 > **Depends on:** SPEC 08
@@ -7,7 +7,7 @@
 
 ---
 
-> **Nota (2026-11-23):** este borrador se escribió antes de decidir la arquitectura hexagonal del backend (SPEC 09 a 13). Con puertos y adaptadores, el filtro por negocio deja de ser un plugin de Mongoose y pasa a ser trabajo de los adaptadores de persistencia, con un puerto `TenantContext` en `application`. Hay que reescribir *Alcance*, *Modelo de datos* y *Plan* cuando llegue su turno. Las decisiones sobre `X-Tenant`, la clave única de admin, la raíz `/`, el script de alta y el bot siguen vigentes. Los números de specs futuras de este texto quedaron desplazados; en el plan vigente el front por ruta es la spec 17, las cuentas de admin la 18 y el bot la 24.
+> **Nota (2026-11-23):** este borrador se escribió antes de decidir la arquitectura hexagonal del backend (SPEC 09 a 14). Con puertos y adaptadores, el filtro por negocio deja de ser un plugin de Mongoose y pasa a ser trabajo de los adaptadores de persistencia, con un puerto `TenantContext` en `application`. Hay que reescribir *Alcance*, *Modelo de datos* y *Plan* cuando llegue su turno. Las decisiones sobre `X-Tenant`, la clave única de admin, la raíz `/`, el script de alta y el bot siguen vigentes. Los números de specs futuras de este texto quedaron desplazados; en el plan vigente el front por ruta es la spec 18, las cuentas de admin la 19 y el bot la 25.
 
 ## Por qué existe esta spec
 

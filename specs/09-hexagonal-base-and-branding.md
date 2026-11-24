@@ -11,7 +11,7 @@
 
 Hoy 27 archivos del backend dependen de Mongoose. Los servicios mezclan reglas de negocio con consultas, así que cambiar de base de datos obligaría a reescribir casi todo. Atlas gratis tiene 0,5 GB y 100 operaciones por segundo: es probable que haya que mudarse. El objetivo es que ese día solo haya que escribir adaptadores nuevos y cambiar una línea de enlace, sin tocar reglas de negocio ni casos de uso.
 
-Esta spec fija el molde y lo prueba con el módulo más chico (`branding`, unas 140 líneas de servicio). Los demás módulos se migran uno por spec (11, 12, 13), y WhatsApp al final con el bot (spec 24). El aislamiento por negocio (spec 14) se construye después, sobre esta arquitectura, como trabajo de los adaptadores de persistencia.
+Esta spec fija el molde y lo prueba con el módulo más chico (`branding`, unas 140 líneas de servicio). Los demás módulos se migran uno por spec (11 a 14), y WhatsApp al final con el bot (spec 25). El aislamiento por negocio (spec 17) se construye después, sobre esta arquitectura, como trabajo de los adaptadores de persistencia.
 
 Reglas que gobiernan todo el proyecto (ya escritas como skills `hexagonal-architecture` y `solid-composition`, y como `AGENTS.md` en el backend):
 
@@ -35,8 +35,8 @@ Reglas que gobiernan todo el proyecto (ya escritas como skills `hexagonal-archit
 
 **Fuera de alcance (otras specs):**
 
-- Migrar `catalog`, `availability`, `bookings`, `admin`, `auth`, `email` (specs 11 a 13) y WhatsApp (spec 24).
-- Aislamiento por negocio, rutas por negocio y cuentas de admin (specs 14 en adelante).
+- Migrar `catalog`, `availability`, `bookings`, `admin`, `auth`, `email` (specs 11 a 14) y WhatsApp (spec 25).
+- Aislamiento por negocio, rutas por negocio y cuentas de admin (specs 17 en adelante).
 - Cambiar de base de datos de verdad: solo se demuestra que el diseño lo permite.
 - Cambiar cualquier ruta, respuesta, código de estado o mensaje de la API.
 - Tocar el front.
@@ -154,6 +154,6 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 
 ## Lo que **no** está en esta spec
 
-- La migración de `catalog`, `availability`, `bookings`, `admin`, `auth` y `email` (specs 11 a 13) y de WhatsApp (spec 24).
-- Aislamiento por negocio y todo el camino comercial (specs 14 a 23).
+- La migración de `catalog`, `availability`, `bookings`, `admin`, `auth` y `email` (specs 11 a 14) y de WhatsApp (spec 25).
+- Aislamiento por negocio y todo el camino comercial (specs 17 a 24).
 - Una segunda base de datos real: solo la prueba de que el diseño la admite.

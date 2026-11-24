@@ -30,7 +30,7 @@ Va antes de migrar `catalog` (spec 11) para que ese módulo y los siguientes naz
 
 **Fuera de alcance (otras specs):**
 
-- Migrar otros módulos: `catalog`, `availability`, `bookings`, `admin`, `auth`, `email` (specs 11 a 13) nacen con Result dentro de su propia spec. WhatsApp, spec 24.
+- Migrar otros módulos: `catalog`, `availability`, `bookings`, `admin`, `auth`, `email` (specs 11 a 14) nacen con Result dentro de su propia spec. WhatsApp, spec 25.
 - Que los repositorios devuelvan `Result`: siguen devolviendo el modelo o `null`.
 - Una librería externa (`neverthrow`, `fp-ts`).
 - Cambiar rutas, códigos de estado, cuerpos o mensajes de la API.
@@ -116,6 +116,6 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 
 ## Lo que **no** está en esta spec
 
-- La migración de los demás módulos a Result (cada uno la trae en su spec: 11 a 13, y WhatsApp en la 24).
+- La migración de los demás módulos a Result (cada uno la trae en su spec: 11 a 14, y WhatsApp en la 25).
 - `Result` en los puertos de persistencia.
 - Cualquier cambio en el front.

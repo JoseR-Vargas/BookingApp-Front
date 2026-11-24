@@ -11,7 +11,7 @@
 
 `src/core/apiClient.js` hace a mano lo que axios resuelve: construir la URL, serializar el cuerpo, medir un tiempo de espera con `AbortController`, interpretar el error del backend. Todos los servicios (`bookingService`, `adminService`, `authService`, `catalogService`, `brandingService`, `cancellationService`, `publicAvailabilityService`) pasan por ese único punto, y eso es lo que vale conservar.
 
-Más adelante hay dos cosas que se resuelven mejor con interceptores de axios en un solo lugar: el encabezado `X-Tenant` por negocio (spec 17) y el cierre de sesión ante un `401` (hoy repetido en `adminService`). Esta spec deja ese terreno listo sin cambiar el comportamiento visible.
+Más adelante hay dos cosas que se resuelven mejor con interceptores de axios en un solo lugar: el encabezado `X-Tenant` por negocio (spec 18) y el cierre de sesión ante un `401` (hoy repetido en `adminService`). Esta spec deja ese terreno listo sin cambiar el comportamiento visible.
 
 ## Alcance
 
@@ -101,5 +101,5 @@ Cada paso deja el sistema funcionando y con `vitest` en verde.
 ## Lo que **no** está en esta spec
 
 - Validación de datos con zod (spec 16).
-- `X-Tenant`, cierre de sesión global por `401` y cuentas de admin (specs 17 y 18).
+- `X-Tenant`, cierre de sesión global por `401` y cuentas de admin (specs 18 y 19).
 - Cualquier cambio en el backend.
