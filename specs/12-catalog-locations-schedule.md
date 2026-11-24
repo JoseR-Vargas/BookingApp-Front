@@ -1,6 +1,6 @@
 # SPEC 12 — Catálogo hexagonal (2/2): locales, horarios y ajustes de la página pública
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas: "lo que recomiendas, dale sin parar")
+> **Status:** Implementado
 > **Depends on:** SPEC 11
 > **Date:** 2026-11-24
 > **Objective:** Migrar a arquitectura hexagonal con `Result` los locales, sus horarios, los ajustes de la página pública y la migración al local "Principal", y dejar el modelo de horario como núcleo compartido que importan `catalog` y `availability`.
