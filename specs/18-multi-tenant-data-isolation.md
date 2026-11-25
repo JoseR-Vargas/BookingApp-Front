@@ -1,4 +1,4 @@
-# SPEC 17 — Aislamiento de datos por negocio (backend)
+# SPEC 18 — Aislamiento de datos por negocio (backend)
 
 > **Status:** aprobado (a rehacer sobre la arquitectura hexagonal)
 > **Depends on:** SPEC 08
