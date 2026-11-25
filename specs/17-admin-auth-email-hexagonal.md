@@ -1,6 +1,6 @@
 # SPEC 17 — Admin, auth y email hexagonal
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas)
+> **Status:** Implementado (2026-11-25)
 > **Depends on:** SPEC 14
 > **Date:** 2026-11-25
 > **Objective:** Migrar a arquitectura hexagonal con `Result` los módulos `admin`, `auth` y `email`, sin cambiar ninguna ruta, mensaje ni correo.
@@ -69,6 +69,12 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 4. **Guard y controladores.** El guard queda como adaptador HTTP con las mismas respuestas; las suites HTTP existentes de auth y admin se conservan con las mismas aserciones.
 5. **Fachadas y consumidores.** `EmailService` queda como fachada fina con las mismas firmas; `ScheduleImpactService` se reemplaza por el caso de uso y los controladores de catálogo que lo usaban pasan a llamarlo.
 6. **Cierre.** Comparación antes y después de las respuestas de `GET /admin/session`, `GET /admin/catalog` y del contenido exacto de los dos correos; verificación completa.
+
+## Desvíos (decididos al implementar, 2026-11-25)
+
+- **El guard se queda en `src/auth/admin-key.guard.ts`.** Sigue siendo el borde HTTP, pero ahora aplica la regla pura del dominio (`admin-credentials.rules.ts`). El puerto `AdminCredentials` queda listo para la spec 20 (cuentas por negocio); mover el guard a `infrastructure/` habría toca ocho archivos sin ganancia.
+- **El impacto del horario se provee desde `CatalogModule`, no desde `AdminModule`.** `ScheduleImpactService` depende del caso de uso, que a su vez depende del lector de reservas; si lo proveía el módulo de admin, el grafo quedaba circular (admin → catalog → admin). El módulo de admin quedó solo con su controlador.
+- **Los correos siguen igual, byte a byte.** Las plantillas se movieron al dominio como funciones puras y el spec del email conserva sus diez aserciones.
 
 ## Criterios de aceptación
 
