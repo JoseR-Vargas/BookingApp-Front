@@ -1,6 +1,6 @@
 # SPEC 14 — Reservas hexagonal
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas)
+> **Status:** Implementado (2026-11-25)
 > **Depends on:** SPEC 13
 > **Date:** 2026-11-25
 > **Objective:** Migrar a arquitectura hexagonal con `Result` el módulo `bookings` (crear, leer, editar, borrar, cancelar con enlace, consultar disponibilidad de una hora y estadísticas), con las notificaciones como puertos, sin cambiar ninguna ruta ni mensaje.
@@ -127,6 +127,14 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 | La cancelación deja de ser atómica | Contrato de Mongo con dos cancelaciones simultáneas. |
 | Dependencia circular entre módulos de Nest | `BookingReadModule` sin imports de `catalog` ni `availability`; el arranque de la app se prueba. |
 | El bot recibe otra excepción de la que espera | La fachada traduce `Result` a las excepciones de antes y su suite pasa sin cambios. |
+
+## Desvíos (decididos al implementar, 2026-11-25)
+
+- **Los 400 ahora llevan `error: "Bad Request"`.** El filtro único de Nest añade ese campo. Es la única diferencia de cuerpo permitida y ningún cliente lo lee.
+- **Un POST sin fecha, hora o datos del cliente ahora responde `400` en vez de `500`.** Antes el mensaje no coincidía con las marcas de error de negocio y caía en 500; ahora es un 400 con el mismo texto. Es una corrección, no una regresión.
+- **Los puertos provisionales no se reemplazaron.** `catalog` (pregunta por reservas) y `availability` (bloques ocupados) siguen enlazando un adaptador que lee la colección de reservas desde su propia infraestructura. El módulo de lectura intermedio (`BookingsReadModule`) se probó y se descartó: Nest no resolvía el token entre módulos y el grafo quedaba circular. Los adaptadores nuevos (`MongoBookingActivityReader`, `BookingActivityAdapter`, `BookingOccupiedSlotsReader`) quedan listos para cuando `catalog` y `availability` migren.
+- **Los specs del servicio y de locations viejos se borraron** (2 972 líneas): probaban la implementación eliminada. Su cobertura vive ahora en el spec de casos de uso (727 líneas), el contrato del repositorio (memoria y Mongo) y el diferencial HTTP de 71 casos. Lo que no estaba cubierto se escribió de nuevo: los avisos (token al email, orden, mejor esfuerzo, tope de 5 s) y los specs HTTP de acceso y de cancelación.
+- **El comparador HTTP dio 71 casos:** 51 idénticos, 17 con el campo `error` documentado y 3 con el cambio 500 → 400. Ninguna otra diferencia.
 
 ## Lo que **no** está en esta spec
 
