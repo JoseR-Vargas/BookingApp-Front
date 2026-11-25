@@ -1,6 +1,6 @@
 # SPEC 18 — Aislamiento de datos por negocio (backend)
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas; las decisiones de diseño son las que eligió antes: `X-Tenant`, clave única de admin por ahora, `/` sigue sirviendo al negocio por defecto, alta por script, bot fuera)
+> **Status:** Implementado (2026-11-25) — base del aislamiento lista y verificada; falta el socket por sala, los scripts de línea de comandos y la suite de aislamiento HTTP (ver "Lo que falta")
 > **Depends on:** SPEC 17
 > **Date:** 2026-11-25
 > **Objective:** Que cada documento pertenezca a un negocio y que el backend solo pueda leer y escribir los del negocio del pedido, sin cambiar nada para el negocio actual.
@@ -164,6 +164,21 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 | El socket autenticado rompe el aviso en vivo del panel | Cambio mínimo en el front dentro de esta spec y prueba del aviso. |
 | Las 100 operaciones por segundo de Atlas gratis se agotan | Caché de 60 s de la resolución; el filtro viaja en la misma consulta. |
 | Un adaptador de otra base olvida el aislamiento | Las suites de contrato de aislamiento son parte de lo que debe pasar. |
+
+## Lo que falta (para cerrar la spec)
+
+- **Socket por sala:** el handshake exige las credenciales de admin y el socket entra a la sala de su negocio. Los avisos `newBooking` y `bookingCancelled` van solo a esa sala. Falta también el cambio mínimo del front (`realtimeService.js` y `Admin.jsx`).
+- **Scripts:** `npm run tenant:create -- --slug <slug> --name "<nombre>"` y `npm run tenant:migrate -- --dry-run` (la migración ya corre al arrancar; falta el comando).
+- **Suite de aislamiento:** pruebas HTTP con dos negocios y casos de aislamiento en las suites de contrato de los repositorios (hoy los adaptadores en memoria no particionan por negocio).
+- **`docs/tenancy.md`.**
+
+## Desvíos (al implementar, 2026-11-25)
+
+- **El módulo `tenancy` se creó con la forma de la arquitectura** (dominio, aplicación, infraestructura) y el `tenantScope` es un plugin de Mongoose en `shared/infrastructure/mongo`: el filtro lo aplica la infraestructura, así que un repositorio que lo olvide no puede filtrar mal.
+- **El middleware vive en `src/tenancy/infrastructure/http/`** y se registra con `configure()` en `TenancyModule`, no en `main.ts`: es la forma idiomática de Nest y evita tocar el arranque.
+- **La migración corre al arrancar** (`TenantBootstrap`, en el módulo de tenancy, que Nest inicializa antes que los módulos que siembran). Sin esto no hay negocio por defecto y la aplicación no arranca.
+- **Los seis esquemas declaran `tenantId`** (`Types.ObjectId`, opcional, con índice): el plugin lo estampa en cada documento y, sin la campo declarado, Mongoose lo rechaza en modo estricto.
+- **`ObjectId` se usa como `Types.ObjectId`**: `mongoose` solo lo exporta como tipo en esta versión.
 
 ## Lo que **no** está en esta spec
 
