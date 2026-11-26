@@ -30,6 +30,8 @@ export const BACKEND_ENV = {
   // The reminders (spec 24): the simulator sender and a round every three seconds.
   REMINDERS_SENDER: 'fake',
   REMINDERS_INTERVAL_MINUTES: '0.05',
+  // The key of the owner of the system (spec 25): the e2e signs its own platform calls with it.
+  PLATFORM_API_KEY: 'e2e-platform-key',
   BUSINESS_TIMEZONE: 'UTC',
   // Booking cancellation: the link in emails points at the E2E front; no admin WhatsApp notice is sent.
   PUBLIC_APP_URL: FRONT_URL,

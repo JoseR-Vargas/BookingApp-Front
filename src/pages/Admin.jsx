@@ -16,6 +16,7 @@ import { useAdminData } from '../hooks/useAdminData.js';
 import { useBookingNotifications } from '../hooks/useBookingNotifications.js';
 import { authService } from '../services/authService.js';
 import StorageNotice from '../components/admin/StorageNotice.jsx';
+import PlatformSection from '../components/admin/PlatformSection.jsx';
 import TrialBanner from '../components/admin/TrialBanner.jsx';
 import { getSessionState } from '../services/adminService.js';
 import { canConfigure, canWriteBookings } from '../components/admin/adminSections.js';
@@ -188,6 +189,7 @@ export default function Admin() {
         )}
         {section === 'reports' && <ReportsSection bookings={data.bookings} />}
         {section === 'config' && canConfigure(role) && <ConfigSection />}
+        {section === 'platform' && canConfigure(role) && <PlatformSection />}
       </AdminLayout>
       <ConfirmDialog
         open={logoutOpen}
