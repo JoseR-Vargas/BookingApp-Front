@@ -15,7 +15,13 @@ import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
 import { useAdminData } from '../hooks/useAdminData.js';
 import { useBookingNotifications } from '../hooks/useBookingNotifications.js';
 import { authService } from '../services/authService.js';
+import StorageNotice from '../components/admin/StorageNotice.jsx';
+import PlatformSection from '../components/admin/PlatformSection.jsx';
+import TrialBanner from '../components/admin/TrialBanner.jsx';
+import { getSessionState } from '../services/adminService.js';
+import { canConfigure, canWriteBookings } from '../components/admin/adminSections.js';
 import { toast } from '../ui/toast.js';
+import { useTenantPath } from '../tenancy/tenant-context.jsx';
 import { formatBookingDate } from '../utils/format.js';
 import { decodeEntities } from '../utils/sanitize.js';
 
@@ -24,6 +30,18 @@ const MOBILE_MAX_WIDTH = 768;
 
 export default function Admin() {
   const navigate = useNavigate();
+  const tenantLink = useTenantPath();
+  const role = authService.getRole();
+  const canWrite = canWriteBookings(role);
+  const [trial, setTrial] = useState(null);
+  const [storage, setStorage] = useState(null);
+  useEffect(() => {
+    // The notice is a courtesy: if the state cannot be read the panel works without it.
+    getSessionState().then((state) => {
+      setTrial(state.trial);
+      setStorage(state.storage);
+    }).catch(() => {});
+  }, []);
   const data = useAdminData();
   const { loadDashboard, loadBookings } = data;
 
@@ -86,7 +104,7 @@ export default function Admin() {
   const handleLogout = () => {
     setLogoutOpen(false);
     authService.logout();
-    navigate('/login');
+    navigate(tenantLink('/login'));
   };
 
   const requestDelete = (booking) => {
@@ -150,6 +168,8 @@ export default function Admin() {
           />
         )}
       >
+        <TrialBanner trial={trial} />
+        <StorageNotice storage={storage} />
         {section === 'dashboard' && (
           <DashboardSection stats={data.stats} recentBookings={data.recentBookings} />
         )}
@@ -163,12 +183,13 @@ export default function Admin() {
             totalRevenue={data.filteredRevenue}
             onFilterChange={data.applyFilter}
             onClearFilters={data.clearFilters}
-            onDelete={requestDelete}
-            onCancel={requestCancel}
+            onDelete={canWrite ? requestDelete : undefined}
+            onCancel={canWrite ? requestCancel : undefined}
           />
         )}
         {section === 'reports' && <ReportsSection bookings={data.bookings} />}
-        {section === 'config' && <ConfigSection />}
+        {section === 'config' && canConfigure(role) && <ConfigSection />}
+        {section === 'platform' && canConfigure(role) && <PlatformSection />}
       </AdminLayout>
       <ConfirmDialog
         open={logoutOpen}

@@ -8,21 +8,26 @@
 import { apiClient } from '../core/apiClient.js';
 import { sessionSchema } from '../schemas/api/session.schema.js';
 import { parseResponse } from '../schemas/parse-response.js';
+import { currentTenantSlug } from '../tenancy/tenant-resolver.js';
+import { sessionKey } from '../tenancy/tenant-storage.js';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 60000; // 1 minuto en ms
 
-const KEYS = ['isAdmin', 'adminUser', 'adminKey'];
+const KEYS = ['isAdmin', 'adminUser', 'adminKey', 'adminRole', 'adminMode'];
 
 let attempts = 0;
 let lockoutUntil = null;
 
+// The admin session is per business (spec 19): the default one keeps the legacy keys.
+const key = (name) => sessionKey(name, currentTenantSlug());
+
 export function getAdminKey() {
-  return sessionStorage.getItem('adminKey');
+  return sessionStorage.getItem(key('adminKey'));
 }
 
 export function getAdminUser() {
-  return sessionStorage.getItem('adminUser');
+  return sessionStorage.getItem(key('adminUser'));
 }
 
 export const authService = {
@@ -34,6 +39,28 @@ export const authService = {
     if (lockoutUntil && Date.now() < lockoutUntil) {
       const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
       throw new Error('Demasiados intentos fallidos. Intenta de nuevo en ' + remaining + ' segundos.');
+    }
+
+    // An account (email + password) opens a cookie session; anything else is the shared admin key, which
+    // keeps working while a business has no accounts (spec 20, transition).
+    if (username.includes('@')) {
+      try {
+        const opened = await apiClient.post('/api/admin/session', { email: username, password });
+        const user = opened && opened.user;
+        if (user && user.role) {
+          attempts = 0;
+          lockoutUntil = null;
+          sessionStorage.setItem(key('isAdmin'), 'true');
+          sessionStorage.setItem(key('adminUser'), user.name || user.email);
+          sessionStorage.setItem(key('adminRole'), user.role);
+          sessionStorage.setItem(key('adminMode'), 'session');
+          return { username: user.name || user.email };
+        }
+      } catch (error) {
+        if (!error || error.status !== 401) {
+          throw new Error('No se pudo conectar con el servidor. Intenta de nuevo en unos minutos.');
+        }
+      }
     }
 
     try {
@@ -58,22 +85,42 @@ export const authService = {
 
     attempts = 0;
     lockoutUntil = null;
-    sessionStorage.setItem('isAdmin', 'true');
-    sessionStorage.setItem('adminUser', username);
-    sessionStorage.setItem('adminKey', password);
+    sessionStorage.setItem(key('isAdmin'), 'true');
+    sessionStorage.setItem(key('adminUser'), username);
+    sessionStorage.setItem(key('adminKey'), password);
+    sessionStorage.setItem(key('adminRole'), 'owner');
+    sessionStorage.setItem(key('adminMode'), 'key');
     return { username };
   },
 
   logout() {
-    KEYS.forEach((key) => sessionStorage.removeItem(key));
+    // The cookie is HttpOnly: only the backend can clear it. Best effort, the local state goes either way.
+    if (sessionStorage.getItem(key('adminMode')) === 'session') {
+      apiClient.delete('/api/admin/session').catch(() => {});
+    }
+    KEYS.forEach((name) => sessionStorage.removeItem(key(name)));
   },
 
   isAuthenticated() {
-    return sessionStorage.getItem('isAdmin') === 'true';
+    return sessionStorage.getItem(key('isAdmin')) === 'true';
   },
 
   getUser() {
-    return sessionStorage.getItem('adminUser');
+    return sessionStorage.getItem(key('adminUser'));
+  },
+
+  /** Opens the local state of an account session of a business (after the signup). */
+  startAccountSession(slug, user) {
+    const scoped = (name) => sessionKey(name, slug || null);
+    sessionStorage.setItem(scoped('isAdmin'), 'true');
+    sessionStorage.setItem(scoped('adminUser'), user.name || user.email);
+    sessionStorage.setItem(scoped('adminRole'), user.role);
+    sessionStorage.setItem(scoped('adminMode'), 'session');
+  },
+
+  /** `owner`, `staff` or `viewer`. The shared key counts as owner. */
+  getRole() {
+    return sessionStorage.getItem(key('adminRole')) || 'owner';
   },
 
   getAdminKey,

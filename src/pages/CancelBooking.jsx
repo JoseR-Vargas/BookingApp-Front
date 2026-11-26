@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTenantPath } from '../tenancy/tenant-context.jsx';
 import Button from '../components/ui/Button.jsx';
 import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
 import Spinner from '../components/ui/Spinner.jsx';
@@ -45,11 +46,14 @@ function Notice({ title, children }) {
   );
 }
 
-const BookAgain = () => (
-  <Button href="/" size="sm" className="w-full">
-    Reservar de nuevo
-  </Button>
-);
+function BookAgain() {
+  const tenantLink = useTenantPath();
+  return (
+    <Button href={tenantLink('/')} size="sm" className="w-full">
+      Reservar de nuevo
+    </Button>
+  );
+}
 
 export default function CancelBooking() {
   const { token } = useParams();

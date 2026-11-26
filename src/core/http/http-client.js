@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import { APP_CONFIG } from '../../config/appConfig.js';
+import { currentTenantSlug } from '../../tenancy/tenant-resolver.js';
 
 export const BACKEND_URL = APP_CONFIG?.BACKEND_URL || 'http://localhost:3000';
 export const DEFAULT_TIMEOUT = 10000;
@@ -14,7 +15,17 @@ export const http = axios.create({
   timeout: DEFAULT_TIMEOUT,
   // Keep the body as raw text: toHttpError and apiClient parse it exactly like the legacy fetch client.
   responseType: 'text',
+  // The admin session is an HttpOnly cookie (spec 20): the browser sends it with every request.
+  withCredentials: true,
 });
 
 // axios adds `Accept: application/json, text/plain, */*` to every call; fetch sent none of its own.
 http.defaults.headers.common = {};
+
+// Every request names its business (spec 19): the route `/n/<slug>` decides it. The default business
+// sends nothing, so the backend applies its own default.
+http.interceptors.request.use((config) => {
+  const slug = currentTenantSlug();
+  if (slug) config.headers.set('X-Tenant', slug);
+  return config;
+}, null, { synchronous: true });

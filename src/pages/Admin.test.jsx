@@ -814,7 +814,7 @@ describe('Admin realtime notifications', () => {
     const { unmount } = await loadedAdmin();
 
     expect(io).toHaveBeenCalledTimes(1);
-    expect(io).toHaveBeenCalledWith(BASE);
+    expect(io).toHaveBeenCalledWith(BASE, { withCredentials: true, auth: expect.any(Function) });
     expect(latestSocket().disconnect).not.toHaveBeenCalled();
 
     unmount();
@@ -934,7 +934,7 @@ describe('Admin configuration section', () => {
     expect(callsTo('GET', '/api/admin/catalog')).toHaveLength(1);
     expect(callsTo('GET', '/api/admin/catalog')[0][1].headers.Authorization).toBe('Bearer admin-key');
     const tabs = within(screen.getByRole('tablist')).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Locales', 'Horarios', 'Marca', 'Compartir']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Locales', 'Horarios', 'Marca', 'Usuarios', 'Plan', 'Recordatorios', 'Compartir']);
   });
 
   it('logs the user out and goes to /login when the admin key is rejected (401)', async () => {
@@ -945,7 +945,7 @@ describe('Admin configuration section', () => {
 
     await goTo('Configuración');
 
-    await waitFor(() => expect(assign).toHaveBeenCalledWith('/login'));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/login?expired=1'));
     expect(sessionStorage.getItem('isAdmin')).toBeNull();
     expect(sessionStorage.getItem('adminKey')).toBeNull();
   });

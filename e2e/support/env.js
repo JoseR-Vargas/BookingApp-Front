@@ -1,5 +1,5 @@
 // Single source of truth for the E2E stack. Everything here is deliberately hard-coded: the suite must
-// never be pointed at a real database or a real mail/WhatsApp account through the environment.
+// never be pointed at a real database or a real mail account through the environment.
 
 // Throwaway MongoDB (Docker container `booking-e2e-mongo`). Never the real MONGO_URI.
 export const MONGO_URI = 'mongodb://localhost:27018/booking_e2e';
@@ -22,8 +22,18 @@ export const BACKEND_ENV = {
   ADMIN_API_KEY: ADMIN_KEY,
   PORT: String(BACKEND_PORT),
   NODE_ENV: 'development',
+  // The sign-up e2e creates several businesses from one IP: the per-hour limit must not get in its way.
+  SIGNUP_RATE_LIMIT_MAX: '1000',
+  // The fake payment gateway (spec 23): the e2e signs its own webhooks with this secret.
+  PAYMENT_GATEWAY: 'fake',
+  PAYMENT_WEBHOOK_SECRET: 'e2e-payment-secret',
+  // The reminders (spec 24): the simulator sender and a round every three seconds.
+  REMINDERS_SENDER: 'fake',
+  REMINDERS_INTERVAL_MINUTES: '0.05',
+  // The key of the owner of the system (spec 25): the e2e signs its own platform calls with it.
+  PLATFORM_API_KEY: 'e2e-platform-key',
   BUSINESS_TIMEZONE: 'UTC',
-  // Booking cancellation: the link in emails points at the E2E front; no admin WhatsApp notice is sent.
+  // Booking cancellation: the link in emails points at the E2E front.
   PUBLIC_APP_URL: FRONT_URL,
   WHATSAPP_ADMIN_CANCEL_TEMPLATE_NAME: '',
   GMAIL_USER: '',

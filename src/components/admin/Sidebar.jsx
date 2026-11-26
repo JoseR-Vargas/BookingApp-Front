@@ -1,7 +1,8 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { usePrelineInstance } from '../../lib/usePrelineInstance.js';
 import BrandMark from '../ui/BrandMark.jsx';
-import { NAV_ITEMS } from './adminSections.js';
+import { authService } from '../../services/authService.js';
+import { navItemsFor } from './adminSections.js';
 
 // Legacy `.sidebar .nav-link` in its three presentations. Kept as whole strings (see the
 // mobile/collapsed precedence note in the legacy admin.css): when collapsed, the collapsed
@@ -120,7 +121,7 @@ export default function Sidebar({ collapsed: collapsedProp, show, section, onNav
           className="flex flex-col items-center py-4 lte-md:py-6 lte-sm:py-8"
         >
           <ul className="mb-4 flex w-full list-none flex-col items-center pl-8">
-            {NAV_ITEMS.map(({ section: key, label, icon }) => {
+            {navItemsFor(authService.getRole()).map(({ section: key, label, icon }) => {
               const active = key === section;
               return (
                 <li

@@ -3,6 +3,7 @@ import { savePublicAvailability } from '../../../services/adminService.js';
 import { publicAvailabilitySettingsSchema } from '../../../schemas/forms/public-availability-settings.schema.js';
 import { validate } from '../../../schemas/validate.js';
 import { toast } from '../../../ui/toast.js';
+import { useTenantPath } from '../../../tenancy/tenant-context.jsx';
 import Button from '../../ui/Button.jsx';
 import Card from '../Card.jsx';
 import { CONTROL, Field, FormError, SaveButton } from './configParts.jsx';
@@ -21,6 +22,7 @@ const fromSettings = (settings) => {
  * null means every active service (a new service is then published by itself).
  */
 export default function ShareTab({ publicAvailability, services, onChanged }) {
+  const tenantLink = useTenantPath();
   const [form, setForm] = useState(() => fromSettings(publicAvailability));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +30,7 @@ export default function ShareTab({ publicAvailability, services, onChanged }) {
   // After a save the parent reloads the catalog: the form shows what the backend now holds.
   useEffect(() => { setForm(fromSettings(publicAvailability)); }, [publicAvailability]);
 
-  const link = `${window.location.origin}${PUBLIC_PATH}`;
+  const link = `${window.location.origin}${tenantLink(PUBLIC_PATH)}`;
   const activeServices = services.filter((service) => service.active !== false);
   const allServices = form.serviceIds === null;
 
@@ -78,7 +80,7 @@ export default function ShareTab({ publicAvailability, services, onChanged }) {
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <div>
           <p className="mb-3 text-text-secondary">
-            Un enlace público que muestra en tiempo real tus turnos libres. Pégalo en tus estados de WhatsApp o en la bio de Instagram.
+            Un enlace público que muestra en tiempo real tus turnos libres. Pégalo en tu bio de Instagram o en el lugar donde compartes tus horarios.
           </p>
           <label htmlFor="share-enabled" className="flex cursor-pointer items-center gap-2 font-semibold text-text-primary">
             <input

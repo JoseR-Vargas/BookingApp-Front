@@ -77,3 +77,16 @@ describe('toHttpError', () => {
     expect(toHttpError(boom)).toBe(boom);
   });
 });
+
+describe('toHttpError: too many requests (spec 22)', () => {
+  const failure = (status, data) => Object.assign(new AxiosError('x'), { response: { status, data } });
+
+  it('uses the backend message when there is one', () => {
+    expect(toHttpError(failure(429, JSON.stringify({ message: 'Demasiadas peticiones. Intenta más tarde.' }))).message)
+      .toBe('Demasiadas peticiones. Intenta más tarde.');
+  });
+
+  it('has its own message when the body says nothing', () => {
+    expect(toHttpError(failure(429, '')).message).toBe('Demasiadas peticiones. Intenta más tarde.');
+  });
+});

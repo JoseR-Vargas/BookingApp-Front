@@ -49,6 +49,27 @@ const SORTABLE =
 
 // Only a confirmed booking can be cancelled; a cancelled one is kept in the history and marked.
 const CANCELLED_BADGE = 'mt-1 inline-block rounded-full border border-error px-2 py-0.5 text-xs font-medium text-error';
+const REMINDER_BADGE = 'mt-1 inline-block rounded-full border border-border px-2 py-0.5 text-xs font-medium text-text-secondary';
+const REMINDER_FAILED_BADGE = 'mt-1 inline-block rounded-full border border-error px-2 py-0.5 text-xs font-medium text-error';
+
+/** The reminders sent for a booking (spec 24): the channels and whether they went out. */
+function ReminderBadges({ booking }) {
+  const reminders = Array.isArray(booking.reminders) ? booking.reminders : [];
+  if (reminders.length === 0) return null;
+  return (
+    <span data-testid={`booking-reminders-${booking._id}`}>
+      {reminders.map((reminder, index) => (
+        <span
+          key={`${reminder.kind}-${reminder.channel}-${index}`}
+          className={reminder.ok ? REMINDER_BADGE : REMINDER_FAILED_BADGE}
+          title={reminder.error || `Recordatorio ${reminder.kind} por ${reminder.channel}`}
+        >
+          {reminder.ok ? 'Recordatorio enviado' : 'Recordatorio fallido'}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function BookingRow({ booking, professionalPhotos, onDelete, onCancel }) {
   const notes = decodeEntities(booking.notes);
@@ -68,6 +89,7 @@ function BookingRow({ booking, professionalPhotos, onDelete, onCancel }) {
               <span className={CANCELLED_BADGE}>Cancelada</span>
             </>
           )}
+          <ReminderBadges booking={booking} />
         </div>
       </td>
       <td className={TD}>
@@ -117,6 +139,7 @@ function BookingRow({ booking, professionalPhotos, onDelete, onCancel }) {
             </button>
           )}
           {/* Preline text-link button (icon only: the column stays narrow). Destructive action, so it keeps the error color instead of the primary gold. */}
+          {onDelete && (
           <button
             type="button"
             title="Eliminar reserva"
@@ -126,6 +149,7 @@ function BookingRow({ booking, professionalPhotos, onDelete, onCancel }) {
           >
             <i aria-hidden="true" className="fas fa-trash text-sm" />
           </button>
+          )}
         </div>
       </td>
     </tr>

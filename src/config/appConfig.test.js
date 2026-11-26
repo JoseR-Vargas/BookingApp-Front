@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 // APP_CONFIG resolves BACKEND_URL at module evaluation time, so each case
 // stubs the location and re-imports a fresh copy of the module.
 async function loadConfigFor(hostname) {
-  vi.stubGlobal('location', { hostname });
+  vi.stubGlobal('location', { hostname, origin: `https://${hostname}` });
   vi.resetModules();
   const mod = await import('./appConfig.js');
   return mod.APP_CONFIG;
@@ -24,14 +24,16 @@ describe('APP_CONFIG.BACKEND_URL', () => {
     expect(config.BACKEND_URL).toBe('http://localhost:3000');
   });
 
-  it('uses the Vercel backend for the production hostname', async () => {
+  // vercel.json proxies /api and /socket.io to the backend: the browser sees one site, so the admin
+  // session cookie travels (spec 20).
+  it('uses its own origin in production (the proxy forwards to the backend)', async () => {
     const config = await loadConfigFor('booking-app-front-peach.vercel.app');
-    expect(config.BACKEND_URL).toBe('https://booking-app-back.vercel.app');
+    expect(config.BACKEND_URL).toBe('https://booking-app-front-peach.vercel.app');
   });
 
-  it('uses the Vercel backend for any other hostname', async () => {
-    const config = await loadConfigFor('192.168.1.20');
-    expect(config.BACKEND_URL).toBe('https://booking-app-back.vercel.app');
+  it('uses its own origin for any other hostname', async () => {
+    const config = await loadConfigFor('app.example.com');
+    expect(config.BACKEND_URL).toBe('https://app.example.com');
   });
 });
 

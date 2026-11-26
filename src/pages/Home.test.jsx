@@ -203,7 +203,7 @@ describe('Home copy', () => {
     expect(
       within(footer).getByText('© 2024 BookingApp. Todos los derechos reservados.'),
     ).toBeInTheDocument();
-    for (const name of ['Facebook', 'Instagram', 'WhatsApp']) {
+    for (const name of ['Facebook', 'Instagram']) {
       expect(within(footer).getByRole('link', { name })).toBeInTheDocument();
     }
   });

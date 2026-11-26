@@ -5,10 +5,17 @@
 // only `{ id, status }`: it tells the panel to refresh, never client data.
 
 import { io } from 'socket.io-client';
+import { getAdminKey, getAdminUser } from './authService.js';
+import { currentTenantSlug } from '../tenancy/tenant-resolver.js';
 
 export function connectBookingSocket(backendUrl, { onNewBooking, onBookingCancelled, onError } = {}) {
   try {
-    const socket = io(backendUrl);
+    // The backend only lets admins in (spec 18): the credentials travel in the handshake and are
+    // read again on every reconnection. The business is the one of the route.
+    const socket = io(backendUrl, {
+      withCredentials: true,
+      auth: (cb) => cb({ key: getAdminKey() || '', username: getAdminUser() || '', tenant: currentTenantSlug() || '' }),
+    });
 
     socket.on('newBooking', (booking) => {
       if (onNewBooking) return onNewBooking(booking);

@@ -1,6 +1,8 @@
 // ===== SERVICIO DE ADMINISTRACIÓN =====
 // Lógica del panel admin — sin referencias al DOM.
 
+import { currentTenantSlug } from '../tenancy/tenant-resolver.js';
+import { tenantPath } from '../tenancy/tenant-link.js';
 import { apiClient } from '../core/apiClient.js';
 import { adminCatalogSchema } from '../schemas/api/catalog.schema.js';
 import { bookingListSchema, statisticsSchema } from '../schemas/api/booking.schema.js';
@@ -12,7 +14,10 @@ import { authService, getAdminKey, getAdminUser } from './authService.js';
 // browser goes back to /login (hard navigation, so no stale panel state survives). The error is
 // still rethrown so callers stop their own flow.
 async function adminRequest(method, path, body) {
-  const headers = { Authorization: 'Bearer ' + (getAdminKey() || '') };
+  // An account session travels in its cookie; the shared key goes as a Bearer token.
+  const headers = {};
+  const adminKey = getAdminKey();
+  if (adminKey) headers.Authorization = 'Bearer ' + adminKey;
   // The backend requires the username too when it has ADMIN_USERNAME configured.
   const user = getAdminUser();
   if (user) headers['X-Admin-Username'] = user;
@@ -25,7 +30,7 @@ async function adminRequest(method, path, body) {
   } catch (error) {
     if (error && error.status === 401) {
       authService.logout();
-      window.location.assign('/login');
+      window.location.assign(tenantPath(currentTenantSlug(), '/login') + '?expired=1');
     }
     throw error;
   }
@@ -109,3 +114,33 @@ export const saveLocationSchedule = (id, weekly, startIntervalMinutes) => adminR
   '/api/admin/locations/' + id + '/schedule',
   startIntervalMinutes === undefined ? { weekly } : { weekly, startIntervalMinutes },
 );
+
+// ----- Accounts of the business (owner only, spec 20) -----
+export const listUsers = () => adminRequest('GET', '/api/admin/users');
+export const createUser = (data) => adminRequest('POST', '/api/admin/users', data);
+export const changeUserRole = (id, role) => adminRequest('PATCH', '/api/admin/users/' + id + '/role', { role });
+export const deactivateUser = (id) => adminRequest('POST', '/api/admin/users/' + id + '/deactivate');
+export const rotateUserPassword = (id, password) => adminRequest('PUT', '/api/admin/users/' + id + '/password', { password });
+
+// ----- Reminders of the business (owner only, spec 24) -----
+export const getReminders = () => adminRequest('GET', '/api/admin/reminders');
+export const saveReminders = (config) => adminRequest('PUT', '/api/admin/reminders', config);
+
+// ----- Session and trial of the business (spec 21) -----
+// `trial` is null when the business has no trial; otherwise { endsAt, daysLeft, bookingsMade, bookingQuota, blocked }.
+export const getSessionState = async () => {
+  const state = await adminRequest('GET', '/api/admin/session');
+  return {
+    user: state && state.user ? state.user : null,
+    trial: state && state.trial ? state.trial : null,
+    storage: state && state.storage ? state.storage : null,
+    plan: state && state.plan ? state.plan : null,
+  };
+};
+
+// ----- Subscription of the business (owner only, spec 23) -----
+// `checkoutUrl` is where the payment gateway takes the owner to pay.
+export const startCheckout = (planId) => adminRequest('POST', '/api/admin/subscription/checkout', { planId });
+export const cancelSubscription = () => adminRequest('POST', '/api/admin/subscription/cancel');
+export const resumeSubscription = () => adminRequest('POST', '/api/admin/subscription/resume');
+

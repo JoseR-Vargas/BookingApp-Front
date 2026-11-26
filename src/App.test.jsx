@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The routing contract is under test, not the pages themselves.
 vi.mock('./pages/Home.jsx', () => ({ default: () => <p>home page</p> }));
@@ -68,5 +68,60 @@ describe('App routing', () => {
     renderAt('/admin.html');
 
     expect(await screen.findByText('admin page')).toBeInTheDocument();
+  });
+});
+
+describe('App routing per business (spec 19)', () => {
+  // MemoryRouter does not move the address bar, which the session keys and the X-Tenant header read.
+  const renderBusiness = (path) => {
+    window.history.pushState({}, '', path);
+    return renderAt(path);
+  };
+
+  afterEach(() => {
+    window.history.pushState({}, '', '/');
+  });
+
+  it('serves the home of a business under /n/<slug>', async () => {
+    const { installMockHttp } = await import('./test/mockHttp.js');
+    installMockHttp(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    renderBusiness('/n/sur');
+
+    expect(await screen.findByText('home page')).toBeInTheDocument();
+  });
+
+  it('keeps the admin session of each business apart', async () => {
+    sessionStorage.setItem('isAdmin', 'true'); // the default business only
+    const { installMockHttp } = await import('./test/mockHttp.js');
+    installMockHttp(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    renderBusiness('/n/sur/admin');
+
+    expect(await screen.findByText('login page')).toBeInTheDocument();
+    expect(screen.queryByText('admin page')).not.toBeInTheDocument();
+  });
+
+  it('shows a notice with a link to the front page for an unknown business', async () => {
+    const { installMockHttp } = await import('./test/mockHttp.js');
+    installMockHttp(async () => ({
+      ok: false,
+      status: 404,
+      text: async () => JSON.stringify({ statusCode: 404, message: 'Negocio no encontrado' }),
+    }));
+    renderBusiness('/n/no-existe');
+
+    expect(await screen.findByText('No encontramos este negocio. Revisa el enlace.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ir a la portada' })).toHaveAttribute('href', '/');
+  });
+
+  it('shows a notice for a suspended business', async () => {
+    const { installMockHttp } = await import('./test/mockHttp.js');
+    installMockHttp(async () => ({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ statusCode: 403, message: 'Este negocio no está disponible.' }),
+    }));
+    renderBusiness('/n/pausado');
+
+    expect(await screen.findByText('Este negocio no está disponible en este momento.')).toBeInTheDocument();
   });
 });

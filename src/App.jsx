@@ -5,6 +5,11 @@ import Availability from './pages/Availability.jsx';
 import CancelBooking from './pages/CancelBooking.jsx';
 import Login from './pages/Login.jsx';
 import RequireAuth from './components/auth/RequireAuth.jsx';
+import FakeCheckout from './pages/FakeCheckout.jsx';
+import SaasSite from './pages/SaasSite.jsx';
+import Signup from './pages/Signup.jsx';
+import Setup from './pages/Setup.jsx';
+import TenantLayout from './tenancy/TenantLayout.jsx';
 
 // The panel (charts + socket client) is only needed by the admin: keep it out of the public bundle.
 const Admin = lazy(() => import('./pages/Admin.jsx'));
@@ -12,9 +17,13 @@ const Admin = lazy(() => import('./pages/Admin.jsx'));
 export default function App() {
   return (
     <Routes>
+      {/* The default business keeps the plain routes; every other one lives under /n/<slug>. */}
       <Route path="/" element={<Home />} />
       <Route path="/disponibilidad" element={<Availability />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/empezar" element={<Signup />} />
+      <Route path="/saas" element={<SaasSite />} />
+      <Route path="/plan/fake-checkout" element={<FakeCheckout />} />
       <Route path="/cancelar/:token" element={<CancelBooking />} />
       <Route
         path="/admin"
@@ -26,6 +35,24 @@ export default function App() {
           </RequireAuth>
         )}
       />
+
+      <Route path="/n/:slug" element={<TenantLayout />}>
+        <Route index element={<Home />} />
+        <Route path="disponibilidad" element={<Availability />} />
+        <Route path="login" element={<Login />} />
+        <Route path="asistente" element={<RequireAuth><Setup /></RequireAuth>} />
+        <Route path="cancelar/:token" element={<CancelBooking />} />
+        <Route
+          path="admin"
+          element={(
+            <RequireAuth>
+              <Suspense fallback={null}>
+                <Admin />
+              </Suspense>
+            </RequireAuth>
+          )}
+        />
+      </Route>
 
       {/* Legacy static URLs keep working (bookmarks, links shared before the migration). */}
       <Route path="/index.html" element={<Navigate to="/" replace />} />

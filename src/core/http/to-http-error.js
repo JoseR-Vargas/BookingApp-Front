@@ -15,8 +15,10 @@ function isTimeout(error) {
 }
 
 // `body` is the raw response text (the client never lets axios parse it).
+const TOO_MANY_REQUESTS_MESSAGE = 'Demasiadas peticiones. Intenta más tarde.';
+
 function messageFromBody(status, body) {
-  let message = 'HTTP error! status: ' + status;
+  let message = status === 429 ? TOO_MANY_REQUESTS_MESSAGE : 'HTTP error! status: ' + status;
   if (typeof body !== 'string' || body === '') return message;
   try {
     const data = JSON.parse(body);

@@ -1,13 +1,14 @@
 // Admin login page. Port of legacy login.html (markup + inline script).
 
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import BrandMark from '../components/ui/BrandMark.jsx';
 import Button from '../components/ui/Button.jsx';
 import { CONTROL_CLASSES, LABEL_CLASSES } from '../components/ui/controls.js';
 import Spinner from '../components/ui/Spinner.jsx';
 import { authService } from '../services/authService.js';
 import { toast } from '../ui/toast.js';
+import { useTenantPath } from '../tenancy/tenant-context.jsx';
 
 const REDIRECT_DELAY_MS = 1000;
 
@@ -22,6 +23,9 @@ function Field({ id, label, spacing, ...inputProps }) {
 
 export default function Login() {
   const navigate = useNavigate();
+  const tenantLink = useTenantPath();
+  const [params] = useSearchParams();
+  const expired = params.get('expired') === '1';
   const redirectTimer = useRef(null);
   const [pending, setPending] = useState(false);
 
@@ -39,7 +43,7 @@ export default function Login() {
       await authService.login(username, password);
       toast.success('Inicio de sesión exitoso');
       // The button stays disabled on success: the redirect follows (legacy behavior).
-      redirectTimer.current = setTimeout(() => navigate('/admin'), REDIRECT_DELAY_MS);
+      redirectTimer.current = setTimeout(() => navigate(tenantLink('/admin')), REDIRECT_DELAY_MS);
     } catch (error) {
       toast.error(error.message);
       setPending(false);
@@ -58,6 +62,9 @@ export default function Login() {
                   <BrandMark logoClassName="h-[1.2em] w-[1.2em]" />
                 </h1>
                 <p className="mb-4 leading-loose text-text-secondary">Panel de Administración</p>
+                {expired && (
+                  <p role="status" className="mb-4 text-sm text-error">Tu sesión venció. Vuelve a iniciar sesión.</p>
+                )}
               </div>
 
               <form onSubmit={handleSubmit}>
@@ -101,7 +108,7 @@ export default function Login() {
 
               <div className="mt-6 text-center">
                 <Link
-                  to="/"
+                  to={tenantLink('/')}
                   className="text-text-secondary no-underline transition-colors duration-150 ease-[ease] hover:text-accent touch:inline-flex touch:min-h-11 touch:items-center"
                 >
                   Volver al inicio
