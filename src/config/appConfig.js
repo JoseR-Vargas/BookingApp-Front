@@ -8,8 +8,9 @@ export const APP_CONFIG = {
         if (isLocalhost) {
             return 'http://localhost:3000';
         }
-        // Producción: cualquier dominio que no sea localhost usa el backend de Vercel
-        return 'https://booking-app-back.vercel.app';
+        // Producción: el mismo sitio. vercel.json reenvía /api y /socket.io al backend, así el
+        // navegador ve un solo sitio y la cookie de sesión del admin viaja (spec 20).
+        return window.location.origin;
     })(),
 
     TOAST_DURATION: 3000,

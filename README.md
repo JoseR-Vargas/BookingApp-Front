@@ -36,7 +36,7 @@ Preline is DOM-driven: React renders the markup and a Preline plugin attaches be
 Resolved at load time in `src/config/appConfig.js` from `window.location.hostname`:
 
 - `localhost` / `127.0.0.1` → `http://localhost:3000`
-- anything else → `https://booking-app-back.vercel.app`
+- anything else → the site's own origin; `vercel.json` proxies `/api` and `/socket.io` to `https://booking-app-back.vercel.app`, so the browser sees one site and the admin session cookie travels
 
 There is no `.env` configuration. To develop locally, run `BookingApp_Back` on port 3000.
 
