@@ -1,6 +1,6 @@
 # SPEC 19 — Front por negocio: rutas `/n/<slug>` y encabezado `X-Tenant`
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas; la decisión de la ruta por negocio es suya: opción 2, la que no necesita DNS comodín)
+> **Status:** Implementado (2026-11-26)
 > **Depends on:** SPEC 18
 > **Date:** 2026-11-25
 > **Objective:** Que el front sirva cada negocio en su propia ruta `/n/<slug>` y mande ese negocio al backend en cada pedido, sin cambiar las URLs que ya existen.
@@ -87,16 +87,16 @@ Cada paso deja el sitio funcionando y con `vitest` en verde.
 
 ## Criterios de aceptación
 
-- [ ] `/` sigue sirviendo el negocio por defecto, con las mismas pantallas y sin cambios en los textos.
-- [ ] `/n/<slug>` sirve el negocio de ese slug: catálogo, marca, horarios, locales y disponibilidad son los suyos.
-- [ ] Todas las peticiones al backend desde `/n/<slug>` llevan `X-Tenant: <slug>`, y desde `/` no lo llevan.
-- [ ] Un slug inexistente o suspendido muestra un mensaje claro y un enlace a la portada, no una pantalla en blanco ni un error sin explicar.
-- [ ] El enlace de cancelar (`/cancelar/<token>`) sigue funcionando sin contexto de negocio.
-- [ ] El panel de admin de un negocio no muestra ni permite tocar datos de otro, ni con la misma clave.
-- [ ] La sesión de admin de un negocio no se pisa al entrar a otro en el mismo navegador.
-- [ ] El link público que se copia desde "Compartir" apunta al negocio correcto.
-- [ ] El socket del panel solo recibe avisos de su negocio.
-- [ ] Pasan `vitest`, `vite build` y el e2e completo (con los casos nuevos de dos negocios).
+- [x] `/` sigue sirviendo el negocio por defecto, con las mismas pantallas y sin cambios en los textos.
+- [x] `/n/<slug>` sirve el negocio de ese slug: catálogo, marca, horarios, locales y disponibilidad son los suyos.
+- [x] Todas las peticiones al backend desde `/n/<slug>` llevan `X-Tenant: <slug>`, y desde `/` no lo llevan.
+- [x] Un slug inexistente o suspendido muestra un mensaje claro y un enlace a la portada, no una pantalla en blanco ni un error sin explicar.
+- [x] El enlace de cancelar (`/cancelar/<token>`) sigue funcionando sin contexto de negocio.
+- [x] El panel de admin de un negocio no muestra ni permite tocar datos de otro, ni con la misma clave.
+- [x] La sesión de admin de un negocio no se pisa al entrar a otro en el mismo navegador.
+- [x] El link público que se copia desde "Compartir" apunta al negocio correcto.
+- [x] El socket del panel solo recibe avisos de su negocio.
+- [x] Pasan `vitest`, `vite build` y el e2e completo (con los casos nuevos de dos negocios).
 
 ## Decisiones
 
@@ -116,6 +116,15 @@ Cada paso deja el sitio funcionando y con `vitest` en verde.
 | La cabecera se pierde en alguna llamada | Un solo interceptor; test de que la llega en las peticiones públicas y de admin. |
 | Fuga de datos entre negocios en el panel | El backend ya aísla; el e2e de dos negocios lo comprueba de punta a punta. |
 | Un slug mal escrito rompe el sitio | Mensaje claro y enlace a la portada; nunca pantalla en blanco. |
+
+## Desvíos (al implementar, 2026-11-26)
+
+- **El negocio sale de la barra de direcciones** (`window.location`), no de un estado de React: el interceptor de axios y las claves de sesión lo leen cuando se necesitan, así no hay nada que sincronizar. `TenantProvider` y `useTenant()` existen para los componentes.
+- **El enlace de cancelar lleva el negocio**: `/n/<slug>/cancelar/<token>` para los negocios que no son el por defecto. El backend arma el enlace de los correos con el negocio de la reserva (`TenantPublicAppUrl`). Sin negocio en la ruta cae en el por defecto. Esto reemplaza la idea de "cancelar global sin negocio", que el aislamiento de la spec 18 no permite.
+- **El aviso de negocio inexistente o suspendido** sale de pedir `/api/branding` al entrar a `/n/<slug>` (404 o 403).
+- **El interceptor es síncrono** (`synchronous: true`): uno asíncrono rompía las pruebas con relojes falsos del login.
+- **CORS** del backend permite `X-Tenant`.
+- **E2E:** `e2e/specs/multi-tenant` (5 casos). El negocio de prueba se crea y se borra con `mongosh` sobre la base desechable.
 
 ## Lo que **no** está en esta spec
 
