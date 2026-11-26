@@ -814,7 +814,7 @@ describe('Admin realtime notifications', () => {
     const { unmount } = await loadedAdmin();
 
     expect(io).toHaveBeenCalledTimes(1);
-    expect(io).toHaveBeenCalledWith(BASE);
+    expect(io).toHaveBeenCalledWith(BASE, { auth: expect.any(Function) });
     expect(latestSocket().disconnect).not.toHaveBeenCalled();
 
     unmount();

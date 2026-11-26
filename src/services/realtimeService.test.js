@@ -100,7 +100,7 @@ describe('connectBookingSocket', () => {
     connectBookingSocket('http://x', {});
     const cb = vi.fn();
     io.mock.calls[0][1].auth(cb);
-    expect(cb).toHaveBeenCalledWith({ key: 'k', username: 'u' });
+    expect(cb).toHaveBeenCalledWith({ key: 'k', username: 'u', tenant: '' });
     sessionStorage.clear();
   });
 });

@@ -6,13 +6,14 @@
 
 import { io } from 'socket.io-client';
 import { getAdminKey, getAdminUser } from './authService.js';
+import { currentTenantSlug } from '../tenancy/tenant-resolver.js';
 
 export function connectBookingSocket(backendUrl, { onNewBooking, onBookingCancelled, onError } = {}) {
   try {
     // The backend only lets admins in (spec 18): the credentials travel in the handshake and are
-    // read again on every reconnection. The business is the default one until spec 19 names it.
+    // read again on every reconnection. The business is the one of the route.
     const socket = io(backendUrl, {
-      auth: (cb) => cb({ key: getAdminKey() || '', username: getAdminUser() || '' }),
+      auth: (cb) => cb({ key: getAdminKey() || '', username: getAdminUser() || '', tenant: currentTenantSlug() || '' }),
     });
 
     socket.on('newBooking', (booking) => {

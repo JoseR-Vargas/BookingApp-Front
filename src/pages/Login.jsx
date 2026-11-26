@@ -8,6 +8,7 @@ import { CONTROL_CLASSES, LABEL_CLASSES } from '../components/ui/controls.js';
 import Spinner from '../components/ui/Spinner.jsx';
 import { authService } from '../services/authService.js';
 import { toast } from '../ui/toast.js';
+import { useTenantPath } from '../tenancy/tenant-context.jsx';
 
 const REDIRECT_DELAY_MS = 1000;
 
@@ -22,6 +23,7 @@ function Field({ id, label, spacing, ...inputProps }) {
 
 export default function Login() {
   const navigate = useNavigate();
+  const tenantLink = useTenantPath();
   const redirectTimer = useRef(null);
   const [pending, setPending] = useState(false);
 
@@ -39,7 +41,7 @@ export default function Login() {
       await authService.login(username, password);
       toast.success('Inicio de sesión exitoso');
       // The button stays disabled on success: the redirect follows (legacy behavior).
-      redirectTimer.current = setTimeout(() => navigate('/admin'), REDIRECT_DELAY_MS);
+      redirectTimer.current = setTimeout(() => navigate(tenantLink('/admin')), REDIRECT_DELAY_MS);
     } catch (error) {
       toast.error(error.message);
       setPending(false);
@@ -101,7 +103,7 @@ export default function Login() {
 
               <div className="mt-6 text-center">
                 <Link
-                  to="/"
+                  to={tenantLink('/')}
                   className="text-text-secondary no-underline transition-colors duration-150 ease-[ease] hover:text-accent touch:inline-flex touch:min-h-11 touch:items-center"
                 >
                   Volver al inicio

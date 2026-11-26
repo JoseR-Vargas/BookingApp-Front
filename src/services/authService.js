@@ -8,6 +8,8 @@
 import { apiClient } from '../core/apiClient.js';
 import { sessionSchema } from '../schemas/api/session.schema.js';
 import { parseResponse } from '../schemas/parse-response.js';
+import { currentTenantSlug } from '../tenancy/tenant-resolver.js';
+import { sessionKey } from '../tenancy/tenant-storage.js';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 60000; // 1 minuto en ms
@@ -17,12 +19,15 @@ const KEYS = ['isAdmin', 'adminUser', 'adminKey'];
 let attempts = 0;
 let lockoutUntil = null;
 
+// The admin session is per business (spec 19): the default one keeps the legacy keys.
+const key = (name) => sessionKey(name, currentTenantSlug());
+
 export function getAdminKey() {
-  return sessionStorage.getItem('adminKey');
+  return sessionStorage.getItem(key('adminKey'));
 }
 
 export function getAdminUser() {
-  return sessionStorage.getItem('adminUser');
+  return sessionStorage.getItem(key('adminUser'));
 }
 
 export const authService = {
@@ -58,22 +63,22 @@ export const authService = {
 
     attempts = 0;
     lockoutUntil = null;
-    sessionStorage.setItem('isAdmin', 'true');
-    sessionStorage.setItem('adminUser', username);
-    sessionStorage.setItem('adminKey', password);
+    sessionStorage.setItem(key('isAdmin'), 'true');
+    sessionStorage.setItem(key('adminUser'), username);
+    sessionStorage.setItem(key('adminKey'), password);
     return { username };
   },
 
   logout() {
-    KEYS.forEach((key) => sessionStorage.removeItem(key));
+    KEYS.forEach((name) => sessionStorage.removeItem(key(name)));
   },
 
   isAuthenticated() {
-    return sessionStorage.getItem('isAdmin') === 'true';
+    return sessionStorage.getItem(key('isAdmin')) === 'true';
   },
 
   getUser() {
-    return sessionStorage.getItem('adminUser');
+    return sessionStorage.getItem(key('adminUser'));
   },
 
   getAdminKey,

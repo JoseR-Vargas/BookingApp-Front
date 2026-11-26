@@ -1,6 +1,8 @@
 // ===== SERVICIO DE ADMINISTRACIÓN =====
 // Lógica del panel admin — sin referencias al DOM.
 
+import { currentTenantSlug } from '../tenancy/tenant-resolver.js';
+import { tenantPath } from '../tenancy/tenant-link.js';
 import { apiClient } from '../core/apiClient.js';
 import { adminCatalogSchema } from '../schemas/api/catalog.schema.js';
 import { bookingListSchema, statisticsSchema } from '../schemas/api/booking.schema.js';
@@ -25,7 +27,7 @@ async function adminRequest(method, path, body) {
   } catch (error) {
     if (error && error.status === 401) {
       authService.logout();
-      window.location.assign('/login');
+      window.location.assign(tenantPath(currentTenantSlug(), '/login'));
     }
     throw error;
   }

@@ -5,6 +5,7 @@
 import { DialogTitle } from '@headlessui/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTenantPath } from '../tenancy/tenant-context.jsx';
 import BookingModal from '../components/booking/BookingModal.jsx';
 import Container from '../components/layout/Container.jsx';
 import BrandMark from '../components/ui/BrandMark.jsx';
@@ -23,6 +24,7 @@ function Notice({ children }) {
 }
 
 function AvailabilityPage() {
+  const tenantLink = useTenantPath();
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [data, setData] = useState(null);
   const [serviceId, setServiceId] = useState(undefined);
@@ -158,7 +160,7 @@ function AvailabilityPage() {
     <main className="min-h-screen bg-bg-primary text-text-primary">
       <Container className="max-w-2xl! py-6 sm:py-8">
         <header className="mb-6 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center no-underline">
+          <Link to={tenantLink('/')} className="flex items-center no-underline">
             <BrandMark textClassName="font-display text-lg font-bold tracking-wide text-text-primary" logoClassName="h-8 w-8" />
           </Link>
         </header>

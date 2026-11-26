@@ -16,6 +16,7 @@ import { useAdminData } from '../hooks/useAdminData.js';
 import { useBookingNotifications } from '../hooks/useBookingNotifications.js';
 import { authService } from '../services/authService.js';
 import { toast } from '../ui/toast.js';
+import { useTenantPath } from '../tenancy/tenant-context.jsx';
 import { formatBookingDate } from '../utils/format.js';
 import { decodeEntities } from '../utils/sanitize.js';
 
@@ -24,6 +25,7 @@ const MOBILE_MAX_WIDTH = 768;
 
 export default function Admin() {
   const navigate = useNavigate();
+  const tenantLink = useTenantPath();
   const data = useAdminData();
   const { loadDashboard, loadBookings } = data;
 
@@ -86,7 +88,7 @@ export default function Admin() {
   const handleLogout = () => {
     setLogoutOpen(false);
     authService.logout();
-    navigate('/login');
+    navigate(tenantLink('/login'));
   };
 
   const requestDelete = (booking) => {
