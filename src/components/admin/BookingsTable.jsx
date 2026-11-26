@@ -117,6 +117,7 @@ function BookingRow({ booking, professionalPhotos, onDelete, onCancel }) {
             </button>
           )}
           {/* Preline text-link button (icon only: the column stays narrow). Destructive action, so it keeps the error color instead of the primary gold. */}
+          {onDelete && (
           <button
             type="button"
             title="Eliminar reserva"
@@ -126,6 +127,7 @@ function BookingRow({ booking, professionalPhotos, onDelete, onCancel }) {
           >
             <i aria-hidden="true" className="fas fa-trash text-sm" />
           </button>
+          )}
         </div>
       </td>
     </tr>

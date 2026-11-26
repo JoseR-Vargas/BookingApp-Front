@@ -22,7 +22,7 @@ beforeEach(() => {
 describe('connectBookingSocket', () => {
   it('connects to the given backend URL', () => {
     connectBookingSocket('http://localhost:3000', {});
-    expect(io).toHaveBeenCalledWith('http://localhost:3000', { auth: expect.any(Function) });
+    expect(io).toHaveBeenCalledWith('http://localhost:3000', { withCredentials: true, auth: expect.any(Function) });
   });
 
   it('invokes onNewBooking with the payload of the "newBooking" event', () => {

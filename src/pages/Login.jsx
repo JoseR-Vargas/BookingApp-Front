@@ -1,7 +1,7 @@
 // Admin login page. Port of legacy login.html (markup + inline script).
 
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import BrandMark from '../components/ui/BrandMark.jsx';
 import Button from '../components/ui/Button.jsx';
 import { CONTROL_CLASSES, LABEL_CLASSES } from '../components/ui/controls.js';
@@ -24,6 +24,8 @@ function Field({ id, label, spacing, ...inputProps }) {
 export default function Login() {
   const navigate = useNavigate();
   const tenantLink = useTenantPath();
+  const [params] = useSearchParams();
+  const expired = params.get('expired') === '1';
   const redirectTimer = useRef(null);
   const [pending, setPending] = useState(false);
 
@@ -60,6 +62,9 @@ export default function Login() {
                   <BrandMark logoClassName="h-[1.2em] w-[1.2em]" />
                 </h1>
                 <p className="mb-4 leading-loose text-text-secondary">Panel de Administración</p>
+                {expired && (
+                  <p role="status" className="mb-4 text-sm text-error">Tu sesión venció. Vuelve a iniciar sesión.</p>
+                )}
               </div>
 
               <form onSubmit={handleSubmit}>

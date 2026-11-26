@@ -328,7 +328,7 @@ describe('Socket.IO contract', () => {
 
     connectBookingSocket(APP_CONFIG.BACKEND_URL, { onNewBooking: vi.fn() });
 
-    expect(io).toHaveBeenCalledWith(APP_CONFIG.BACKEND_URL, { auth: expect.any(Function) });
+    expect(io).toHaveBeenCalledWith(APP_CONFIG.BACKEND_URL, { withCredentials: true, auth: expect.any(Function) });
     expect(Object.keys(handlers)).toContain('newBooking');
   });
 });

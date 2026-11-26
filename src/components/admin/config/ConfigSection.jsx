@@ -15,6 +15,7 @@ import ProfessionalsTab from './ProfessionalsTab.jsx';
 import ScheduleTab from './ScheduleTab.jsx';
 import ServicesTab from './ServicesTab.jsx';
 import ShareTab from './ShareTab.jsx';
+import UsersTab from './UsersTab.jsx';
 
 const TABS = [
   { key: 'professionals', label: 'Profesionales' },
@@ -22,6 +23,7 @@ const TABS = [
   { key: 'locations', label: 'Locales' },
   { key: 'schedule', label: 'Horarios' },
   { key: 'branding', label: 'Marca' },
+  { key: 'users', label: 'Usuarios' },
   { key: 'share', label: 'Compartir' },
 ];
 
@@ -61,7 +63,14 @@ export default function ConfigSection() {
   };
 
   let body;
-  if (tab === 'branding') {
+  if (tab === 'users') {
+    // The accounts live apart from the admin catalog, like the brand.
+    body = (
+      <div role="tabpanel" id="config-panel-users" aria-labelledby="config-tab-users" tabIndex={0}>
+        <UsersTab />
+      </div>
+    );
+  } else if (tab === 'branding') {
     // The brand lives apart from the admin catalog: it never waits for (or fails with) it.
     body = (
       <div role="tabpanel" id="config-panel-branding" aria-labelledby="config-tab-branding" tabIndex={0}>

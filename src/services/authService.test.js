@@ -174,3 +174,49 @@ describe('authService response contract', () => {
     expect(getAdminKey()).toBeNull();
   });
 });
+
+describe('account login (spec 20)', () => {
+  const owner = { id: '1', email: 'ana@sur.com', name: 'Ana', role: 'owner', active: true };
+  let calls;
+
+  beforeEach(() => {
+    calls = [];
+    installMockHttp(vi.fn(async (url, init) => {
+      calls.push([init.method, url]);
+      if (init.method === 'POST' && url.endsWith('/api/admin/session')) {
+        const body = JSON.parse(init.body);
+        if (body.email === 'ana@sur.com' && body.password === 'correct-horse-1') {
+          return { ok: true, status: 200, json: async () => ({ ok: true, user: owner }) };
+        }
+      }
+      return { ok: false, status: 401, text: async () => JSON.stringify({ statusCode: 401, message: 'x' }) };
+    }));
+  });
+
+  it('opens a cookie session with email and password and keeps no key', async () => {
+    await expect(authService.login('ana@sur.com', 'correct-horse-1')).resolves.toEqual({ username: 'Ana' });
+    expect(authService.isAuthenticated()).toBe(true);
+    expect(authService.getRole()).toBe('owner');
+    expect(authService.getUser()).toBe('Ana');
+    expect(getAdminKey()).toBeNull();
+  });
+
+  it('a wrong password is the same generic error as a wrong key', async () => {
+    await expect(authService.login('ana@sur.com', 'nope')).rejects.toThrow('Usuario o contraseña incorrectos');
+    expect(authService.isAuthenticated()).toBe(false);
+  });
+
+  it('closes the cookie session in the backend on logout', async () => {
+    await authService.login('ana@sur.com', 'correct-horse-1');
+    authService.logout();
+    expect(calls).toContainEqual(['DELETE', expect.stringContaining('/api/admin/session')]);
+    expect(authService.isAuthenticated()).toBe(false);
+  });
+
+  it('the shared key counts as owner', async () => {
+    installBackend();
+    await authService.login('admin', GOOD_KEY);
+    expect(authService.getRole()).toBe('owner');
+  });
+});
+

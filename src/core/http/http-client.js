@@ -15,6 +15,8 @@ export const http = axios.create({
   timeout: DEFAULT_TIMEOUT,
   // Keep the body as raw text: toHttpError and apiClient parse it exactly like the legacy fetch client.
   responseType: 'text',
+  // The admin session is an HttpOnly cookie (spec 20): the browser sends it with every request.
+  withCredentials: true,
 });
 
 // axios adds `Accept: application/json, text/plain, */*` to every call; fetch sent none of its own.

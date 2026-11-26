@@ -13,6 +13,7 @@ export function connectBookingSocket(backendUrl, { onNewBooking, onBookingCancel
     // The backend only lets admins in (spec 18): the credentials travel in the handshake and are
     // read again on every reconnection. The business is the one of the route.
     const socket = io(backendUrl, {
+      withCredentials: true,
       auth: (cb) => cb({ key: getAdminKey() || '', username: getAdminUser() || '', tenant: currentTenantSlug() || '' }),
     });
 

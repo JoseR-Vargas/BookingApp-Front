@@ -207,7 +207,7 @@ describe('adminService config endpoints', () => {
 
       expect(authService.isAuthenticated()).toBe(false);
       expect(sessionStorage.getItem('adminKey')).toBeNull();
-      expect(assign).toHaveBeenCalledWith('/login');
+      expect(assign).toHaveBeenCalledWith('/login?expired=1');
     });
   });
 });

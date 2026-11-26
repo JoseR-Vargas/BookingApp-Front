@@ -15,6 +15,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
 import { useAdminData } from '../hooks/useAdminData.js';
 import { useBookingNotifications } from '../hooks/useBookingNotifications.js';
 import { authService } from '../services/authService.js';
+import { canConfigure, canWriteBookings } from '../components/admin/adminSections.js';
 import { toast } from '../ui/toast.js';
 import { useTenantPath } from '../tenancy/tenant-context.jsx';
 import { formatBookingDate } from '../utils/format.js';
@@ -26,6 +27,8 @@ const MOBILE_MAX_WIDTH = 768;
 export default function Admin() {
   const navigate = useNavigate();
   const tenantLink = useTenantPath();
+  const role = authService.getRole();
+  const canWrite = canWriteBookings(role);
   const data = useAdminData();
   const { loadDashboard, loadBookings } = data;
 
@@ -165,12 +168,12 @@ export default function Admin() {
             totalRevenue={data.filteredRevenue}
             onFilterChange={data.applyFilter}
             onClearFilters={data.clearFilters}
-            onDelete={requestDelete}
-            onCancel={requestCancel}
+            onDelete={canWrite ? requestDelete : undefined}
+            onCancel={canWrite ? requestCancel : undefined}
           />
         )}
         {section === 'reports' && <ReportsSection bookings={data.bookings} />}
-        {section === 'config' && <ConfigSection />}
+        {section === 'config' && canConfigure(role) && <ConfigSection />}
       </AdminLayout>
       <ConfirmDialog
         open={logoutOpen}

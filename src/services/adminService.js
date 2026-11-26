@@ -14,7 +14,10 @@ import { authService, getAdminKey, getAdminUser } from './authService.js';
 // browser goes back to /login (hard navigation, so no stale panel state survives). The error is
 // still rethrown so callers stop their own flow.
 async function adminRequest(method, path, body) {
-  const headers = { Authorization: 'Bearer ' + (getAdminKey() || '') };
+  // An account session travels in its cookie; the shared key goes as a Bearer token.
+  const headers = {};
+  const adminKey = getAdminKey();
+  if (adminKey) headers.Authorization = 'Bearer ' + adminKey;
   // The backend requires the username too when it has ADMIN_USERNAME configured.
   const user = getAdminUser();
   if (user) headers['X-Admin-Username'] = user;
@@ -27,7 +30,7 @@ async function adminRequest(method, path, body) {
   } catch (error) {
     if (error && error.status === 401) {
       authService.logout();
-      window.location.assign(tenantPath(currentTenantSlug(), '/login'));
+      window.location.assign(tenantPath(currentTenantSlug(), '/login') + '?expired=1');
     }
     throw error;
   }
@@ -111,3 +114,11 @@ export const saveLocationSchedule = (id, weekly, startIntervalMinutes) => adminR
   '/api/admin/locations/' + id + '/schedule',
   startIntervalMinutes === undefined ? { weekly } : { weekly, startIntervalMinutes },
 );
+
+// ----- Accounts of the business (owner only, spec 20) -----
+export const listUsers = () => adminRequest('GET', '/api/admin/users');
+export const createUser = (data) => adminRequest('POST', '/api/admin/users', data);
+export const changeUserRole = (id, role) => adminRequest('PATCH', '/api/admin/users/' + id + '/role', { role });
+export const deactivateUser = (id) => adminRequest('POST', '/api/admin/users/' + id + '/deactivate');
+export const rotateUserPassword = (id, password) => adminRequest('PUT', '/api/admin/users/' + id + '/password', { password });
+
