@@ -5,6 +5,7 @@ import Availability from './pages/Availability.jsx';
 import CancelBooking from './pages/CancelBooking.jsx';
 import Login from './pages/Login.jsx';
 import RequireAuth from './components/auth/RequireAuth.jsx';
+import FakeCheckout from './pages/FakeCheckout.jsx';
 import Signup from './pages/Signup.jsx';
 import Setup from './pages/Setup.jsx';
 import TenantLayout from './tenancy/TenantLayout.jsx';
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/disponibilidad" element={<Availability />} />
       <Route path="/login" element={<Login />} />
       <Route path="/empezar" element={<Signup />} />
+      <Route path="/plan/fake-checkout" element={<FakeCheckout />} />
       <Route path="/cancelar/:token" element={<CancelBooking />} />
       <Route
         path="/admin"
