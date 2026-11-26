@@ -22,7 +22,7 @@ beforeEach(() => {
 describe('connectBookingSocket', () => {
   it('connects to the given backend URL', () => {
     connectBookingSocket('http://localhost:3000', {});
-    expect(io).toHaveBeenCalledWith('http://localhost:3000');
+    expect(io).toHaveBeenCalledWith('http://localhost:3000', { auth: expect.any(Function) });
   });
 
   it('invokes onNewBooking with the payload of the "newBooking" event', () => {
@@ -92,5 +92,15 @@ describe('connectBookingSocket', () => {
 
     expect(spy).toHaveBeenCalledWith('Error inicializando WebSocket:', failure);
     expect(() => conn.disconnect()).not.toThrow();
+  });
+
+  it('sends the admin credentials in the handshake', () => {
+    sessionStorage.setItem('adminKey', 'k');
+    sessionStorage.setItem('adminUser', 'u');
+    connectBookingSocket('http://x', {});
+    const cb = vi.fn();
+    io.mock.calls[0][1].auth(cb);
+    expect(cb).toHaveBeenCalledWith({ key: 'k', username: 'u' });
+    sessionStorage.clear();
   });
 });

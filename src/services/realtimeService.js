@@ -5,10 +5,15 @@
 // only `{ id, status }`: it tells the panel to refresh, never client data.
 
 import { io } from 'socket.io-client';
+import { getAdminKey, getAdminUser } from './authService.js';
 
 export function connectBookingSocket(backendUrl, { onNewBooking, onBookingCancelled, onError } = {}) {
   try {
-    const socket = io(backendUrl);
+    // The backend only lets admins in (spec 18): the credentials travel in the handshake and are
+    // read again on every reconnection. The business is the default one until spec 19 names it.
+    const socket = io(backendUrl, {
+      auth: (cb) => cb({ key: getAdminKey() || '', username: getAdminUser() || '' }),
+    });
 
     socket.on('newBooking', (booking) => {
       if (onNewBooking) return onNewBooking(booking);
