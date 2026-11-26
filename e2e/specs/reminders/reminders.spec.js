@@ -31,12 +31,12 @@ test.describe('reminders, end to end', () => {
   test('the owner configures the reminders and reads them back', async ({ request }) => {
     const saved = await request.put(`${BACKEND_ORIGIN}/api/admin/reminders`, {
       headers: KEY,
-      data: { enabled: true, channels: ['whatsapp', 'email'], hoursBefore: [240, 24], template: 'Hola {cliente}, tu cita es el {fecha} a las {hora} en {negocio}. {cancelar}' },
+      data: { enabled: true, channels: ['email'], hoursBefore: [240, 24], template: 'Hola {cliente}, tu cita es el {fecha} a las {hora} en {negocio}. {cancelar}' },
     });
     expect(saved.status()).toBe(200);
     const body = JSON.parse(await saved.text());
     expect(body.config.enabled).toBe(true);
-    expect(body.config.channels).toEqual(['whatsapp', 'email']);
+    expect(body.config.channels).toEqual(['email']);
     expect(body.config.hoursBefore).toEqual([240, 24]);
     expect(body.allowsReminders).toBe(true);
 
@@ -76,8 +76,8 @@ test.describe('reminders, end to end', () => {
     expect(new Set(pairs).size).toBe(pairs.length);
     expect(pairs.length).toBeGreaterThan(0);
     expect(after.reminders.every((one) => one.ok)).toBe(true);
-    // The client left a phone and an email: both channels are used.
-    expect(new Set(after.reminders.map((one) => one.channel)).size).toBe(2);
+    // The only channel is the email.
+    expect(new Set(after.reminders.map((one) => one.channel))).toEqual(new Set(['email']));
 
     // A second round does not send it again.
     const count = after.reminders.length;
@@ -115,7 +115,7 @@ test.describe('reminders, end to end', () => {
     // The window of that date opens now (720 hours before a booking a month away).
     const saved = await request.put(`${BACKEND_ORIGIN}/api/admin/reminders`, {
       headers: KEY,
-      data: { enabled: true, channels: ['whatsapp', 'email'], hoursBefore: [720], template: 'Hola {cliente}' },
+      data: { enabled: true, channels: ['email'], hoursBefore: [720], template: 'Hola {cliente}' },
     });
     expect(saved.status()).toBe(200);
 
@@ -142,7 +142,7 @@ test.describe('reminders, end to end', () => {
     expect(canceled.reminders ?? []).toEqual([]);
   });
 
-  test('a client with only a phone is reminded by WhatsApp only', async ({ request }) => {
+  test('a client with only a phone is not reminded', async ({ request }) => {
     const date = nextWeekday(4, 1);
     const created = await request.post(`${BACKEND_ORIGIN}/api/bookings`, {
       data: {
@@ -157,13 +157,9 @@ test.describe('reminders, end to end', () => {
     const bookingId = (await created.json())._id;
     createdIds.push(bookingId);
 
-    await expect.poll(async () => {
-      const booking = JSON.parse(await (await request.get(`${BACKEND_ORIGIN}/api/bookings/${bookingId}`, { headers: KEY })).text());
-      return (booking.reminders ?? []).length;
-    }, { timeout: 30_000, intervals: [1_000] }).toBeGreaterThan(0);
-
+    // Without an email there is no channel: nothing is sent and nothing is recorded.
+    await new Promise((resolve) => setTimeout(resolve, 8_000));
     const booking = JSON.parse(await (await request.get(`${BACKEND_ORIGIN}/api/bookings/${bookingId}`, { headers: KEY })).text());
-    // Only the channel the client gave a way to reach.
-    expect(new Set(booking.reminders.map((one) => one.channel))).toEqual(new Set(['whatsapp']));
+    expect(booking.reminders ?? []).toEqual([]);
   });
 });

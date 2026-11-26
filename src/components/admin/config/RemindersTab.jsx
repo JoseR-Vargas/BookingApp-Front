@@ -8,10 +8,7 @@ import Button from '../../ui/Button.jsx';
 import Spinner from '../../ui/Spinner.jsx';
 import { ActiveBadge, CONTROL, Field, FormError, SaveButton } from './configParts.jsx';
 
-const CHANNELS = [
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'email', label: 'Correo' },
-];
+const CHANNELS = [{ value: 'email', label: 'Correo' }];
 const HOURS = [48, 24, 6, 3, 1];
 
 const when = (iso) => new Date(iso).toLocaleString('es-UY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -127,7 +124,7 @@ export default function RemindersTab() {
               </label>
             ))}
           </div>
-          <p className="mt-2 text-xs text-text-secondary">Se avisa por WhatsApp si el cliente dejó teléfono, por correo si dejó email, y por los dos canales si dejó ambos.</p>
+          <p className="mt-2 text-xs text-text-secondary">Se avisa por correo a los clientes que dejaron un correo. Los que no lo dejaron no reciben nada.</p>
         </fieldset>
 
         <fieldset className="mb-4">

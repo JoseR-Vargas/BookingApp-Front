@@ -80,7 +80,7 @@ export default function ShareTab({ publicAvailability, services, onChanged }) {
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <div>
           <p className="mb-3 text-text-secondary">
-            Un enlace público que muestra en tiempo real tus turnos libres. Pégalo en tus estados de WhatsApp o en la bio de Instagram.
+            Un enlace público que muestra en tiempo real tus turnos libres. Pégalo en tu bio de Instagram o en el lugar donde compartes tus horarios.
           </p>
           <label htmlFor="share-enabled" className="flex cursor-pointer items-center gap-2 font-semibold text-text-primary">
             <input

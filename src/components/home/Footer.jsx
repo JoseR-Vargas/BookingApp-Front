@@ -6,7 +6,6 @@ import Ornament from '../ui/Ornament.jsx';
 const SOCIAL_LINKS = [
   { label: 'Facebook', icon: 'fa-facebook-f' },
   { label: 'Instagram', icon: 'fa-instagram' },
-  { label: 'WhatsApp', icon: 'fa-whatsapp' },
 ];
 
 export default function Footer() {

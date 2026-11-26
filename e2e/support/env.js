@@ -1,5 +1,5 @@
 // Single source of truth for the E2E stack. Everything here is deliberately hard-coded: the suite must
-// never be pointed at a real database or a real mail/WhatsApp account through the environment.
+// never be pointed at a real database or a real mail account through the environment.
 
 // Throwaway MongoDB (Docker container `booking-e2e-mongo`). Never the real MONGO_URI.
 export const MONGO_URI = 'mongodb://localhost:27018/booking_e2e';
@@ -33,7 +33,7 @@ export const BACKEND_ENV = {
   // The key of the owner of the system (spec 25): the e2e signs its own platform calls with it.
   PLATFORM_API_KEY: 'e2e-platform-key',
   BUSINESS_TIMEZONE: 'UTC',
-  // Booking cancellation: the link in emails points at the E2E front; no admin WhatsApp notice is sent.
+  // Booking cancellation: the link in emails points at the E2E front.
   PUBLIC_APP_URL: FRONT_URL,
   WHATSAPP_ADMIN_CANCEL_TEMPLATE_NAME: '',
   GMAIL_USER: '',

@@ -11,11 +11,11 @@ let state;
 let calls;
 
 const base = () => ({
-  config: { enabled: true, channels: ['whatsapp', 'email'], hoursBefore: [24, 3], template: 'Hola {cliente}' },
+  config: { enabled: true, channels: ['email'], hoursBefore: [24, 3], template: 'Hola {cliente}' },
   allowsReminders: true,
   counters: { days: 30, sent: 12, failed: 1 },
   recent: [
-    { bookingId: 'b1', kind: '24h', channel: 'whatsapp', sentAt: '2030-01-10T10:00:00.000Z', ok: true, error: null, attempts: 1 },
+    { bookingId: 'b1', kind: '24h', channel: 'email', sentAt: '2030-01-10T10:00:00.000Z', ok: true, error: null, attempts: 1 },
     { bookingId: 'b2', kind: '3h', channel: 'email', sentAt: '2030-01-11T10:00:00.000Z', ok: false, error: 'smtp down', attempts: 2 },
   ],
 });
@@ -40,7 +40,7 @@ describe('RemindersTab', () => {
     render(<RemindersTab />);
     expect(await screen.findByTestId('reminders-counters')).toHaveTextContent('12 enviados, 1 fallidos');
     expect(screen.getByTestId('reminders-enabled')).toBeChecked();
-    expect(screen.getByTestId('reminders-channel-whatsapp')).toBeChecked();
+    expect(screen.getByTestId('reminders-channel-email')).toBeChecked();
     expect(screen.getByTestId('reminders-hour-24')).toBeChecked();
     expect(screen.getByTestId('reminders-hour-1')).not.toBeChecked();
     const recent = screen.getByTestId('reminders-recent');
@@ -59,7 +59,7 @@ describe('RemindersTab', () => {
 
     await waitFor(() => expect(calls).toContainEqual(['PUT', '/api/admin/reminders', {
       enabled: false,
-      channels: ['whatsapp', 'email'],
+      channels: ['email'],
       hoursBefore: [24, 3, 1],
       template: 'Hola {cliente}',
     }]));
