@@ -126,6 +126,10 @@ export const rotateUserPassword = (id, password) => adminRequest('PUT', '/api/ad
 // `trial` is null when the business has no trial; otherwise { endsAt, daysLeft, bookingsMade, bookingQuota, blocked }.
 export const getSessionState = async () => {
   const state = await adminRequest('GET', '/api/admin/session');
-  return { user: state && state.user ? state.user : null, trial: state && state.trial ? state.trial : null };
+  return {
+    user: state && state.user ? state.user : null,
+    trial: state && state.trial ? state.trial : null,
+    storage: state && state.storage ? state.storage : null,
+  };
 };
 
