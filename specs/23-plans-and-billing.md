@@ -1,6 +1,6 @@
 # SPEC 23 — Planes y cobro
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas)
+> **Status:** Implementado (2026-11-26)
 > **Depends on:** SPEC 22
 > **Date:** 2026-11-25
 > **Objective:** Que cada negocio que contrató un plan tenga sus límites, que el cobro se pueda hacer con una pasarela de pago en Uruguay o Latinoamérica, y que el sistema degrade con claridad cuando un plan se vence.
@@ -94,15 +94,15 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 
 ## Criterios de aceptación
 
-- [ ] El `owner` ve los planes, contrata uno y recibe un enlace de pago; al confirmar el pago (simulado en las pruebas) la suscripción queda activa y los límites del plan se aplican.
-- [ ] Al alcanzar el límite de profesionales, locales o reservas, la operación que lo excede responde `403` con un mensaje que dice qué límite se alcanzó y qué plan lo resuelve.
-- [ ] La disponibilidad, la lectura del panel y las reservas existentes nunca se bloquean por un límite.
-- [ ] El webhook sin firma válida se rechaza; el mismo evento dos veces no cambia nada.
-- [ ] Un negocio `past_due` conserva su sitio y sus reservas y avisa; al cancelarse deja de aceptar reservas nuevas.
-- [ ] Cancelar no corta el acceso de inmediato: termina al final del período, y el `owner` puede reanudar antes.
-- [ ] El `gratis` no impide ver, exportar ni borrar los datos del negocio.
-- [ ] El panel muestra el plan actual, la fecha de renovación y los avisos de límites.
-- [ ] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
+- [x] El `owner` ve los planes, contrata uno y recibe un enlace de pago; al confirmar el pago (simulado en las pruebas) la suscripción queda activa y los límites del plan se aplican.
+- [x] Al alcanzar el límite de profesionales, locales o reservas, la operación que lo excede responde `403` con un mensaje que dice qué límite se alcanzó y qué plan lo resuelve.
+- [x] La disponibilidad, la lectura del panel y las reservas existentes nunca se bloquean por un límite.
+- [x] El webhook sin firma válida se rechaza; el mismo evento dos veces no cambia nada.
+- [x] Un negocio `past_due` conserva su sitio y sus reservas y avisa; al cancelarse deja de aceptar reservas nuevas.
+- [x] Cancelar no corta el acceso de inmediato: termina al final del período, y el `owner` puede reanudar antes.
+- [x] El `gratis` no impide ver, exportar ni borrar los datos del negocio.
+- [x] El panel muestra el plan actual, la fecha de renovación y los avisos de límites.
+- [x] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
 
 ## Decisiones
 
@@ -124,6 +124,19 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 | Un evento duplicado corta o reactiva un plan | Idempotencia por id externo del evento. |
 | El límite corta el negocio por un error de conteo | Los límites cuentan solo lo del negocio y la lectura nunca se bloquea; el aviso va antes del corte. |
 | La pasarela no responde | El estado del plan es el que el backend tiene; el webhook puede llegar tarde y el negocio sigue activo hasta que se confirme lo contrario. |
+
+## Desvíos (al implementar, 2026-11-26)
+
+- **Solo la pasarela de prueba:** el puerto `PaymentGateway` tiene el adaptador `fake`, elegido con `PAYMENT_GATEWAY`. Una pasarela real (Mercado Pago u otra) se agrega como adaptador más un nombre en la fábrica. En producción sin `PAYMENT_WEBHOOK_SECRET` la app no arranca.
+- **Pago simulado:** el backend tiene `POST /api/admin/subscription/fake-checkout` (solo con la pasarela falsa, detrás del guard de owner). Firma el evento internamente, así el secreto nunca sale del servidor. El front tiene la página `/plan/fake-checkout`.
+- **Sin registro del checkout:** la suscripción se crea cuando el pago confirma; `trialing` solo llega por el evento `subscription.trial_started`.
+- **`gratis` no se compra:** existe solo si un evento firmado lo fija. Un negocio sin suscripción no cambia de comportamiento (sigue con las reglas de prueba y de almacenamiento).
+- **La cancelación se aplica sola:** `cancelAtPeriodEnd` queda marcado y el estado se lee al vencer el período. No hay cron.
+- **Contabilidad:** profesionales y locales activos; reservas del mes calendario en UTC, las canceladas cuentan.
+- **`publicPage` y `reminders` se informan pero no se imponen** (los recordatorios llegan en la spec 24).
+- **Kind `unauthorized`:** nuevo tipo de error de dominio para el 401 (filtro y mapa de errores del catálogo actualizados).
+- **`payment_events` es global** (no escopada por negocio): el webhook es público y tiene que buscar el evento antes de saber el negocio.
+- **Variables `PAYMENT_*`** documentadas en `.env.example` y `docs/billing.md`.
 
 ## Lo que **no** está en esta spec
 
