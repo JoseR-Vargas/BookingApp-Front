@@ -21,6 +21,24 @@ export function useBookingNotifications(onNewBooking, onBookingCancelled) {
   const [needsSoundActivation, setNeedsSoundActivation] = useState(false);
   const handlerRef = useRef(onNewBooking);
   const cancelledRef = useRef(onBookingCancelled);
+  const announceRef = useRef(() => undefined);
+  // The timers of the sounds that were scheduled, so a remount does not leave one pending.
+  const timersRef = useRef(new Set());
+
+  /**
+   * A booking arrived: the counter and the sound, then the handler of the panel.
+   * The socket and the poll (there is no live socket in a serverless deployment)
+   * both come through here, so a booking is never announced twice.
+   */
+  const announce = useCallback((payload) => {
+    setCount((current) => current + 1);
+    const timer = setTimeout(() => {
+      timersRef.current.delete(timer);
+      audioService.playNotification();
+    }, SOUND_DELAY_MS);
+    timersRef.current.add(timer);
+    return handlerRef.current && handlerRef.current(payload);
+  }, []);
 
   useEffect(() => {
     handlerRef.current = onNewBooking;
@@ -28,8 +46,10 @@ export function useBookingNotifications(onNewBooking, onBookingCancelled) {
   });
 
   useEffect(() => {
-    const timers = new Set();
+    announceRef.current = announce;
+  }, [announce]);
 
+  useEffect(() => {
     // Subscribe BEFORE init(): init() may emit 'needs-activation' synchronously.
     const unsubscribe = audioService.subscribe((event) => {
       if (event === 'needs-activation') setNeedsSoundActivation(true);
@@ -42,15 +62,7 @@ export function useBookingNotifications(onNewBooking, onBookingCancelled) {
     document.addEventListener('click', activateOnInteraction, { once: true });
 
     const connection = connectBookingSocket(APP_CONFIG.BACKEND_URL, {
-      onNewBooking: (booking) => {
-        setCount((current) => current + 1);
-        const timer = setTimeout(() => {
-          timers.delete(timer);
-          audioService.playNotification();
-        }, SOUND_DELAY_MS);
-        timers.add(timer);
-        return handlerRef.current && handlerRef.current(booking);
-      },
+      onNewBooking: (booking) => announceRef.current(booking),
       onBookingCancelled: (payload) => cancelledRef.current && cancelledRef.current(payload),
     });
 
@@ -58,7 +70,8 @@ export function useBookingNotifications(onNewBooking, onBookingCancelled) {
     return () => {
       unsubscribe();
       document.removeEventListener('click', activateOnInteraction);
-      timers.forEach(clearTimeout);
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current.clear();
       connection.disconnect();
     };
   }, []);
@@ -70,5 +83,5 @@ export function useBookingNotifications(onNewBooking, onBookingCancelled) {
     toast.success('Sonido de notificaciones activado');
   }, []);
 
-  return { count, clearCount, needsSoundActivation, activateSound };
+  return { count, clearCount, needsSoundActivation, activateSound, announce };
 }
