@@ -5,6 +5,8 @@ import Availability from './pages/Availability.jsx';
 import CancelBooking from './pages/CancelBooking.jsx';
 import Login from './pages/Login.jsx';
 import RequireAuth from './components/auth/RequireAuth.jsx';
+import Signup from './pages/Signup.jsx';
+import Setup from './pages/Setup.jsx';
 import TenantLayout from './tenancy/TenantLayout.jsx';
 
 // The panel (charts + socket client) is only needed by the admin: keep it out of the public bundle.
@@ -17,6 +19,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/disponibilidad" element={<Availability />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/empezar" element={<Signup />} />
       <Route path="/cancelar/:token" element={<CancelBooking />} />
       <Route
         path="/admin"
@@ -33,6 +36,7 @@ export default function App() {
         <Route index element={<Home />} />
         <Route path="disponibilidad" element={<Availability />} />
         <Route path="login" element={<Login />} />
+        <Route path="asistente" element={<RequireAuth><Setup /></RequireAuth>} />
         <Route path="cancelar/:token" element={<CancelBooking />} />
         <Route
           path="admin"

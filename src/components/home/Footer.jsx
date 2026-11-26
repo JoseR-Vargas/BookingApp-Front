@@ -37,6 +37,12 @@ export default function Footer() {
                   {label}
                 </a>
               ))}
+              <a
+                href="/empezar"
+                className="text-xs font-semibold tracking-wider text-accent uppercase transition-colors touch:inline-flex touch:min-h-11 touch:items-center duration-150 ease-[ease] hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                Empezar
+              </a>
             </nav>
 
             <div className="mb-2 flex justify-end gap-3 lte-md:justify-center">

@@ -109,6 +109,15 @@ export const authService = {
     return sessionStorage.getItem(key('adminUser'));
   },
 
+  /** Opens the local state of an account session of a business (after the signup). */
+  startAccountSession(slug, user) {
+    const scoped = (name) => sessionKey(name, slug || null);
+    sessionStorage.setItem(scoped('isAdmin'), 'true');
+    sessionStorage.setItem(scoped('adminUser'), user.name || user.email);
+    sessionStorage.setItem(scoped('adminRole'), user.role);
+    sessionStorage.setItem(scoped('adminMode'), 'session');
+  },
+
   /** `owner`, `staff` or `viewer`. The shared key counts as owner. */
   getRole() {
     return sessionStorage.getItem(key('adminRole')) || 'owner';

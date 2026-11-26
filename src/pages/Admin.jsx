@@ -15,6 +15,8 @@ import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
 import { useAdminData } from '../hooks/useAdminData.js';
 import { useBookingNotifications } from '../hooks/useBookingNotifications.js';
 import { authService } from '../services/authService.js';
+import TrialBanner from '../components/admin/TrialBanner.jsx';
+import { getSessionState } from '../services/adminService.js';
 import { canConfigure, canWriteBookings } from '../components/admin/adminSections.js';
 import { toast } from '../ui/toast.js';
 import { useTenantPath } from '../tenancy/tenant-context.jsx';
@@ -29,6 +31,11 @@ export default function Admin() {
   const tenantLink = useTenantPath();
   const role = authService.getRole();
   const canWrite = canWriteBookings(role);
+  const [trial, setTrial] = useState(null);
+  useEffect(() => {
+    // The notice is a courtesy: if the state cannot be read the panel works without it.
+    getSessionState().then((state) => setTrial(state.trial)).catch(() => {});
+  }, []);
   const data = useAdminData();
   const { loadDashboard, loadBookings } = data;
 
@@ -155,6 +162,7 @@ export default function Admin() {
           />
         )}
       >
+        <TrialBanner trial={trial} />
         {section === 'dashboard' && (
           <DashboardSection stats={data.stats} recentBookings={data.recentBookings} />
         )}

@@ -122,3 +122,10 @@ export const changeUserRole = (id, role) => adminRequest('PATCH', '/api/admin/us
 export const deactivateUser = (id) => adminRequest('POST', '/api/admin/users/' + id + '/deactivate');
 export const rotateUserPassword = (id, password) => adminRequest('PUT', '/api/admin/users/' + id + '/password', { password });
 
+// ----- Session and trial of the business (spec 21) -----
+// `trial` is null when the business has no trial; otherwise { endsAt, daysLeft, bookingsMade, bookingQuota, blocked }.
+export const getSessionState = async () => {
+  const state = await adminRequest('GET', '/api/admin/session');
+  return { user: state && state.user ? state.user : null, trial: state && state.trial ? state.trial : null };
+};
+
