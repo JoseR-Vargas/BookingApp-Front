@@ -1,112 +1,73 @@
-# SPEC 26 — Bot de WhatsApp hexagonal y por negocio
+# SPEC 26 — Fuera WhatsApp: el bot y el envío
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas; esta spec es la última del plan y el usuario pidió dejar el bot para el final)
-> **Depends on:** SPEC 25
-> **Date:** 2026-11-25
-> **Objective:** Migrar el bot de WhatsApp a la arquitectura hexagonal y que hable con el negocio correcto y no solo con el principal.
+> **Status:** Implementado (2026-11-26)
+> **Depends on:** SPEC 24
+> **Date:** 2026-11-25 (reescrita el 2026-11-26)
+> **Objective:** Quitar WhatsApp del producto: ni el bot que responde y reserva, ni el envío de avisos y recordatorios. Todo lo demás sigue igual.
 
 ---
 
-## Por qué existe esta spec
+## Por qué cambió
 
-El bot de WhatsApp es la última parte sin migrar: unas 1 440 líneas que mezclan el flujo de la conversación, el acceso a la base y el envío de mensajes. Además, con varios negocios tiene una limitación que ya se дра documentó: hoy trabaja siempre con el negocio por defecto y no puede reservar en otro.
+Esta spec nació para migrar el bot de WhatsApp a la arquitectura hexagonal y que atendiera por negocio. El dueño del producto decidió otra cosa: **WhatsApp sale del producto**. No es una migración, es una eliminación.
 
-Esta spec cierra las dos cosas: la migración a la arquitectura hexagonal y el negocio correcto.
+Lo que se borra, en dos partes que antes eran separadas:
 
-## Alcance
+1. **El bot de entrada:** el cliente escribía al número del negocio y el bot contestaba y armaba la reserva. Era unas 3.700 líneas que mezclaban el flujo de la conversación con el acceso a la base.
+2. **El envío de WhatsApp:** los avisos al administrador y los recordatorios al cliente salían por ese canal.
 
-**Dentro:**
+## Qué se eliminó
 
-- Migración del bot a `src/whatsapp/{domain,application,infrastructure}` con `Result`: reglas de conversación, casos de uso por paso (elegir servicio, profesional, día y hora) y adaptadores.
-- **Negocio por número de teléfono**: cada negocio puede vincular su número de WhatsApp; el bot identifica el negocio por el número del que escribe. Sin número vinculado, el bot usa el negocio por defecto (comportamiento actual).
-- La reserva que crea el bot pasa por los casos de uso de `bookings` (spec 14), con su local, sus horarios y sus servicios.
-- El bot pasa a conocer los locales: hoy solo entiende un negocio, así que pregunta local cuando hay más de uno.
-- Cancelación por el bot: el cliente puede cancelar con el mismo enlace que el email.
-- Avisos al admin (spec 14) y recordatorios (spec 24) usan el mismo cliente de WhatsApp: un solo adaptador de envío.
-- Colecciones `conversation_states` y `processed_messages` con `tenantId` (la spec 18 lo aplica a las colecciones del negocio; estas dos se incluyen).
-- `docs/whatsapp.md`: cómo configurar un número, qué mensajes entiende el bot y sus límites.
+**Backend:**
 
-**Fuera de alcance (otras specs):**
+- `src/whatsapp/` completo: el bot (`bot/`), el webhook, el cliente de la API de Meta, la configuración, la seguridad de la firma, el parser del payload, las colecciones `conversation_states` y `processed_messages`, los servicios de estado y de mensajes procesados, y el módulo (con sus dos variantes: la API y la que usaba el bot).
+- El aviso al administrador por WhatsApp (`AdminWhatsappBookingNotifier`) y el módulo `WhatsappApiModule` de reservas. El aviso en vivo por socket y el correo al cliente quedan.
+- El canal de WhatsApp de los recordatorios: el tipo `ReminderChannel` es `['email']`, el remitente de WhatsApp y su simulador, y la fábrica de remitentes.
+- Las variables `WHATSAPP_*` de `.env.example` y el documento `docs/whatsapp-setup.md`.
 
-- Enviar mensajes proactivos por WhatsApp fuera de los recordatorios (spec 24) y los avisos al admin.
-- Bot en varios idiomas.
-- Bot con inteligencia artificial para conversar sin flujo fijo.
-- Whatsapp Business API oficial (el bot usa el cliente que ya existe).
-- Pagos por WhatsApp.
+**Front:**
 
-## Modelo de datos
+- El canal de WhatsApp de la pestaña "Recordatorios": queda solo el correo.
+- El icono de WhatsApp del pie de página (los enlaces sociales son de la empresa, no del producto).
 
-```ts
-interface WhatsappTenantLink {
-  _id: ObjectId;
-  tenantId: ObjectId;       // el negocio
-  phoneNumber: string;      // E.164, único entre todos los negocios
-  active: boolean;
-  createdAt: Date;
-}
-// Índices: { phoneNumber } único.
+**Lo que se mudó en lugar de borrarse:**
 
-interface ConversationStateRecord {
-  _id: ObjectId;
-  tenantId: ObjectId;       // nuevo (spec 18)
-  phoneNumber: string;
-  step: string;
-  data: object;             // lo que el cliente ya eligió
-  updatedAt: Date;
-}
-// Índices: { tenantId, phoneNumber } único; TTL por antiguedad (spec 22).
+- `src/whatsapp/bot/business-time.ts` pasó a `src/shared/domain/business-time.ts`: lo usaban las reglas de horarios del admin y las de cancelación. El reloj dejó de ser un valor por defecto (la regla de arquitectura no permite `new Date()` en el dominio) y ahora lo pasa quien llama.
 
-interface ProcessedMessageRecord {
-  _id: ObjectId;
-  tenantId: ObjectId;       // nuevo
-  messageId: string;
-  receivedAt: Date;
-}
-// Índices: { messageId } único; TTL por antigüedad (spec 22).
-```
+## Reglas que se conservan
 
-**Reglas que se conservan:** el bot atiende un mensaje por vez y no procesa dos veces el mismo mensaje; una conversación en curso se identifica por el número; el bot no pide ni guarda datos que no necesita; los mensajes del bot no incluyen datos de otros clientes.
-
-## Plan de implementación
-
-Cada paso deja el sistema funcionando y con `npm test` en verde.
-
-1. **Dominio.** Reglas del flujo de conversación (qué paso sigue, qué se puede elegir, cuándo se cancela) como funciones puras con `Result`; tests de cada rama del flujo actual.
-2. **Puertos y casos de uso** con adaptadores en memoria: `ConversationStore`, `MessageSender` (WhatsApp), `BookingUseCases` (el caso de uso de crear reserva de la spec 14), `CatalogLookup`.
-3. **Adaptadores.** `MongoConversationStore`, `WhatsappMessageSender` (el cliente que ya existe), `BookingCatalogLookup`; suite de contrato del store.
-4. **Negocio por número.** `WhatsappTenantLink` y su caso de uso; el webhook resuelve el negocio por número y, si no hay vínculo, usa el principal; el estado de la conversación se guarda por negocio y número.
-5. **El bot con locales.** Si el negocio tiene más de un local, el bot pregunta cuál; la reserva se crea en ese local.
-6. **`tenantId` en las colecciones del bot** (si la spec 18 no las cubrió) y limpieza TTL (spec 22).
-7. **Cierre.** E2E del bot: escribir desde un número vinculado a un negocio con dos locales, elegir servicio, local, día y hora, y ver la reserva creada en ese negocio; y desde un número sin vincular (negocio principal). Verificación completa.
+- **Las reservas siguen siendo iguales**: el mismo caso de uso, los mismos horarios, los mismos locales.
+- **La página pública sigue igual**: catálogo, marca, disponibilidad y reserva.
+- **Los recordatorios siguen existiendo**, pero por correo. Un cliente sin correo no recibe nada.
+- **El aviso al administrador sigue existiendo** por el socket (el panel se actualiza solo) y por correo al cliente.
+- **La configuración del negocio** sigue teniendo interruptor, anticipación y plantilla.
 
 ## Criterios de aceptación
 
-- [ ] El bot mantiene el flujo actual (elegir servicio, profesional, día y hora) con los mismos mensajes.
-- [ ] Un mensaje de un número vinculado a un negocio crea la reserva en ese negocio, con sus servicios, horarios y local.
-- [ ] Un número sin vincular sigue reservando en el negocio por defecto.
-- [ ] Con más de un local, el bot pregunta el local y la reserva queda en el elegido.
-- [ ] El bot no vuelve a procesar el mismo mensaje (idempotencia).
-- [ ] Las conversaciones de un negocio no se mezclan con las de otro.
-- [ ] La reserva creada por el bot aparece en el panel del negocio correcto y dispara los mismos avisos y recordatorios.
-- [ ] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
-
-## Decisiones
-
-- **Sí:** el negocio se identifica por el número de teléfono, con un vínculo configurable: es la forma natural de saber a qué negocio pertenece una conversación.
-- **Sí:** sin vínculo, el negocio por defecto: nadie pierde el bot actual al migrar.
-- **Sí:** el bot crea la reserva con los casos de uso de `bookings`: no duplica las reglas de disponibilidad ni de local.
-- **Sí:** las colecciones del bot llevan `tenantId`: sin eso, un número podría ver la conversación de otro.
-- **No:** IA conversacional, proactividad extra, varios idiomas ni pagos por WhatsApp.
-
-## Riesgos
-
-| Riesgo | Mitigación |
-| --- | --- |
-| Un número se vincula a dos negocios | Índice único por número y una sola clave activa. |
-| Las conversaciones old de un negocio se mezclan | `tenantId` en el estado y la clave es `{tenantId, phoneNumber}`. |
-| El bot se rompe con el flujo nuevo | Los tests del dominio cubren cada rama del flujo actual, y el e2e recorre el camino completo. |
-| El bot queda sin respuestas si el negocio tiene otro catálogo | La resolución del negocio es por número y el flujo usa los casos de uso del negocio correcto. |
+- [x] No queda ningún módulo de WhatsApp en el backend, ni archivos, ni referencias en el código.
+- [x] Los recordatorios salen solo por correo, con el mismo interruptor, anticipación, plantilla, idempotencia y reintentos.
+- [x] El aviso al administrador sigue llegando por el socket en vivo y el correo al cliente sigue igual.
+- [x] La página pública y el panel funcionan igual que antes.
+- [x] Las pruebas de integración no dejan correos reales (esto se corrigió de paso: aparecía un detalle).
+- [x] Pasan `npm test`, `npm run test:int`, `tsc`, `eslint`, `vitest`, `vite build` y el e2e completo.
 
 ## Lo que **no** está en esta spec
 
-- Conversación con IA, proactividad, otros idiomas, pagos por WhatsApp y Whatsapp Business API oficial.
+- Un canal nuevo de mensajes (SMS, push, Telegram): si alguna vez se quiere, es un puerto más, como el de pagos.
+- Notificaciones al administrador por correo: hoy el administrador se entera por el panel en vivo.
+- La recuperación del bot en el futuro: la arquitectura lo يسمح (el puerto `MessageSender` sigue existiendo), pero el código está borrado.
+
+## Desvíos (al implementar, 2026-11-26)
+
+- **El canal de WhatsApp se borró del tipo, no solo del adaptador.** `ReminderChannel` es `['email']`: no queda un canal que nunca se pueda usar.
+- **Las pruebas que medían "ambos canales"** se reescribieron para el correo (una reserva con teléfono y correo ahora genera un recordatorio, no dos).
+- **Un cliente sin correo no se avisa.** La API exige el teléfono del cliente, pero el correo es opcional: sin correo no hay recordatorio.
+- **Corrección de paso:** las pruebas de integración estaban enviando correos reales por la cuenta de Gmail del desarrollador (y ya habían golpeado el límite diario de envíos). Ahora el entorno de pruebas anula las credenciales y apunta el mailer a un puerto local cerrado, y el host y el puerto del mailer salen del entorno (`MAIL_HOST`, `MAIL_PORT`).
+
+## Verificación
+
+- `npm test`: 2190 de 2192 (los 2 de siempre en `src/main.spec.ts`).
+- `npm run test:int`: 258 de 258.
+- `npx tsc --noEmit`: limpio. `eslint` de los archivos tocados: limpio.
+- Front: `vitest` 1224 pasan y 5 saltados, `vite build` limpio.
+- E2E completo: 83 de 83 (el de recordatorios, con un caso nuevo: un cliente sin correo no recibe nada).
