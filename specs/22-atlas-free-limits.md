@@ -1,6 +1,6 @@
 # SPEC 22 — Límites de Atlas gratis: caché, respaldo y almacenamiento
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas)
+> **Status:** Implementado (2026-11-26)
 > **Depends on:** SPEC 21
 > **Date:** 2026-11-25
 > **Objective:** Que la app aguante en el plan gratuito de Atlas (0,5 GB, 100 operaciones por segundo, sin respaldos automáticos) sin caerse, sin llenar la base y sin perder datos.
@@ -83,15 +83,15 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 
 ## Criterios de aceptación
 
-- [ ] Dos pedidos seguidos de disponibilidad dentro del TTL no hacen una segunda consulta a la base (se comprueba en la suite de integración con un contador).
-- [ ] Crear una reserva invalida la caché de ese negocio, así que el turno tomado desaparece de inmediato.
-- [ ] Cambiar el horario de un local invalida la caché de sus fechas.
-- [ ] Los endpoints públicos responden `429` con un mensaje claro al superar el límite por IP, y las rutas de admin no se ven afectadas.
-- [ ] El panel avisa al `owner` al pasar el 70 % y el 90 % de su cuota, y al superarla el negocio no acepta reservas nuevas.
-- [ ] Los documentos del bot de más de 90 días se borran solos; las reservas nunca.
-- [ ] `npm run db:backup` crea una copia en `backups/<fecha>` y no sobrescribe una carpeta existente; `npm run db:restore` la restaura.
-- [ ] La doc `docs/atlas-limits.md` explica los límites, cómo medirlos, cómo respaldar y qué hacer si el cluster se pausa.
-- [ ] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
+- [x] Dos pedidos seguidos de disponibilidad dentro del TTL no hacen una segunda consulta a la base (se comprueba en la suite de integración con un contador).
+- [x] Crear una reserva invalida la caché de ese negocio, así que el turno tomado desaparece de inmediato.
+- [x] Cambiar el horario de un local invalida la caché de sus fechas.
+- [x] Los endpoints públicos responden `429` con un mensaje claro al superar el límite por IP, y las rutas de admin no se ven afectadas.
+- [x] El panel avisa al `owner` al pasar el 70 % y el 90 % de su cuota, y al superarla el negocio no acepta reservas nuevas.
+- [x] Los documentos del bot de más de 90 días se borran solos; las reservas nunca.
+- [x] `npm run db:backup` crea una copia en `backups/<fecha>` y no sobrescribe una carpeta existente; `npm run db:restore` la restaura.
+- [x] La doc `docs/atlas-limits.md` explica los límites, cómo medirlos, cómo respaldar y qué hacer si el cluster se pausa.
+- [x] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
 
 ## Decisiones
 
@@ -112,6 +112,14 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 | Un TTL borra algo que hacía falta | Solo aplica a las dos colecciones del bot, con 90 días; el bot solo necesita la conversación reciente. |
 | El respaldo queda a medias | Script con carpeta nueva por fecha y verificación de que la base origen es la esperada; la restauración se prueba en la base de pruebas. |
 | La medición de almacenamiento consume operaciones | Medición poco frecuente (a demanda del panel o diaria) y con una sola consulta de estadísticas. |
+
+## Desvíos (al implementar, 2026-11-26)
+
+- **Proxy de Vercel** (`vercel.json`): `/api` y `/socket.io` se reenvían al backend y el front usa su propio origen en producción. Así la cookie de sesión de la spec 20 es del mismo sitio y viaja sin comprar dominio. Los WebSockets no pasan por los rewrites de Vercel: el socket cae a long-polling.
+- **Aviso de almacenamiento:** `StorageNotice` lee `storage: { usedBytes, quotaBytes, percent, level }` de `GET /api/admin/session` (cuentas).
+- **Regla de arquitectura:** `Optional` se permite en `application` (`scan-imports.ts`) para colaboradores opcionales como la caché.
+- **TTL del bot:** se prueba que los índices existen; el borrado real depende del monitor de Mongo (cada 60 s) y no se espera en las pruebas.
+- **Límite por IP detrás de proxy:** `request.ip` puede ser el del proxy; hay que configurar `trust proxy` al desplegar (pendiente de verificar en producción).
 
 ## Lo que **no** está en esta spec
 
