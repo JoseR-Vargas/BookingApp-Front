@@ -1,6 +1,6 @@
 # SPEC 21 — Alta de negocios y asistente de configuración
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas)
+> **Status:** Implementado (2026-11-26)
 > **Depends on:** SPEC 20
 > **Date:** 2026-11-25
 > **Objective:** Que alguien pueda crear su negocio por su cuenta, con su marca y sus horarios, sin intervención del dueño del sistema.
@@ -77,16 +77,16 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 
 ## Criterios de aceptación
 
-- [ ] Con el formulario de alta, alguien crea su negocio y entra al panel ya con sesión iniciada, sin intervención del dueño del sistema.
-- [ ] El negocio nuevo tiene local "Principal", horario semilla, página pública apagada y sin servicios ni profesionales.
-- [ ] Un slug inválido, repetido o reservado se rechaza con un mensaje claro y el alta no crea nada.
-- [ ] El asistente guarda cada paso de a uno, se puede saltear y se puede volver atrás.
-- [ ] Con los datos del asistente, el sitio público del negocio muestra sus servicios, profesionales y horarios y acepta una reserva.
-- [ ] La prueba gratuita avisa los días restantes y las reservas hechas.
-- [ ] Al llegar al tope de reservas o al vencer la prueba, el negocio no acepta reservas nuevas (`403` con mensaje) y el panel sigue funcionando con el aviso.
-- [ ] Un alta repetida desde la misma IP queda limitada.
-- [ ] Los datos de dos negocios creados por el alta no se mezclan (el aislamiento de la spec 18 lo cubre).
-- [ ] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
+- [x] Con el formulario de alta, alguien crea su negocio y entra al panel ya con sesión iniciada, sin intervención del dueño del sistema.
+- [x] El negocio nuevo tiene local "Principal", horario semilla, página pública apagada y sin servicios ni profesionales.
+- [x] Un slug inválido, repetido o reservado se rechaza con un mensaje claro y el alta no crea nada.
+- [x] El asistente guarda cada paso de a uno, se puede saltear y se puede volver atrás.
+- [x] Con los datos del asistente, el sitio público del negocio muestra sus servicios, profesionales y horarios y acepta una reserva.
+- [x] La prueba gratuita avisa los días restantes y las reservas hechas.
+- [x] Al llegar al tope de reservas o al vencer la prueba, el negocio no acepta reservas nuevas (`403` con mensaje) y el panel sigue funcionando con el aviso.
+- [x] Un alta repetida desde la misma IP queda limitada.
+- [x] Los datos de dos negocios creados por el alta no se mezclan (el aislamiento de la spec 18 lo cubre).
+- [x] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
 
 ## Decisiones
 
@@ -107,6 +107,18 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 | Un alta a medias deja basura | El negocio y su `owner` se crean en una operación; si algo falla, no queda nada. |
 | El bloqueo de la prueba sorprende al cliente | Aviso con días y reservas desde el primer día, y el panel lo repite. |
 | El asistente obliga a un camino único | Todos los pasos son opcionales y saltables. |
+
+## Desvíos (al implementar, 2026-11-26)
+
+- **Alta con compensación:** no hay transacciones en la base local de pruebas. Si algo falla después de crear el negocio, `TenantEraser` borra el negocio y todos sus documentos (`SCOPED_COLLECTIONS`). Un negocio nuevo en una colección escopada nueva debe agregarse a esa constante.
+- **Sin cabecera:** `POST /api/signup` queda fuera del middleware de negocio, así que funciona aunque el negocio por defecto esté suspendido.
+- **Límite de altas:** 5 por hora por IP, en memoria (se pierde al reiniciar; detrás de un proxy hay que configurar `trust proxy`). `SIGNUP_RATE_LIMIT_MAX` lo cambia; el e2e lo sube.
+- **Estado de la prueba** en `GET /api/admin/session` de una cuenta: `{ ok, user, trial }`. Con la clave compartida sigue `{ ok: true }`.
+- **Bloqueo:** `CreateBookingUseCase` consulta un puerto `TrialGate`; el bot de WhatsApp pasa por el mismo caso de uso, así que también queda bloqueado. Como el negocio se guarda 60 s en caché, el bloqueo puede tardar hasta un minuto en notarse.
+- **`bookingsMade`** cuenta las reservas del negocio en la colección; una reserva borrada del todo deja de contar.
+- **Correo de bienvenida:** se manda en segundo plano; sin correo configurado el alta funciona y solo queda un aviso en el log.
+- **Front:** `/empezar` sugiere la dirección desde el nombre. El asistente (`/n/<slug>/asistente`) reutiliza las pestañas de configuración, cada una guarda por sí sola. El aviso de la prueba y el bloqueo están en `TrialBanner`.
+- **E2E:** `e2e/specs/business-signup` (3 casos) crea y borra sus propios negocios.
 
 ## Lo que **no** está en esta spec
 

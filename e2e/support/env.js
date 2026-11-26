@@ -22,6 +22,8 @@ export const BACKEND_ENV = {
   ADMIN_API_KEY: ADMIN_KEY,
   PORT: String(BACKEND_PORT),
   NODE_ENV: 'development',
+  // The sign-up e2e creates several businesses from one IP: the per-hour limit must not get in its way.
+  SIGNUP_RATE_LIMIT_MAX: '1000',
   BUSINESS_TIMEZONE: 'UTC',
   // Booking cancellation: the link in emails points at the E2E front; no admin WhatsApp notice is sent.
   PUBLIC_APP_URL: FRONT_URL,
