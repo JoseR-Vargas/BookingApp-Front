@@ -64,6 +64,17 @@ Lo que se borra, en dos partes que antes eran separadas:
 - **Un cliente sin correo no se avisa.** La API exige el teléfono del cliente, pero el correo es opcional: sin correo no hay recordatorio.
 - **Corrección de paso:** las pruebas de integración estaban enviando correos reales por la cuenta de Gmail del desarrollador (y ya habían golpeado el límite diario de envíos). Ahora el entorno de pruebas anula las credenciales y apunta el mailer a un puerto local cerrado, y el host y el puerto del mailer salen del entorno (`MAIL_HOST`, `MAIL_PORT`).
 
+## El panel sin socket en vivo (2026-11-26)
+
+Al desplegar en Vercel se comprobó que el backend desplegado responde `404` en `/socket.io`: una
+función serverless no puede mantener una conexión abierta ni compartir el estado del servidor de
+Socket.IO entre invocaciones. El problema no era el proxy ni la cookie, sino la arquitectura.
+
+Mientras el backend siga en Vercel, el panel **sondea**: `GET /api/bookings/ids` (solo ids, sin datos
+del cliente) cada 5 segundos, solo con la pestaña visible. Lo que ya se conoce se marca, así que
+una reserva nunca se avisa dos veces (el socket, cuando funciona, marca lo suyo). Cuando el backend
+pase a un host con proceso vivo, el socket vuelve y los dos caminos conviven.
+
 ## Verificación
 
 - `npm test`: 2190 de 2192 (los 2 de siempre en `src/main.spec.ts`).
