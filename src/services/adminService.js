@@ -130,6 +130,13 @@ export const getSessionState = async () => {
     user: state && state.user ? state.user : null,
     trial: state && state.trial ? state.trial : null,
     storage: state && state.storage ? state.storage : null,
+    plan: state && state.plan ? state.plan : null,
   };
 };
+
+// ----- Subscription of the business (owner only, spec 23) -----
+// `checkoutUrl` is where the payment gateway takes the owner to pay.
+export const startCheckout = (planId) => adminRequest('POST', '/api/admin/subscription/checkout', { planId });
+export const cancelSubscription = () => adminRequest('POST', '/api/admin/subscription/cancel');
+export const resumeSubscription = () => adminRequest('POST', '/api/admin/subscription/resume');
 

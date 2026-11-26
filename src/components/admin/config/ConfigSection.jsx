@@ -11,6 +11,7 @@ import Spinner from '../../ui/Spinner.jsx';
 import SectionHeader from '../SectionHeader.jsx';
 import BrandingTab from './BrandingTab.jsx';
 import LocationsTab from './LocationsTab.jsx';
+import PlanTab from './PlanTab.jsx';
 import ProfessionalsTab from './ProfessionalsTab.jsx';
 import ScheduleTab from './ScheduleTab.jsx';
 import ServicesTab from './ServicesTab.jsx';
@@ -24,6 +25,7 @@ const TABS = [
   { key: 'schedule', label: 'Horarios' },
   { key: 'branding', label: 'Marca' },
   { key: 'users', label: 'Usuarios' },
+  { key: 'plan', label: 'Plan' },
   { key: 'share', label: 'Compartir' },
 ];
 
@@ -63,7 +65,13 @@ export default function ConfigSection() {
   };
 
   let body;
-  if (tab === 'users') {
+  if (tab === 'plan') {
+    body = (
+      <div role="tabpanel" id="config-panel-plan" aria-labelledby="config-tab-plan" tabIndex={0}>
+        <PlanTab />
+      </div>
+    );
+  } else if (tab === 'users') {
     // The accounts live apart from the admin catalog, like the brand.
     body = (
       <div role="tabpanel" id="config-panel-users" aria-labelledby="config-tab-users" tabIndex={0}>

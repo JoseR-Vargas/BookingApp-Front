@@ -934,7 +934,7 @@ describe('Admin configuration section', () => {
     expect(callsTo('GET', '/api/admin/catalog')).toHaveLength(1);
     expect(callsTo('GET', '/api/admin/catalog')[0][1].headers.Authorization).toBe('Bearer admin-key');
     const tabs = within(screen.getByRole('tablist')).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Locales', 'Horarios', 'Marca', 'Usuarios', 'Compartir']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Locales', 'Horarios', 'Marca', 'Usuarios', 'Plan', 'Compartir']);
   });
 
   it('logs the user out and goes to /login when the admin key is rejected (401)', async () => {
