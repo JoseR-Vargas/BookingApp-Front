@@ -122,6 +122,10 @@ export const changeUserRole = (id, role) => adminRequest('PATCH', '/api/admin/us
 export const deactivateUser = (id) => adminRequest('POST', '/api/admin/users/' + id + '/deactivate');
 export const rotateUserPassword = (id, password) => adminRequest('PUT', '/api/admin/users/' + id + '/password', { password });
 
+// ----- Reminders of the business (owner only, spec 24) -----
+export const getReminders = () => adminRequest('GET', '/api/admin/reminders');
+export const saveReminders = (config) => adminRequest('PUT', '/api/admin/reminders', config);
+
 // ----- Session and trial of the business (spec 21) -----
 // `trial` is null when the business has no trial; otherwise { endsAt, daysLeft, bookingsMade, bookingQuota, blocked }.
 export const getSessionState = async () => {

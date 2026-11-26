@@ -12,6 +12,7 @@ import SectionHeader from '../SectionHeader.jsx';
 import BrandingTab from './BrandingTab.jsx';
 import LocationsTab from './LocationsTab.jsx';
 import PlanTab from './PlanTab.jsx';
+import RemindersTab from './RemindersTab.jsx';
 import ProfessionalsTab from './ProfessionalsTab.jsx';
 import ScheduleTab from './ScheduleTab.jsx';
 import ServicesTab from './ServicesTab.jsx';
@@ -26,6 +27,7 @@ const TABS = [
   { key: 'branding', label: 'Marca' },
   { key: 'users', label: 'Usuarios' },
   { key: 'plan', label: 'Plan' },
+  { key: 'reminders', label: 'Recordatorios' },
   { key: 'share', label: 'Compartir' },
 ];
 
@@ -65,7 +67,13 @@ export default function ConfigSection() {
   };
 
   let body;
-  if (tab === 'plan') {
+  if (tab === 'reminders') {
+    body = (
+      <div role="tabpanel" id="config-panel-reminders" aria-labelledby="config-tab-reminders" tabIndex={0}>
+        <RemindersTab />
+      </div>
+    );
+  } else if (tab === 'plan') {
     body = (
       <div role="tabpanel" id="config-panel-plan" aria-labelledby="config-tab-plan" tabIndex={0}>
         <PlanTab />

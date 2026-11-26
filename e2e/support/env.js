@@ -27,6 +27,9 @@ export const BACKEND_ENV = {
   // The fake payment gateway (spec 23): the e2e signs its own webhooks with this secret.
   PAYMENT_GATEWAY: 'fake',
   PAYMENT_WEBHOOK_SECRET: 'e2e-payment-secret',
+  // The reminders (spec 24): the simulator sender and a round every three seconds.
+  REMINDERS_SENDER: 'fake',
+  REMINDERS_INTERVAL_MINUTES: '0.05',
   BUSINESS_TIMEZONE: 'UTC',
   // Booking cancellation: the link in emails points at the E2E front; no admin WhatsApp notice is sent.
   PUBLIC_APP_URL: FRONT_URL,

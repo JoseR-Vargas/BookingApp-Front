@@ -1,6 +1,6 @@
 # SPEC 24 — Recordatorios de cita al cliente
 
-> **Status:** Aprobado (el usuario pidió seguir sin pausas)
+> **Status:** Implementado (2026-11-26)
 > **Depends on:** SPEC 23
 > **Date:** 2026-11-25
 > **Objective:** Que el cliente reciba un recordatorio de su cita antes de la hora, por el canal que el negocio elija, y que el negocio pueda configurarlo sin tocar código.
@@ -81,16 +81,16 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 
 ## Criterios de aceptación
 
-- [ ] Con los recordatorios activados, una reserva futura recibe el recordatorio en cada ventana configurada, y solo una vez por ventana.
-- [ ] Cancelar la reserva antes de la ventana evita el recordatorio.
-- [ ] Un cliente sin teléfono ni correo no recibe nada.
-- [ ] El mensaje incluye nombre del negocio, fecha, hora, profesional y el enlace de cancelar, y no incluye datos de otros clientes.
-- [ ] El enlace del recordatorio cancela esa reserva (es el mismo token) y solo esa.
-- [ ] Un envío fallido se registra como fallido y se reintenta en la siguiente vuelta, hasta 3 veces; no rompe el proceso.
-- [ ] Cambiar la configuración de recordatorios se aplica en la siguiente vuelta.
-- [ ] El `owner` ve en el panel la configuración, los últimos enviados con su estado y el conteo de envíos y fallos.
-- [ ] El proceso no solapa vueltas: si una está corriendo, la siguiente espera.
-- [ ] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
+- [x] Con los recordatorios activados, una reserva futura recibe el recordatorio en cada ventana configurada, y solo una vez por ventana.
+- [x] Cancelar la reserva antes de la ventana evita el recordatorio.
+- [x] Un cliente sin teléfono ni correo no recibe nada.
+- [x] El mensaje incluye nombre del negocio, fecha, hora, profesional y el enlace de cancelar, y no incluye datos de otros clientes.
+- [x] El enlace del recordatorio cancela esa reserva (es el mismo token) y solo esa.
+- [x] Un envío fallido se registra como fallido y se reintenta en la siguiente vuelta, hasta 3 veces; no rompe el proceso.
+- [x] Cambiar la configuración de recordatorios se aplica en la siguiente vuelta.
+- [x] El `owner` ve en el panel la configuración, los últimos enviados con su estado y el conteo de envíos y fallos.
+- [x] El proceso no solapa vueltas: si una está corriendo, la siguiente espera.
+- [x] Pasan `npm test`, `npm run test:int`, `tsc`, `vitest`, `vite build` y el e2e completo.
 
 ## Decisiones
 
@@ -112,6 +112,17 @@ Cada paso deja el sistema funcionando y con `npm test` en verde.
 | Spam | Dos ventanas por defecto, un mensaje corto y un opt-in en la configuración. |
 | Vueltas solapadas | Cerrojo de una sola vuelta en curso. |
 | Fuga de datos en el mensaje | La plantilla solo se completa con datos de esa reserva y del negocio. |
+
+## Desvíos (al implementar, 2026-11-26)
+
+- **Remitente de prueba:** `REMINDERS_SENDER=fake` usa un simulador (como la pasarela de pagos de la spec 23) para el desarrollo y el e2e; por defecto se usan WhatsApp y el correo de verdad.
+- **Intervalo fraccionario:** `REMINDERS_INTERVAL_MINUTES` acepta decimales (0.05 = tres segundos) para que el e2e no espere cinco minutos. Por defecto, 5.
+- **Un canal no configurado no es un fallo:** si WhatsApp o el correo no están configurados, el recordatorio se salta (queda pendiente para la próxima vuelta) y no se registra como error.
+- **La reserva guarda el registro:** `reminders: [{ kind, channel, sentAt, ok, error, attempts }]`, un registro por ventana y canal. Un fallo se reintenta hasta 3 veces.
+- **La ventana es `inicio - anticipación` hasta el inicio:** con la anticipación de 24 h, una reserva a 7 días todavía no se recuerda. El e2e abre la ventana a propósito para probar el caso de la reserva cancelada.
+- **El plan manda:** el plan `gratis` de la spec 23 no permite recordatorios; un negocio sin suscripción sí puede.
+- **Zona horaria:** la global `BUSINESS_TIMEZONE` (la spec 24 lo anota como limitación).
+- **Cada negocio por su cuenta:** el planificador recorre los negocios y lee sus reservas dentro del scope de cada uno.
 
 ## Lo que **no** está en esta spec
 

@@ -44,8 +44,8 @@ describe('ConfigSection', () => {
 
     const tablist = screen.getByRole('tablist');
     const tabs = within(tablist).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Locales', 'Horarios', 'Marca', 'Usuarios', 'Plan', 'Compartir']);
-    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false', 'false', 'false']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Profesionales', 'Servicios', 'Locales', 'Horarios', 'Marca', 'Usuarios', 'Plan', 'Recordatorios', 'Compartir']);
+    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false', 'false', 'false', 'false']);
 
     const panel = screen.getByRole('tabpanel');
     expect(panel).toHaveAttribute('aria-labelledby', tabs[0].id);
