@@ -31,6 +31,7 @@ async function platformRequest(method, path, body) {
   const options = { headers: { 'x-platform-key': key } };
   // GET takes only the options; the rest take the body and the options.
   if (method === 'GET') return apiClient.get(path, options);
+  if (method === 'DELETE') return apiClient.request('DELETE', path, body, options);
   return apiClient[method.toLowerCase()](path, body, options);
 }
 
@@ -46,3 +47,10 @@ export const suspendBusiness = (id) => json(platformRequest('POST', `/api/platfo
 export const reactivateBusiness = (id) => json(platformRequest('POST', `/api/platform/tenants/${id}/reactivate`));
 export const extendTrial = (id, days) => json(platformRequest('POST', `/api/platform/tenants/${id}/trial`, { days }));
 export const changePlan = (id, planId) => json(platformRequest('POST', `/api/platform/tenants/${id}/plan`, { planId }));
+
+/**
+ * Deletes the business and everything of it. The body carries the slug of the business: the
+ * backend refuses a deletion that is not confirmed, so a slip of the mouse does not erase a year of
+ * bookings. The events of the payments are kept (the audit trail of the installation).
+ */
+export const deleteBusiness = (id, confirm) => json(platformRequest('DELETE', `/api/platform/tenants/${id}`, { confirm }));
