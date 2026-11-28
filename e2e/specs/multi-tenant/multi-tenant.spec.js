@@ -3,7 +3,7 @@
 import { test, expect } from '../../fixtures/test.js';
 import { createApi } from '../../support/api.js';
 import { mongosh } from '../../support/mongo.js';
-import { ADMIN_KEY, APP_BACKEND_URL, BACKEND_ORIGIN } from '../../support/env.js';
+import { ADMIN_KEY, APP_BACKEND_URL, BACKEND_ORIGIN, FAKE_EMAIL_DOMAIN } from '../../support/env.js';
 
 const SLUG = 'norte-e2e';
 const NAME = '[TEST] Barbería Norte';
@@ -92,5 +92,60 @@ test.describe('two businesses, end to end', () => {
     await expect(page.getByText('No encontramos este negocio. Revisa el enlace.')).toBeVisible();
     await page.getByRole('link', { name: 'Ir a la portada' }).click();
     await page.waitForURL((url) => url.pathname === '/');
+  });
+
+  // An <img> tag cannot send the X-Tenant header, so the photo of a professional of a business that is
+  // not the default one has to name its business in its URL, or the browser asks the default business
+  // for it and gets a 404.
+  test('the photo of a professional of a business renders in its panel', async ({ page }) => {
+    const slug = 'foto-e2e';
+    const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLzcwAAAABJRU5ErkJggg==';
+    const found = mongosh(`const t = db.tenants.findOne({ slug: '${slug}' }); print(t ? t._id.toHexString() : '')`);
+    if (found) {
+      for (const c of ['branding', 'business_settings', 'locations', 'professionals', 'services', 'bookings', 'admin_users', 'admin_sessions', 'subscriptions']) {
+        mongosh(`db.${c}.deleteMany({ tenantId: ObjectId('${found}') })`);
+      }
+      mongosh(`db.tenants.deleteMany({ slug: '${slug}' })`);
+    }
+
+    // `page.request` shares the cookies of the page: the session of the signup is the one of the panel.
+    const created = await page.request.post(`${BACKEND_ORIGIN}/api/signup`, {
+      data: { businessName: '[TEST] Foto E2E', adminName: 'Ana', email: `foto@${FAKE_EMAIL_DOMAIN}`, password: 'e2e-password-123', slug },
+    });
+    expect(created.status()).toBe(201);
+    const professional = JSON.parse(await (await page.request.post(`${BACKEND_ORIGIN}/api/admin/professionals`, {
+      headers: { 'X-Tenant': slug }, data: { name: 'Pro Foto', specialty: 'Barber', experience: '3 años' },
+    })).text());
+    const uploaded = await page.request.put(`${BACKEND_ORIGIN}/api/admin/professionals/${professional.id}/photo`, {
+      headers: { 'X-Tenant': slug }, data: { dataUrl: PNG_DATA_URL },
+    });
+    expect(uploaded.status()).toBe(200);
+
+    // The photo is asked the way an <img> asks it: no header, only the URL.
+    const requested = [];
+    page.on('response', (response) => {
+      if (response.url().includes('/photo')) requested.push({ url: response.url(), status: response.status() });
+    });
+
+    await page.goto(`/n/${slug}/login`);
+    await page.locator('#username').fill(`foto@${FAKE_EMAIL_DOMAIN}`);
+    await page.locator('#password').fill('e2e-password-123');
+    await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
+    await page.waitForURL(`**/n/${slug}/admin`);
+    await page.getByRole('link', { name: /Configuración/ }).click();
+
+    await expect.poll(() => requested.length, { timeout: 15_000 }).toBeGreaterThan(0);
+    expect(requested.every((one) => one.url.includes(`tenant=${slug}`))).toBe(true);
+    expect(requested.every((one) => one.status === 200)).toBe(true);
+
+    // And the browser really drew it: the image has a size.
+    const drawn = await page.locator('img[src*="/photo"]').first().evaluate((img) => img.complete && img.naturalWidth > 0);
+    expect(drawn).toBe(true);
+
+    const id = mongosh(`print(db.tenants.findOne({ slug: '${slug}' })._id.toHexString())`);
+    for (const c of ['branding', 'business_settings', 'locations', 'professionals', 'services', 'bookings', 'admin_users', 'admin_sessions', 'subscriptions']) {
+      mongosh(`db.${c}.deleteMany({ tenantId: ObjectId('${id}') })`);
+    }
+    mongosh(`db.tenants.deleteMany({ slug: '${slug}' })`);
   });
 });
