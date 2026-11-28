@@ -63,9 +63,13 @@ export function useAdminData() {
 
   const loadBookings = useCallback(async () => {
     try {
-      setBookings(await getBookings());
+      const loaded = await getBookings();
+      setBookings(loaded);
+      // The list is returned so the caller can mark its ids as known (the poll).
+      return loaded;
     } catch (error) {
       toast.error('Error cargando reservas');
+      return [];
     }
   }, []);
 

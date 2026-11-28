@@ -14,6 +14,7 @@ import { SECTION_TITLES } from '../components/admin/adminSections.js';
 import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
 import { useAdminData } from '../hooks/useAdminData.js';
 import { useBookingNotifications } from '../hooks/useBookingNotifications.js';
+import { useBookingPolling } from '../hooks/useBookingPolling.js';
 import { authService } from '../services/authService.js';
 import StorageNotice from '../components/admin/StorageNotice.jsx';
 import PlatformSection from '../components/admin/PlatformSection.jsx';
@@ -58,11 +59,27 @@ export default function Admin() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
+  // A booking arrived: the same notice for the socket and for the poll.
+  const announceNew = async () => {
+    toast.success('Nueva reserva recibida!');
+    await loadDashboard();
+    if (section === 'bookings') await loadBookings();
+  };
+
+  // The poll asks every few seconds whether a booking arrived: in a serverless
+  // deployment there is no live socket (the deployed backend answers 404 on
+  // /socket.io). Both paths mark the booking as known, so it is never announced
+  // twice.
+  const { markKnown } = useBookingPolling(async () => {
+    await notifications.announce();
+    await announceNew();
+  });
+
   const notifications = useBookingNotifications(
-    async () => {
-      toast.success('Nueva reserva recibida!');
-      await loadDashboard();
-      if (section === 'bookings') await loadBookings();
+    async (booking) => {
+      // The socket announces it too: mark it, so the poll does not repeat it.
+      if (booking && booking._id) markKnown([booking._id]);
+      await announceNew();
     },
     // A client cancelled from their link: refresh what is on screen, no badge and no sound.
     async () => {
@@ -76,9 +93,11 @@ export default function Admin() {
   useEffect(() => {
     (async () => {
       await loadDashboard();
-      await loadBookings();
+      const loaded = await loadBookings();
+      // The bookings already on screen are not news: the poll must not announce them.
+      markKnown(loaded.map((booking) => booking._id));
     })();
-  }, [loadDashboard, loadBookings]);
+  }, [loadDashboard, loadBookings, markKnown]);
 
   // At <= 768px the sidebar is an overlay drawer: the hamburger only opens/closes it. Toggling
   // `collapsed` there used to alternate the drawer between 70px and 260px and left a 70px gutter in

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   changePlan,
+  deleteBusiness,
   extendTrial,
   getBusiness,
   getPlatformMetrics,
@@ -192,6 +193,24 @@ export default function PlatformSection() {
                           onClick={() => act(`reactivate-${business.id}`, () => reactivateBusiness(business.id), 'Negocio reactivado')}
                         >
                           Reactivar
+                        </Button>
+                      )}
+                      {!business.isDefault && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={busy !== ''}
+                          data-testid={`platform-delete-${business.slug}`}
+                          onClick={() => {
+                            // The deletion is confirmed by writing the address of the business.
+                            const written = window.prompt(
+                              `Se va a eliminar "${business.name}" con TODO lo que tiene (reservas, datos de clientes, usuarios). Escribí "${business.slug}" para confirmar:`,
+                            );
+                            if (written === null) return;
+                            act(`delete-${business.id}`, () => deleteBusiness(business.id, written.trim()), 'Negocio eliminado');
+                          }}
+                        >
+                          Eliminar
                         </Button>
                       )}
                     </div>

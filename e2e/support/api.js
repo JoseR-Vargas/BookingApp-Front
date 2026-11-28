@@ -25,6 +25,9 @@ export async function createApi() {
       params: { date, serviceIds: serviceId },
     })),
     bookings: async () => json(await ctx.get('/api/bookings', { headers: AUTH })),
+    // The ids of the latest bookings: what the panel polls (there is no live socket in a
+    // serverless deployment).
+    recentBookingIds: async () => json(await ctx.get('/api/bookings/ids', { headers: AUTH })),
     booking: async (id) => json(await ctx.get(`/api/bookings/${id}`, { headers: AUTH })),
     // Public routes, no key. The cancel helpers return the raw response so a test can assert the status.
     getCancellation: (token) => ctx.get(`/api/bookings/cancel/${token}`),

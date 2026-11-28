@@ -42,6 +42,13 @@ async function adminRequest(method, path, body) {
 
 export const getBookings = async () => parseResponse(bookingListSchema, await adminRequest('GET', '/api/bookings'));
 
+// The ids of the latest bookings: what the panel polls to know that a booking arrived
+// (there is no live socket in a serverless deployment). It carries no data of the client.
+export const getRecentBookingIds = async () => {
+  const answer = await adminRequest('GET', '/api/bookings/ids');
+  return Array.isArray(answer && answer.ids) ? answer.ids : [];
+};
+
 export const getStatistics = async () => parseResponse(statisticsSchema, await adminRequest('GET', '/api/bookings/statistics'));
 
 // Erases the booking and its history. Use cancelBooking to just free the slot.

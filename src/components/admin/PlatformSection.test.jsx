@@ -8,7 +8,7 @@ vi.mock('../../ui/toast.js', () => ({ toast: { success: vi.fn(), error: vi.fn() 
 import PlatformSection from './PlatformSection.jsx';
 
 const business = (overrides) => ({
-  id: 'b1', slug: 'sur', name: 'Barbería Sur', status: 'active',
+  id: 'b1', slug: 'sur', name: 'Barbería Sur', status: 'active', isDefault: false,
   plan: { id: 'pro', name: 'Pro' }, subscriptionStatus: 'active',
   trial: { endsAt: '2030-01-01T00:00:00.000Z', daysLeft: 9 },
   bookingsThisMonth: 12, storage: { usedBytes: 1048576, quotaBytes: 52428800 },
@@ -17,16 +17,18 @@ const business = (overrides) => ({
 
 let calls;
 let answer;
+let businesses;
 
 beforeEach(() => {
   sessionStorage.clear();
   calls = [];
   answer = null;
+  businesses = [business()];
   installMockHttp(vi.fn(async (url, init) => {
     const path = url.replace(/^https?:\/\/[^/]+/, '');
-    calls.push([init.method, path, init.headers && init.headers['x-platform-key'], init.body && init.body]);
+    calls.push([init.method, path, init.headers && init.headers['x-platform-key'], init.body && JSON.parse(init.body)]);
     if (path === '/api/platform/tenants') {
-      return { ok: true, status: 200, json: async () => ({ businesses: [business()] }) };
+      return { ok: true, status: 200, json: async () => ({ businesses }) };
     }
     if (path === '/api/platform/metrics') {
       return {
@@ -61,6 +63,35 @@ describe('PlatformSection', () => {
     expect(screen.getByText('/n/sur')).toBeInTheDocument();
     expect(screen.getByTestId('platform-metrics')).toHaveTextContent('42');
     expect(JSON.stringify(calls[0])).toContain('k');
+  });
+
+  it('deletes a business only when the slug is confirmed', async () => {
+    sessionStorage.setItem('platformKey', 'k');
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue('sur');
+    render(<PlatformSection />);
+    const button = await screen.findByTestId('platform-delete-sur');
+    await userEvent.setup().click(button);
+
+    expect(calls).toContainEqual(['DELETE', '/api/platform/tenants/b1', 'k', { confirm: 'sur' }]);
+    prompt.mockRestore();
+  });
+
+  it('does not delete anything when the confirmation is cancelled', async () => {
+    sessionStorage.setItem('platformKey', 'k');
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue(null);
+    render(<PlatformSection />);
+    await userEvent.setup().click(await screen.findByTestId('platform-delete-sur'));
+
+    expect(calls.filter((call) => call[0] === 'DELETE')).toHaveLength(0);
+    prompt.mockRestore();
+  });
+
+  it('does not offer the deletion of the business that answers by default', async () => {
+    sessionStorage.setItem('platformKey', 'k');
+    businesses = [business({ isDefault: true })];
+    render(<PlatformSection />);
+    await screen.findByText('Barbería Sur');
+    expect(screen.queryByTestId('platform-delete-sur')).not.toBeInTheDocument();
   });
 
   it('suspends a business', async () => {

@@ -66,6 +66,39 @@ test.describe('the panel of the owner of the system, end to end', () => {
     expect((await request.get(`${BACKEND_ORIGIN}/api/catalog`, { headers: { 'X-Tenant': SLUG } })).status()).toBe(200);
   });
 
+  test('deleting a business removes it and everything of it', async ({ request }) => {
+    const created = await request.post(`${BACKEND_ORIGIN}/api/signup`, {
+      data: {
+        businessName: '[TEST] Borrar E2E', adminName: 'Ana', email: `borrar@${FAKE_EMAIL_DOMAIN}`,
+        password: PASSWORD, slug: 'borrar-e2e',
+      },
+    });
+    expect(created.status()).toBe(201);
+
+    const list = JSON.parse(await (await request.get(`${BACKEND_ORIGIN}/api/platform/tenants`, { headers: KEY })).text());
+    const business = list.businesses.find((one) => one.slug === 'borrar-e2e');
+    expect(business).toBeDefined();
+
+    // Without the confirmation of the address, nothing is deleted.
+    const refused = await request.delete(`${BACKEND_ORIGIN}/api/platform/tenants/${business.id}`, {
+      headers: KEY, data: { confirm: 'otra-cosa' },
+    });
+    expect(refused.status()).toBe(400);
+    expect(mongosh(`print(db.tenants.findOne({ slug: 'borrar-e2e' }) ? 1 : 0)`)).toBe('1');
+
+    // With it, the business and its documents are gone.
+    const deleted = await request.delete(`${BACKEND_ORIGIN}/api/platform/tenants/${business.id}`, {
+      headers: KEY, data: { confirm: 'borrar-e2e' },
+    });
+    expect(deleted.status()).toBe(200);
+    expect(mongosh(`print(db.tenants.findOne({ slug: 'borrar-e2e' }) ? 1 : 0)`)).toBe('0');
+    expect(mongosh(`print(db.locations.countDocuments({ tenantId: ObjectId('${business.id}') }))`)).toBe('0');
+    expect(mongosh(`print(db.admin_users.countDocuments({ tenantId: ObjectId('${business.id}') }))`)).toBe('0');
+
+    // Its own routes answer 404 now: the business does not exist anymore.
+    expect((await request.get(`${BACKEND_ORIGIN}/api/catalog`, { headers: { 'X-Tenant': 'borrar-e2e' } })).status()).toBe(404);
+  });
+
   test('the public SaaS site shows the plans and the way to start', async ({ page }) => {
     await page.goto('/saas');
     await expect(page.getByRole('heading', { name: 'Planes' })).toBeVisible();
