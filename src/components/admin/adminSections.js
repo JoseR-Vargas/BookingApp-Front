@@ -21,6 +21,20 @@ export const navItemsFor = (role) =>
     return true;
   });
 
+/**
+ * The section of the panel named in the URL (`/admin/negocios`). The panel was state-driven; now
+ * the address works too, so a section can be shared or bookmarked. The name of the label is
+ * accepted as well as the key of the section.
+ */
+const SECTION_ALIASES = { negocios: 'platform' };
+
+export const sectionFromPath = (param) => {
+  const name = String(param ?? '').trim().toLowerCase();
+  if (!name) return 'dashboard';
+  const key = SECTION_ALIASES[name] ?? name;
+  return NAV_ITEMS.some((item) => item.section === key) ? key : 'dashboard';
+};
+
 export const SECTION_TITLES = {
   platform: 'Negocios de la plataforma',
   dashboard: 'Dashboard',

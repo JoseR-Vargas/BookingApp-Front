@@ -2,7 +2,7 @@
 // Sections are state-driven (no sub-routes), like the legacy show/hide of `.content-section`.
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import AdminLayout from '../components/admin/AdminLayout.jsx';
 import BookingsSection from '../components/admin/BookingsSection.jsx';
 import DashboardSection from '../components/admin/DashboardSection.jsx';
@@ -10,7 +10,7 @@ import ConfigSection from '../components/admin/config/ConfigSection.jsx';
 import ReportsSection from '../components/admin/ReportsSection.jsx';
 import Sidebar from '../components/admin/Sidebar.jsx';
 import Topbar from '../components/admin/Topbar.jsx';
-import { SECTION_TITLES } from '../components/admin/adminSections.js';
+import { SECTION_TITLES, sectionFromPath } from '../components/admin/adminSections.js';
 import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
 import { useAdminData } from '../hooks/useAdminData.js';
 import { useBookingNotifications } from '../hooks/useBookingNotifications.js';
@@ -46,7 +46,9 @@ export default function Admin() {
   const data = useAdminData();
   const { loadDashboard, loadBookings } = data;
 
-  const [section, setSection] = useState('dashboard');
+  // The section may come from the address (/admin/negocios): the panel can be shared or bookmarked.
+  const { section: sectionFromUrl } = useParams();
+  const [section, setSection] = useState(() => sectionFromPath(sectionFromUrl));
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   // In-app confirmations. The delete target is kept after the dialog closes so the text does not
@@ -88,6 +90,12 @@ export default function Admin() {
       if (section === 'bookings') await loadBookings();
     },
   );
+
+  // The address follows the section: /admin/negocios can be shared or bookmarked.
+  useEffect(() => {
+    if (sectionFromPath(sectionFromUrl) === section) return;
+    navigate(tenantLink(`/admin/${section}`), { replace: true });
+  }, [section, sectionFromUrl, navigate, tenantLink]);
 
   // Legacy init(): dashboard first, then the bookings list (the charts read the same data).
   useEffect(() => {

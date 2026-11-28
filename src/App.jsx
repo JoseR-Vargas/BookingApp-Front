@@ -26,7 +26,7 @@ export default function App() {
       <Route path="/plan/fake-checkout" element={<FakeCheckout />} />
       <Route path="/cancelar/:token" element={<CancelBooking />} />
       <Route
-        path="/admin"
+        path="/admin/:section?"
         element={(
           <RequireAuth>
             <Suspense fallback={null}>
@@ -43,7 +43,7 @@ export default function App() {
         <Route path="asistente" element={<RequireAuth><Setup /></RequireAuth>} />
         <Route path="cancelar/:token" element={<CancelBooking />} />
         <Route
-          path="admin"
+          path="admin/:section?"
           element={(
             <RequireAuth>
               <Suspense fallback={null}>

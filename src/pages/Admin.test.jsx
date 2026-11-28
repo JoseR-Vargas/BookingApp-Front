@@ -135,7 +135,8 @@ function renderAdmin({ strict = false } = {}) {
   const tree = (
     <MemoryRouter initialEntries={['/admin']}>
       <Routes>
-        <Route path="/admin" element={<Admin />} />
+        {/* The panel accepts the section in the address (/admin/negocios). */}
+        <Route path="/admin/:section?" element={<Admin />} />
         <Route path="/login" element={<p>login page</p>} />
       </Routes>
     </MemoryRouter>
@@ -979,5 +980,33 @@ describe('Admin sound activation', () => {
     await userEvent.click(document.body);
 
     expect(activate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the address of the panel', () => {
+  const renderAt = (path) => {
+    sessionStorage.setItem('isAdmin', 'true');
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/admin/:section?" element={<Admin />} />
+          <Route path="/login" element={<p>login page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  };
+
+  it('opens the section of the address (/admin/negocios)', async () => {
+    renderAt('/admin/negocios');
+    expect(
+      await screen.findByRole('heading', { name: 'Negocios de la plataforma' }),
+    ).toBeInTheDocument();
+  });
+
+  it('ignores an address that names no section and opens the dashboard', async () => {
+    renderAt('/admin/cualquier-cosa');
+    expect(
+      await screen.findByRole('heading', { name: 'Dashboard' }),
+    ).toBeInTheDocument();
   });
 });
